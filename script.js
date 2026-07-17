@@ -504,6 +504,18 @@ class App {
                 // Armazena dados do comprador para o modal de resultado
                 this._buyerName  = g('checkout-nome');
                 this._buyerEmail = g('checkout-email');
+                // Popula resumo do pedido visível durante o Brick
+                const _fmt  = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                const _qty  = parseInt(document.getElementById('checkout-qty').value) || 1;
+                const _sub  = this._checkoutPrice * _qty;
+                const _frt  = this._selectedFrete ? (this._selectedFrete.preco || 0) : 0;
+                const _pnome = document.getElementById('checkout-product-name').textContent;
+                document.getElementById('bricks-summary-product').textContent   = `${_pnome} × ${_qty}`;
+                document.getElementById('bricks-summary-subtotal').textContent  = _fmt(_sub);
+                document.getElementById('bricks-summary-frete-nome').textContent = this._selectedFrete
+                    ? `${this._selectedFrete.transportadora} ${this._selectedFrete.nome}` : 'Frete';
+                document.getElementById('bricks-summary-frete-val').textContent = _frt === 0 ? 'Grátis' : _fmt(_frt);
+                document.getElementById('bricks-summary-total').textContent     = _fmt(pedido.total);
                 // Esconde formulário e footer, renderiza o Brick
                 document.getElementById('checkoutForm').classList.add('d-none');
                 document.getElementById('checkout-footer').classList.add('d-none');
