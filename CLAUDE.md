@@ -34,12 +34,12 @@ E-commerce da **PSPart - Partes e Peças Automação** (filipe@pentasis.com.br) 
 
 ## Estrutura da página
 1. Navbar — Início | Sobre | Produtos | Contato + toggle dark mode
-2. `#inicio` — Hero + contadores animados
-3. Diferenciais — 4 cards
+2. `#inicio` — Hero (gradiente sólido `var(--primary)` → navy escuro, sem foto/parallax) + contadores animados
+3. Diferenciais — 4 cards (sem animação AOS — só o cabeçalho da seção anima)
 4. `#sobre` — Sobre Nós (texto placeholder, aguarda conteúdo real)
-5. `#produtos` — cards dinâmicos (renderizados via API) + filtro de categorias dinâmico + modais de detalhe
+5. `#produtos` — cards dinâmicos (renderizados via API, sem animação AOS) + filtro de categorias dinâmico + modais de detalhe
 6. `#contato` — Formulário + info de contato
-7. Footer + botão WhatsApp flutuante + back-to-top
+7. Footer — marca + link "Acompanhar Pedido" (`acompanhar.html`) + back-to-top; **sem ícones de rede social** (removidos por não terem URL real); botão WhatsApp flutuante **comentado no HTML**, pendente de número real
 8. **Modal de Checkout** (`#checkoutModal`, `modal-lg`) — dados do comprador + endereço com ViaCEP + controle de quantidade
 9. **Modal de Redirecionamento MP** (`#paymentRedirectModal`) — spinner enquanto redireciona
 10. **Lightbox de imagem** (`#lightboxOverlay`) — overlay customizado para ampliar imagens
@@ -87,7 +87,7 @@ E-commerce da **PSPart - Partes e Peças Automação** (filipe@pentasis.com.br) 
 - `setupModalButtons()` — botão "Solicitar Orçamento" preenche formulário de contato
 - `setupCheckout()` — registra listeners dos dois botões de pagamento (redirect e Bricks), link de fallback redirect dentro do Brick, e limpeza do Brick ao fechar o modal
 - `setupImageLightbox()` — lightbox customizado para `img.card-img-top`, `img.carousel-img`, `img.modal-product-image`
-- `renderProducts()` — busca categorias e produtos em paralelo (`Promise.all`); gera botões de filtro dinamicamente em `#product-filters`; gera cards e modais em `#products-grid` / `#product-modals`; desabilita botão se estoque = 0
+- `renderProducts()` — busca categorias e produtos em paralelo (`Promise.all`); gera botões de filtro dinamicamente em `#product-filters`; gera cards e modais em `#products-grid` / `#product-modals`; card mostra `codigo_interno` (se preenchido) e badge de disponibilidade (`.badge-disponivel`/`.badge-esgotado`, reaproveitando `.product-badge`); desabilita botão se `estoque = 0`; sem `data-aos` (removido do template); em caso de falha na API, mantém o markup estático de fallback em `#products-grid` (6 produtos hardcoded, com os mesmos campos de código/estoque para consistência visual)
 - `handleRetornoMP()` — detecta `?pagamento=recusado|pendente` na URL após retorno do MP; limpa o param com `history.replaceState`; exibe modal apropriado
 - `_validateCheckoutForm()` — valida campos obrigatórios com `is-invalid`, foca no primeiro inválido
 - `_doCheckoutSubmit(mode)` — fluxo unificado: valida, grava pedido, cria preference; bifurca por `mode`: `'redirect'` abre `paymentRedirectModal` e redireciona; `'bricks'` esconde form/footer e renderiza o Brick
@@ -122,6 +122,11 @@ E-commerce da **PSPart - Partes e Peças Automação** (filipe@pentasis.com.br) 
   - `pending`/`in_process` → ⏳ "Pagamento em análise" + instrução de aguardar e-mail
 - Link "Pagar pelo site do MP" dentro do Brick permite trocar para Opção A sem reiniciar
 
+## Banner de consentimento LGPD (`#lgpdBanner`)
+- `position: fixed; bottom: 0; z-index: 1040` (abaixo de modais Bootstrap ~1050-1055, acima do conteúdo normal)
+- Visibilidade via `style.display` inline (JS `setupLGPD()` + `style="display:none;"` no HTML) — segue a regra do projeto; antes usava `classList.add('visible')` com transição de `bottom`, corrigido
+- Persistência em `localStorage('psp_lgpd_consent')`
+
 ## Lightbox de imagem
 - Overlay customizado (`z-index: 9999`) — não usa Bootstrap Modal, evita conflito com modais abertos
 - Abre ao clicar em `img.card-img-top`, `img.carousel-img` ou `img.modal-product-image`
@@ -139,14 +144,21 @@ E-commerce da **PSPart - Partes e Peças Automação** (filipe@pentasis.com.br) 
 - Classe `body.dark-mode` (não media query)
 - Anti-FOUC: script inline logo após `<body>` aplica a classe antes do primeiro render
 - Fallback: `prefers-color-scheme` se não houver preferência salva
+- **Cobertura de variáveis: 6 de 10** (`--text-dark`, `--text-muted`, `--bg-light`, `--bg-white`, `--shadow-sm`, `--shadow-md`). `--primary` e `--accent` **não** têm override global — têm papel duplo (fundo de elementos "chrome" como navbar/footer/botão de filtro ativo, que devem continuar navy/azul escuro em qualquer tema, **e** cor de texto em alguns badges/ícones sobre fundo claro). Um override de variável global quebra o primeiro uso; correção exigiria overrides pontuais por seletor (padrão já usado em `body.dark-mode .product-price`, `.product-price-modal`) — não feito ainda, ~8 seletores identificados com contraste subótimo em dark mode mas não regredidos por essa decisão (comportamento pré-existente). `--radius` não precisa de versão dark (dimensional, não é cor)
 
 ## CSS variables principais
 ```css
 --primary: #274185
---accent: #0d6efd
+--accent: #3457a6        /* derivado do --primary, contraste 6.86:1 com texto branco */
+--accent-rgb: 52, 87, 166 /* para usos em rgba(), ex. anéis de foco, hero-badge */
+--accent-hover: #2d4a8f
+--cta: #157a52            /* botão de compra — verde harmonizado com a marca, não é o verde padrão do Bootstrap */
+--cta-hover: #0f5f3f
 --text-dark / --text-muted / --bg-light / --bg-white
 --shadow-sm / --shadow-md / --radius: 12px
 ```
+- Verde (`--cta`) reservado para ação/status: botão de compra (`.btn-buy`), badge de disponibilidade (`.badge-disponivel`, cor própria não ligada a `--cta`), botão WhatsApp. **Preço do produto usa `--primary`, não `--cta`** (em ambos os contextos, card e modal) — evita poluição visual com verde demais na mesma tela
+- `body.dark-mode .product-price` e `body.dark-mode .product-price-modal` compartilham override para `#90b4f5` (mesmo tom usado em outros textos-sobre-fundo-escuro do projeto)
 
 ## Schema do banco (SQLite — `database.db`)
 
