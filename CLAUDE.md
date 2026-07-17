@@ -1,9 +1,19 @@
 # PSPart-Website — Contexto do Projeto
 
+## Regras invioláveis
+
+1. **Timestamps:** sempre `date('Y-m-d H:i:s')` em `America/Sao_Paulo`. Nunca `CURRENT_TIMESTAMP` do SQLite (é UTC).
+2. **Visibilidade de elementos:** sempre `element.style.display` no JS + `style="display:none;"` inline no HTML. Nunca `#id { display:none }` no stylesheet — o JS não sobrescreve regra de CSS.
+3. **SQL:** sempre PDO com prepared statements. Nunca concatenação de string.
+4. **Valores monetários:** sempre lidos do banco. Nunca do request do browser.
+5. **Débito de carteira:** nunca automatizar. `meCheckout()` exige confirmação manual do admin + `LOJA_DADOS_REAIS === true`.
+6. **Token do Melhor Envio:** nunca vai ao frontend. Sempre via proxy PHP (`backend/api/frete.php`).
+7. **Credenciais:** `backend/config/*.php` é gitignored. Nunca commitar segredo, nunca documentar senha em texto puro.
+8. **Commits:** nenhum commit sem solicitação explícita.
+9. **CSS:** mudanças centralizadas em `style.css` com as variáveis existentes. Sem inline styles, sem paletas novas.
+
 ## Visão geral
-Site estático da **PSPart - Partes e Peças Automação** (filipe@pentasis.com.br).
-Sem build process — deploy direto para hospedagem estática.
-Em processo de evolução para e-commerce com pagamentos via **Mercado Pago** e **área admin PHP**.
+E-commerce da **PSPart - Partes e Peças Automação** (filipe@pentasis.com.br) — PHP + SQLite, sem build process/bundler (JS puro, CDNs). Loja pública com catálogo, checkout (Mercado Pago Checkout Pro + Bricks) e acompanhamento de pedido; área admin completa (produtos, pedidos, categorias, rastreamento, emissão de etiquetas Melhor Envio com OAuth2); agente conversacional de compras. Em fase final antes do deploy em produção (ver "Placeholders pendentes").
 
 ## Arquivos principais
 | Arquivo | Função |
@@ -209,7 +219,7 @@ Em processo de evolução para e-commerce com pagamentos via **Mercado Pago** e 
 | requer_reautorizacao | INTEGER | 1 quando o refresh falha — sinaliza admin |
 | updated_at | DATETIME | Atualizado a cada refresh |
 
-- Criada por `migrations/migrate_melhorenvio_auth.php` (já executada)
+- Criada por `migrations/migrate_melhorenvio_auth.php` — já executada, arquivo mantido em `migrations/` para histórico
 - Gerenciada exclusivamente via `MelhorEnvio::_salvarTokenNoBanco()` e `_marcarRequerReautorizacao()`
 
 ### Tabela `cache_cotacoes`
@@ -296,27 +306,7 @@ const imgSrc = imgPrincipal ? imgPrincipal.caminho : (p.imagem || '');
 // setupProductFilter() usa event delegation — um listener no container, não por botão
 ```
 
-## Roadmap de e-commerce
-| Fase | Descrição | Status |
-|---|---|---|
-| Fase 1 | Banco de dados SQLite (schema + setup.php) | ✅ Concluído |
-| Fase 2 | Backend PHP + API (produtos, pedidos, pagamento stub, webhook stub) | ✅ Concluído |
-| Fase 3 | Integração Mercado Pago Checkout Pro | ✅ Concluído |
-| Fase 4 | Área Admin (dashboard, CRUD produtos, pedidos, login) | ✅ Concluído |
-| Fase 5 | Frontend — preços, checkout modal, lightbox | ✅ Concluído |
-| Fase 6 | Acompanhamento de pedido — página + e-mails transacionais | ✅ Concluído |
-| Fase 7 | Admin produtos: código interno, data sheet, múltiplas imagens, especificação técnica | ✅ Concluído |
-| Fase 8 | Gestão de categorias + filtros dinâmicos + retorno MP pós-pagamento | ✅ Concluído |
-| Fase 9 | Checkout Bricks (pagamento inline) + modal pós-pagamento + simplificação de acompanhamento | ✅ Concluído |
-| Fase 10 | Rastreamento de entrega (order_tracking) + timeline unificada + correção de timezone | ✅ Concluído |
-| Fase 11 | Prazo de entrega via API Melhor Envio — proxy PHP + cache + frontend nos modais de produto e checkout | ✅ Concluído |
-| Fase 12 | Transportadora escolhida pelo cliente — captura no checkout, persistência em order_tracking, exibição no painel admin | ✅ Concluído |
-| Fase 13 | Autenticação OAuth2 com Melhor Envio — fluxo authorization_code, token no banco, refresh automático, painel de integração | ✅ Concluído |
-| Fase 14 | Frete cobrado no total + CEP lembrado — frete somado ao total do pedido e à preference MP; botão "Alterar CEP"; localStorage persistente | ✅ Concluído |
-| Fase 15 | Status automático + frete na ficha/detalhe — `resolverStatusPedido` centralizado; frete em `pedido-detalhe.php` e `pedido-ficha.php`; status derivado automático no Bricks; `pedido_status` exposto em `tracking.php` | ✅ Concluído |
-| Fase 16 | Emissão de etiquetas Melhor Envio — fluxo 4 etapas (cart→checkout→generate→print); serviço em `backend/melhorenvio/shipment.php`; endpoint admin `etiqueta-action.php`; bloco UI em `pedido-detalhe.php`; trava `LOJA_DADOS_REAIS`; tracking_code automático via `meTracking()` | ✅ Concluído |
-| Fase 17 | Agente conversacional de compras (v1, somente leitura) — widget de chat flutuante; 3 ferramentas read-only (`buscar_produtos`, `calcular_frete`, `consultar_pedido`); suporte a Anthropic e Groq via flag `AGENTE_PROVEDOR`; modo mock para testes sem custo | ✅ Concluído |
-| Fase 18 | Seção "Pagamentos & Segurança" — logos SVG de bandeiras (Visa, Mastercard, Elo, Amex, Hipercard via CDN); badges para Pix, Boleto e Mercado Pago; bloco de segurança (HTTPS, PCI-DSS, LGPD); dark mode coberto | ✅ Concluído |
+> Histórico de fases: ver CHANGELOG.md
 
 ## Módulo Frete — Melhor Envio (Fase 11)
 
@@ -329,7 +319,7 @@ const imgSrc = imgPrincipal ? imgPrincipal.caminho : (p.imagem || '');
 | `backend/admin/melhorenvio.php` | Painel de status da integração (badge + tabela de config + instruções) |
 | `backend/admin/melhorenvio-conectar.php` | Inicia o fluxo OAuth2 — gera state CSRF e redireciona para `/oauth/authorize` |
 | `backend/admin/melhorenvio-callback.php` | Recebe o `code`, troca por token, persiste na tabela `melhorenvio_auth` |
-| `migrate_melhorenvio_auth.php` | Cria a tabela `melhorenvio_auth` — executar uma vez e apagar |
+| `migrations/migrate_melhorenvio_auth.php` | Cria a tabela `melhorenvio_auth` — já executada, mantida para histórico |
 
 ### Fluxo do cálculo
 1. Frontend envia `{ produto_id, cep_destino }` — nunca o token
@@ -358,6 +348,7 @@ const imgSrc = imgPrincipal ? imgPrincipal.caminho : (p.imagem || '');
 
 ### OAuth2 e renovação de token
 - Fluxo `authorization_code`: admin acessa `melhorenvio-conectar.php` → autoriza no painel ME → callback persiste tokens no banco
+- **Reconexão em dev exige acesso via ngrok, nunca `localhost`:** o app cadastrado no painel ME (sandbox) tem `redirect_uri` = URL pública do ngrok; se o admin estiver logado via `localhost:8000` ao clicar em "Reconectar", o cookie de sessão PHP (domínio `localhost`) não é enviado quando a ME redireciona de volta pro domínio ngrok — a sessão chega vazia no callback, o state CSRF falha (ou `_auth.php` força novo login) e o token **não é salvo**, mesmo a tela do callback aparentando sucesso (o token antigo, ainda não expirado, mascara a falha). Sintoma: navegação passa por `index.php` (login) no meio do fluxo. Sempre acessar `https://<subdominio>.ngrok-free.dev/backend/admin/...` (não `localhost`) antes de clicar em Reconectar, e validar com `sqlite3 database.db "SELECT expires_at, updated_at FROM melhorenvio_auth;"` que `updated_at` bateu com o horário real da reconexão
 - `access_token`: validade 30 dias · `refresh_token`: validade 45 dias
 - **Fonte única:** tabela `melhorenvio_auth` (linha única, `id = 1`) — sem fallback para JSON ou constantes
 - `getValidToken()`: lê do banco; renova proativamente se expira em < 1 dia; lança `RuntimeException('integracao_nao_conectada')` se banco estiver vazio ou `requer_reautorizacao = 1`
@@ -376,7 +367,7 @@ const imgSrc = imgPrincipal ? imgPrincipal.caminho : (p.imagem || '');
 | `_feriadosBR(year)` | Feriados nacionais fixos + Sexta-Feira Santa + Corpus Christi |
 | `_adicionarDiasUteis(dataInicio, dias)` | Dias úteis → data real, pulando fins de semana e feriados BR |
 
-- CEP digitado em modal de produto salvo em `sessionStorage('psp_frete_cep')` e pré-preenchido ao abrir outros modais
+- CEP digitado em modal de produto salvo em `localStorage('psp_cep_entrega')` e pré-preenchido ao abrir outros modais
 - Checkout: `#frete-resultado-checkout` aparece automaticamente após ViaCEP preencher o endereço; limpo ao reabrir o modal
 - Componente `.frete-calc` gerado dinamicamente em `renderProducts()` no `col-md-6` de cada modal de produto
 - Dark mode coberto em `style.css` nas classes `.frete-*`
@@ -440,37 +431,7 @@ Retorna adicionalmente: `chosen_carrier`, `chosen_service`, `shipping_price`, `s
 
 ## Módulo Frete no Total + CEP Persistente (Fase 14)
 
-### O que mudou em relação à Fase 12
-
-#### Backend
-
-| Arquivo | Mudança |
-|---|---|
-| `backend/api/pedidos.php` | Validação do frete movida para antes da transação; `total = subtotal + fretePrice` gravado em `pedidos.total` |
-| `backend/api/pagamento.php` | Busca `order_tracking` após carregar o pedido; adiciona item `"Frete — {carrier} {service}"` à lista `items` da preference MP se `shipping_price > 0` |
-
-- `pedidos.php` retorna agora `{ pedido_id, total, subtotal, frete, status, token }`
-- `processar-pagamento.php` não precisou de alteração — `transaction_amount` já vem de `pedidos.total` no banco
-
-#### Frontend (`script.js`)
-
-| Método | Mudança |
-|---|---|
-| `_updateCheckoutTotal(price, qty)` | Calcula `subtotal + frete`; atualiza `#checkout-resumo` (exibe quando frete definido); chama `_updatePaymentBtns()` |
-| `_updatePaymentBtns()` | **Novo** — habilita/desabilita botões; mostra/oculta `#checkout-frete-aviso` |
-| `_renderFreteCheckout()` | Adicionado botão "Alterar CEP" (`.frete-alterar-cep-btn`) na label; ao selecionar opção chama `_updateCheckoutTotal()`; ao carregar primeira opção já atualiza totais |
-| `_alterarCepCheckout()` | **Novo** — limpa frete, reseta totais, foca campo CEP |
-| `_calcularFreteCheckout()` | Salva CEP em `localStorage('psp_cep_entrega')` após sucesso |
-| `_buscarCep()` | Salva CEP em `localStorage('psp_cep_entrega')` após ViaCEP bem-sucedido |
-| `_openCheckoutModal()` | Move `_selectedFrete = null` para antes de `_updateCheckoutTotal`; pré-preenche `#checkout-cep` do localStorage; adiciona listener `shown.bs.modal` (once) para disparar `_buscarCep()` |
-| `_doCheckoutSubmit()` | Guard no início: retorna erro se `_selectedFrete` for null |
-| `setupFrete()` | Trocou `sessionStorage('psp_frete_cep')` → `localStorage('psp_cep_entrega')` em toda a lógica de modais de produto |
-
-#### HTML / CSS
-- Botões `#checkout-submit-redirect` e `#checkout-submit-bricks` iniciam com `disabled`
-- `#checkout-frete-aviso` — "Calcule o frete para continuar" (visível quando sem frete, oculto via JS)
-- `#checkout-resumo` — bloco com subtotal + frete + total (oculto via `style="display:none;"`, revelado pelo JS)
-- `.checkout-resumo` em `style.css` — borda superior + espaçamento + dark mode
+> Histórico das mudanças em relação à Fase 12: ver CHANGELOG.md
 
 ### Fluxo de checkout atualizado
 
@@ -522,6 +483,7 @@ Retorna adicionalmente: `chosen_carrier`, `chosen_service`, `shipping_price`, `s
 
 - `mpStatusParaInterno(string $mpStatus): string` — fonte única do mapa MP→interno (`approved→aprovado`, `rejected→recusado`, etc.); usado em `webhook.php` e `processar-pagamento.php`
 - `statusPermiteRastreamento(string $pedidoStatus): bool` — retorna `true` apenas para `aprovado` e `em_processamento`; usado em `pedido-detalhe.php` para não exibir "Em Preparação" quando pagamento está recusado/cancelado
+- `derivarStatusPedido(array $pedido, ?array $tracking): array` — deriva, somente leitura, o status normalizado de um pedido (status de pagamento + envio + rastreio); espelha a precedência já usada em `tracking.php`; usada pelo agente conversacional (`backend/agente/ferramentas.php`) para montar a resposta de `consultar_pedido`
 
 ## Módulo de Pagamento — Arquivos Backend
 
@@ -590,7 +552,7 @@ Retorna adicionalmente: `chosen_carrier`, `chosen_service`, `shipping_price`, `s
 - Preços reais dos produtos (definidos via admin)
 - Credenciais de produção do MP em `backend/config/mercadopago.php` (trocar tokens TEST- pelos de produção)
 - `MP_BASE_URL` atualizado com domínio real (sem ngrok)
-- Senha do admin trocada (padrão: `admin123`)
+- Senha do admin trocada (padrão de dev documentado no gerenciador de senhas local)
 - Credenciais de produção do Melhor Envio em `backend/config/melhorenvio.php` (`MELHORENVIO_BASE_URL`, `CLIENT_ID`, `CLIENT_SECRET`, `REDIRECT_URI`) e reconectar via Admin → Integrações após trocar as credenciais
 - Dimensões reais dos produtos cadastradas no admin (defaults de 0.5 kg / 15×10×20 cm são placeholders)
 
@@ -605,14 +567,14 @@ php -S localhost:8000
 | URL | Descrição |
 |---|---|
 | `http://localhost:8000` | Site principal |
-| `http://localhost:8000/setup.php` | Setup do banco (senha: `psp@setup2025`) |
+| `http://localhost:8000/setup.php` | Setup do banco (senha: ver gerenciador de senhas local) |
 | `http://localhost:8000/backend/admin/` | Área administrativa |
 
 ### Admin
 | Campo | Valor |
 |---|---|
 | E-mail | `admin@pspart.com.br` |
-| Senha | `admin123` |
+| Senha | ver gerenciador de senhas local (**trocar a senha padrão antes do deploy**) |
 | Alterar senha | Menu lateral → **Senha** |
 
 ### ngrok (Mercado Pago em dev local)
@@ -652,9 +614,7 @@ define('MP_BASE_URL', 'https://xxxx.ngrok-free.app');
 - **`consultar_pedido(id_pedido, email_cliente, token_acompanhamento)`** — guarda de titularidade obrigatória (e-mail via `mb_strtolower` ou token via `hash_equals`); retorno sem PII (sem e-mail/telefone/endereço); usa `derivarStatusPedido()`
 
 ### Helper `derivarStatusPedido()` (`backend/helpers/status.php`)
-- Adicionado na Fase 17 — centraliza a leitura de status de pedido para o agente
-- Espelha a lógica de `tracking.php` sem editá-lo; usa `statusPermiteRastreamento()`
-- Retorna: `status_pagamento`, `status_envio` (0–3 + label), `codigo_rastreio`, `tracking_url`, `carrier`, `prazo`, `exibir_rastreio`
+Ver seção "Helper de Status" para a definição completa. Adicionado na Fase 17 para centralizar a leitura de status de pedido usada por `consultar_pedido`.
 
 ### Suporte a múltiplos provedores
 - Protocolo interno **sempre em formato Anthropic** (messages, tool use, stop_reason)
