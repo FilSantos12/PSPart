@@ -277,17 +277,17 @@ class App {
         }
         if (consent === 'rejected') return;
 
-        banner.classList.add('visible');
+        banner.style.display = '';
 
         document.getElementById('lgpdAccept')?.addEventListener('click', () => {
             localStorage.setItem('psp_lgpd_consent', 'accepted');
             gtag('consent', 'update', { 'analytics_storage': 'granted' });
-            banner.classList.remove('visible');
+            banner.style.display = 'none';
         });
 
         document.getElementById('lgpdReject')?.addEventListener('click', () => {
             localStorage.setItem('psp_lgpd_consent', 'rejected');
-            banner.classList.remove('visible');
+            banner.style.display = 'none';
         });
     }
 
@@ -913,6 +913,11 @@ class App {
                     ? `<div class="text-muted small mb-2"><i class="fas fa-barcode me-1"></i>${p.codigo_interno}</div>`
                     : '';
 
+                // Indicador de disponibilidade (estoque = 0 → esgotado)
+                const estoqueHtml = p.estoque > 0
+                    ? `<span class="product-badge badge-disponivel">Em estoque</span>`
+                    : `<span class="product-badge badge-esgotado">Esgotado</span>`;
+
                 // Link data sheet
                 const datasheetHtml = p.datasheet
                     ? `<a href="${p.datasheet}" target="_blank" class="btn btn-sm btn-outline-secondary me-1">
@@ -928,12 +933,16 @@ class App {
                     : '';
 
                 cardsHtml += `
-                <div class="col-md-4 mb-4 product-col" data-category="${p.categoria}" data-aos="fade-up" data-aos-delay="${delay}">
+                <div class="col-md-4 mb-4 product-col" data-category="${p.categoria}">
                     <div class="card product-card">
                         ${imgTag}
                         <div class="card-body">
-                            <span class="product-badge badge-${p.categoria}">${label}</span>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="product-badge badge-${p.categoria}">${label}</span>
+                                ${estoqueHtml}
+                            </div>
                             <h5 class="card-title">${p.nome}</h5>
+                            ${codigoHtml}
                             <p class="card-text">${p.descricao || ''}</p>
                             <div class="d-flex justify-content-between align-items-center mt-2">
                                 <span class="product-price">${preco}</span>

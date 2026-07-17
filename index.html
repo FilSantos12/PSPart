@@ -134,7 +134,7 @@
                 <div class="row justify-content-center g-4">
                     <div class="col-6 col-md-3">
                         <div class="stat-item">
-                            <span class="stat-number" data-target="6">0</span><span class="stat-suffix">+</span>
+                            <span class="stat-number" data-target="13">0</span><span class="stat-suffix">+</span>
                             <p>Produtos</p>
                         </div>
                     </div>
@@ -169,7 +169,7 @@
                 <h2>Nossos Diferenciais</h2>
             </div>
             <div class="row g-4">
-                <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="0">
+                <div class="col-md-6 col-lg-3">
                     <div class="diferencial-card text-center">
                         <div class="diferencial-icon">
                             <i class="fas fa-cog"></i>
@@ -178,7 +178,7 @@
                         <p>Componentes selecionados com rigor técnico, garantindo desempenho e durabilidade.</p>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="100">
+                <div class="col-md-6 col-lg-3">
                     <div class="diferencial-card text-center">
                         <div class="diferencial-icon">
                             <i class="fas fa-headset"></i>
@@ -187,7 +187,7 @@
                         <p>Equipe técnica pronta para auxiliar na integração e configuração dos produtos.</p>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="200">
+                <div class="col-md-6 col-lg-3">
                     <div class="diferencial-card text-center">
                         <div class="diferencial-icon">
                             <i class="fas fa-shield-alt"></i>
@@ -196,7 +196,7 @@
                         <p>Todos os itens passam por rigoroso controle de qualidade antes de chegar até você.</p>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="300">
+                <div class="col-md-6 col-lg-3">
                     <div class="diferencial-card text-center">
                         <div class="diferencial-icon">
                             <i class="fas fa-truck"></i>
@@ -253,11 +253,14 @@
 
             <div class="row" id="products-grid">
                 <!-- Produto 1 -->
-                <div class="col-md-4 mb-4 product-col" data-category="motorizacao" data-aos="fade-up" data-aos-delay="0">
+                <div class="col-md-4 mb-4 product-col" data-category="motorizacao">
                     <div class="card product-card">
                         <img src="img/MOTO-REDUTOR-PORTA-2.png" class="card-img-top" alt="Motor Porta" loading="lazy">
                         <div class="card-body">
-                            <span class="product-badge badge-motorizacao">Motorização</span>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="product-badge badge-motorizacao">Motorização</span>
+                                <span class="product-badge badge-esgotado">Esgotado</span>
+                            </div>
                             <h5 class="card-title">Motoredutor Porta</h5>
                             <p class="card-text">Motoredutor para porta de automação é um sistema mecatrônico completo que combina um motor elétrico com um trem de engrenagens.</p>
                             <div class="d-flex justify-content-between align-items-center mt-2">
@@ -280,11 +283,14 @@
                 </div>
 
                 <!-- Produto 2 -->
-                <div class="col-md-4 mb-4 product-col" data-category="motorizacao" data-aos="fade-up" data-aos-delay="100">
+                <div class="col-md-4 mb-4 product-col" data-category="motorizacao">
                     <div class="card product-card">
                         <img src="img/MOTOREDUTOR-TRACION-1.png" class="card-img-top" alt="Motor de Tração" loading="lazy">
                         <div class="card-body">
-                            <span class="product-badge badge-motorizacao">Motorização</span>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="product-badge badge-motorizacao">Motorização</span>
+                                <span class="product-badge badge-disponivel">Em estoque</span>
+                            </div>
                             <h5 class="card-title">Motoredutor de Tração</h5>
                             <p class="card-text">Um motoredutor de tração é um acionamento eletromecânico compacto e integrado, composto por um motor elétrico.</p>
                             <div class="d-flex justify-content-between align-items-center mt-2">
@@ -307,12 +313,16 @@
                 </div>
 
                 <!-- Produto 3 -->
-                <div class="col-md-4 mb-4 product-col" data-category="robotica" data-aos="fade-up" data-aos-delay="200">
+                <div class="col-md-4 mb-4 product-col" data-category="robotica">
                     <div class="card product-card">
                         <img src="img/MINI-MOTOR.png" class="card-img-top" alt="Mini Motor" loading="lazy">
                         <div class="card-body">
-                            <span class="product-badge badge-robotica">Robótica</span>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="product-badge badge-robotica">Robótica</span>
+                                <span class="product-badge badge-disponivel">Em estoque</span>
+                            </div>
                             <h5 class="card-title">Mini Motor</h5>
+                            <div class="text-muted small mb-2"><i class="fas fa-barcode me-1"></i>MT.00.00020</div>
                             <p class="card-text">O Mini motor, é um mini motor robustos que conta com uma caixa de redução 200:1 de engrenagens de metal.</p>
                             <div class="d-flex justify-content-between align-items-center mt-2">
                                 <span class="product-price">R$ 59,90</span>
@@ -334,11 +344,14 @@
                 </div>
 
                 <!-- Produto 4 -->
-                <div class="col-md-4 mb-4 product-col" data-category="acesso" data-aos="fade-up" data-aos-delay="0">
+                <div class="col-md-4 mb-4 product-col" data-category="acesso">
                     <div class="card product-card">
                         <img src="img/BIO.png" class="card-img-top" alt="Leitor Biometrico" loading="lazy">
                         <div class="card-body">
-                            <span class="product-badge badge-acesso">Controle de Acesso</span>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="product-badge badge-acesso">Controle de Acesso</span>
+                                <span class="product-badge badge-disponivel">Em estoque</span>
+                            </div>
                             <h5 class="card-title">Leitor Biometrico</h5>
                             <p class="card-text">Leitor Biometrico para integração em projetos.</p>
                             <div class="d-flex justify-content-between align-items-center mt-2">
@@ -361,13 +374,16 @@
                 </div>
 
                 <!-- Produto 5 -->
-                <div class="col-md-4 mb-4 product-col" data-category="acesso" data-aos="fade-up" data-aos-delay="100">
+                <div class="col-md-4 mb-4 product-col" data-category="acesso">
                     <div class="card product-card">
                         <div class="product-media-container">
                             <img src="img/MITRA.png" class="card-img-top" alt="Trava Eletrônica" loading="lazy">
                         </div>
                         <div class="card-body">
-                            <span class="product-badge badge-acesso">Controle de Acesso</span>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="product-badge badge-acesso">Controle de Acesso</span>
+                                <span class="product-badge badge-disponivel">Em estoque</span>
+                            </div>
                             <h5 class="card-title">Trava Eletrônica (Mitra)</h5>
                             <p class="card-text">Dispositivo que permite trancar ou destrancar uma porta, controlando acessos em ambientes internos ou externos.</p>
                             <div class="d-flex justify-content-between align-items-center mt-2">
@@ -390,7 +406,7 @@
                 </div>
 
                 <!-- Produto 6 -->
-                <div class="col-md-4 mb-4 product-col" data-category="bluetooth" data-aos="fade-up" data-aos-delay="200">
+                <div class="col-md-4 mb-4 product-col" data-category="bluetooth">
                     <div class="card product-card">
                         <div class="product-media-container">
                             <video autoplay muted loop playsinline>
@@ -399,7 +415,10 @@
                             </video>
                         </div>
                         <div class="card-body">
-                            <span class="product-badge badge-bluetooth">Bluetooth</span>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="product-badge badge-bluetooth">Bluetooth</span>
+                                <span class="product-badge badge-disponivel">Em estoque</span>
+                            </div>
                             <h5 class="card-title">Trava Eletrônica Bluetooth (BLE)</h5>
                             <p class="card-text">Dispositivo que permite trancar ou destrancar uma porta, controlando acessos em ambientes internos ou externos por meio de aplicativo e conexão Bluetooth.</p>
                             <div class="d-flex justify-content-between align-items-center mt-2">
@@ -1121,12 +1140,9 @@
                     <p class="mb-0 mt-1" style="font-size: 0.9rem; opacity: 0.8;">Partes e Peças Automação</p>
                 </div>
                 <div class="col-md-6 text-center text-md-end">
-                    <div class="social-icons">
-                        <a href="#"><i class="fab fa-facebook"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-youtube"></i></a>
-                    </div>
+                    <a href="acompanhar.html" class="text-white text-decoration-none">
+                        <i class="fas fa-truck-fast me-1"></i>Acompanhar Pedido
+                    </a>
                 </div>
             </div>
             <hr class="footer-divider">
@@ -1145,7 +1161,7 @@
     </button>
 
     <!-- Banner de Consentimento LGPD -->
-    <div id="lgpdBanner" class="lgpd-banner" role="dialog" aria-label="Aviso de cookies e privacidade">
+    <div id="lgpdBanner" class="lgpd-banner" role="dialog" aria-label="Aviso de cookies e privacidade" style="display:none;">
         <div class="lgpd-banner-content">
             <p class="lgpd-text">
                 <i class="fas fa-shield-alt me-2"></i>
