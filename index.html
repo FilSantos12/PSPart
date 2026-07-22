@@ -248,12 +248,35 @@
                 <h2>Nossos Produtos</h2>
             </div>
 
+            <!-- Busca, ordenação e filtro de disponibilidade -->
+            <div class="product-toolbar mb-3 d-flex flex-wrap gap-3 align-items-center justify-content-between" data-aos="fade-up" data-aos-delay="50">
+                <div class="product-search-wrap flex-grow-1">
+                    <i class="fas fa-magnifying-glass product-search-icon"></i>
+                    <input type="text" id="product-search" class="form-control product-search-input"
+                           placeholder="Buscar por nome ou código..." aria-label="Buscar produtos">
+                </div>
+                <div class="d-flex gap-3 align-items-center flex-wrap">
+                    <div class="form-check form-switch product-instock-wrap mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="product-instock">
+                        <label class="form-check-label" for="product-instock">Só em estoque</label>
+                    </div>
+                    <select id="product-sort" class="form-select form-select-sm product-sort-select" aria-label="Ordenar produtos">
+                        <option value="">Ordenar por...</option>
+                        <option value="preco-asc">Preço: menor → maior</option>
+                        <option value="preco-desc">Preço: maior → menor</option>
+                        <option value="nome-asc">Nome (A-Z)</option>
+                        <option value="disponibilidade">Disponibilidade</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- Filtro de categorias — populado dinamicamente pelo script.js -->
             <div id="product-filters" class="product-filter mb-4" data-aos="fade-up" data-aos-delay="100"></div>
 
             <div class="row" id="products-grid">
                 <!-- Produto 1 -->
-                <div class="col-md-4 mb-4 product-col" data-category="motorizacao">
+                <div class="col-md-4 mb-4 product-col" data-category="motorizacao"
+                     data-nome="Motoredutor Porta" data-preco="189.90" data-estoque="0" data-codigo="">
                     <div class="card product-card">
                         <img src="img/MOTO-REDUTOR-PORTA-2.png" class="card-img-top" alt="Motor Porta" loading="lazy">
                         <div class="card-body">
@@ -283,7 +306,8 @@
                 </div>
 
                 <!-- Produto 2 -->
-                <div class="col-md-4 mb-4 product-col" data-category="motorizacao">
+                <div class="col-md-4 mb-4 product-col" data-category="motorizacao"
+                     data-nome="Motoredutor de Tração" data-preco="249.90" data-estoque="1" data-codigo="">
                     <div class="card product-card">
                         <img src="img/MOTOREDUTOR-TRACION-1.png" class="card-img-top" alt="Motor de Tração" loading="lazy">
                         <div class="card-body">
@@ -313,7 +337,8 @@
                 </div>
 
                 <!-- Produto 3 -->
-                <div class="col-md-4 mb-4 product-col" data-category="robotica">
+                <div class="col-md-4 mb-4 product-col" data-category="robotica"
+                     data-nome="Mini Motor" data-preco="59.90" data-estoque="1" data-codigo="MT.00.00020">
                     <div class="card product-card">
                         <img src="img/MINI-MOTOR.png" class="card-img-top" alt="Mini Motor" loading="lazy">
                         <div class="card-body">
@@ -322,7 +347,12 @@
                                 <span class="product-badge badge-disponivel">Em estoque</span>
                             </div>
                             <h5 class="card-title">Mini Motor</h5>
-                            <div class="text-muted small mb-2"><i class="fas fa-barcode me-1"></i>MT.00.00020</div>
+                            <div class="text-muted small mb-2 d-flex align-items-center gap-1">
+                                <i class="fas fa-barcode me-1"></i>MT.00.00020
+                                <button type="button" class="btn btn-link btn-sm p-0 btn-copy-code" data-codigo="MT.00.00020" title="Copiar código">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
                             <p class="card-text">O Mini motor, é um mini motor robustos que conta com uma caixa de redução 200:1 de engrenagens de metal.</p>
                             <div class="d-flex justify-content-between align-items-center mt-2">
                                 <span class="product-price">R$ 59,90</span>
@@ -344,7 +374,8 @@
                 </div>
 
                 <!-- Produto 4 -->
-                <div class="col-md-4 mb-4 product-col" data-category="acesso">
+                <div class="col-md-4 mb-4 product-col" data-category="acesso"
+                     data-nome="Leitor Biometrico" data-preco="179.90" data-estoque="1" data-codigo="">
                     <div class="card product-card">
                         <img src="img/BIO.png" class="card-img-top" alt="Leitor Biometrico" loading="lazy">
                         <div class="card-body">
@@ -374,7 +405,8 @@
                 </div>
 
                 <!-- Produto 5 -->
-                <div class="col-md-4 mb-4 product-col" data-category="acesso">
+                <div class="col-md-4 mb-4 product-col" data-category="acesso"
+                     data-nome="Trava Eletrônica (Mitra)" data-preco="219.90" data-estoque="1" data-codigo="">
                     <div class="card product-card">
                         <div class="product-media-container">
                             <img src="img/MITRA.png" class="card-img-top" alt="Trava Eletrônica" loading="lazy">
@@ -406,7 +438,8 @@
                 </div>
 
                 <!-- Produto 6 -->
-                <div class="col-md-4 mb-4 product-col" data-category="bluetooth">
+                <div class="col-md-4 mb-4 product-col" data-category="bluetooth"
+                     data-nome="Trava Eletrônica Bluetooth (BLE)" data-preco="329.90" data-estoque="1" data-codigo="">
                     <div class="card product-card">
                         <div class="product-media-container">
                             <video autoplay muted loop playsinline>
@@ -440,6 +473,10 @@
                     </div>
                 </div>
             </div>
+
+            <p id="products-empty-msg" class="text-center text-muted" style="display:none;">
+                Nenhum produto encontrado com os filtros selecionados.
+            </p>
         </div>
     </section>
 
@@ -459,6 +496,18 @@
                         </div>
                         <div class="col-md-6">
                             <h4>Motoredutor Porta</h4>
+                            <div class="d-flex gap-2 mb-3 product-share-actions">
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-whatsapp-share"
+                                        data-product-id="1" data-product-name="Motoredutor Porta" data-product-code=""
+                                        title="Enviar no WhatsApp">
+                                    <i class="fab fa-whatsapp"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-share-product"
+                                        data-product-id="1" data-product-name="Motoredutor Porta" data-product-code=""
+                                        title="Compartilhar produto">
+                                    <i class="fas fa-share-nodes"></i>
+                                </button>
+                            </div>
                             <p class="text-muted">Modelo: MP-2023</p>
                             <p>Motoredutor para porta de automação é um sistema mecatrônico completo que combina um motor elétrico com um trem de engrenagens.</p>
 
@@ -543,6 +592,18 @@
                         </div>
                         <div class="col-md-6">
                             <h4>Motoredutor de Tração</h4>
+                            <div class="d-flex gap-2 mb-3 product-share-actions">
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-whatsapp-share"
+                                        data-product-id="2" data-product-name="Motoredutor de Tração" data-product-code=""
+                                        title="Enviar no WhatsApp">
+                                    <i class="fab fa-whatsapp"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-share-product"
+                                        data-product-id="2" data-product-name="Motoredutor de Tração" data-product-code=""
+                                        title="Compartilhar produto">
+                                    <i class="fas fa-share-nodes"></i>
+                                </button>
+                            </div>
                             <p class="text-muted"></p>
                             <p>Motoredutor DC 12v composto de motor de corrente continua e caiza em zamak, aplicavel em pequenas e médias automações onde exigem padronização e eficiência.</p>
 
@@ -646,6 +707,18 @@
                         <!-- Texto -->
                         <div class="col-md-6">
                             <h4>Mini Motor</h4>
+                            <div class="d-flex gap-2 mb-3 product-share-actions">
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-whatsapp-share"
+                                        data-product-id="3" data-product-name="Mini Motor" data-product-code="MT.00.00020"
+                                        title="Enviar no WhatsApp">
+                                    <i class="fab fa-whatsapp"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-share-product"
+                                        data-product-id="3" data-product-name="Mini Motor" data-product-code="MT.00.00020"
+                                        title="Compartilhar produto">
+                                    <i class="fas fa-share-nodes"></i>
+                                </button>
+                            </div>
                             <p class="text-muted">Modelo: GA12-N20-100</p>
                             <p>
                                 O Mini motor é robusto e conta com uma caixa de redução 200:1 de engrenagens de metal,
@@ -711,6 +784,18 @@
                         </div>
                         <div class="col-md-6">
                             <h4>Leitor Biometrico</h4>
+                            <div class="d-flex gap-2 mb-3 product-share-actions">
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-whatsapp-share"
+                                        data-product-id="4" data-product-name="Leitor Biométrico" data-product-code=""
+                                        title="Enviar no WhatsApp">
+                                    <i class="fab fa-whatsapp"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-share-product"
+                                        data-product-id="4" data-product-name="Leitor Biométrico" data-product-code=""
+                                        title="Compartilhar produto">
+                                    <i class="fas fa-share-nodes"></i>
+                                </button>
+                            </div>
                             <p class="text-muted">Modelo: LB-01</p>
                             <p>Leitor Biometrico.</p>
 
@@ -776,6 +861,18 @@
                         </div>
                         <div class="col-md-6">
                             <h4>Trava Eletrônica (Mitra)</h4>
+                            <div class="d-flex gap-2 mb-3 product-share-actions">
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-whatsapp-share"
+                                        data-product-id="5" data-product-name="Trava Eletrônica (Mitra)" data-product-code=""
+                                        title="Enviar no WhatsApp">
+                                    <i class="fab fa-whatsapp"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-share-product"
+                                        data-product-id="5" data-product-name="Trava Eletrônica (Mitra)" data-product-code=""
+                                        title="Compartilhar produto">
+                                    <i class="fas fa-share-nodes"></i>
+                                </button>
+                            </div>
                             <p class="text-muted"></p>
                             <p>Trava Eletrônica (Mitra).</p>
 
@@ -867,6 +964,18 @@
                         <!-- Texto -->
                         <div class="col-md-6">
                             <h4>Fechadura Eletrônica BLE</h4>
+                            <div class="d-flex gap-2 mb-3 product-share-actions">
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-whatsapp-share"
+                                        data-product-id="6" data-product-name="Trava Eletrônica BLE" data-product-code=""
+                                        title="Enviar no WhatsApp">
+                                    <i class="fab fa-whatsapp"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-share-product"
+                                        data-product-id="6" data-product-name="Trava Eletrônica BLE" data-product-code=""
+                                        title="Compartilhar produto">
+                                    <i class="fas fa-share-nodes"></i>
+                                </button>
+                            </div>
                             <p class="text-muted">BLE</p>
                             <p>
                                 Segurança, praticidade e inovação na palma da sua mão!

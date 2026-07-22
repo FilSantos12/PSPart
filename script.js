@@ -3,8 +3,14 @@
  * Gerencia interações da interface, modais e formulários
  */
 
+// Número central do WhatsApp da loja — mesmo placeholder usado nos links estáticos do index.html
+const WHATSAPP_NUMBER = 'SEU_NUMERO';
+
 class App {
     constructor() {
+        this._activeCategory = 'all';
+        this._searchQuery    = '';
+        this._onlyInStock    = false;
         this.init();
     }
 
@@ -17,6 +23,8 @@ class App {
         this.setupCheckout();
         this.setupImageLightbox();
         this.setupProductFilter();
+        this.setupProductToolbar();
+        this.setupProductSharing();
         this.renderProducts();
         this.handleRetornoMP();
         this.setupFrete();
@@ -258,12 +266,198 @@ class App {
             filtersEl.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
-            const filter = btn.dataset.filter;
-            document.querySelectorAll('#products-grid .product-col').forEach(col => {
-                const match = filter === 'all' || col.dataset.category === filter;
-                col.classList.toggle('hidden', !match);
-            });
+            this._activeCategory = btn.dataset.filter;
+            this._applyProductVisibility();
         });
+    }
+
+    // ── BUSCA / ORDENAÇÃO / FILTRO DE DISPONIBILIDADE ─────────────────────────
+
+    setupProductToolbar() {
+        const searchEl = document.getElementById('product-search');
+        searchEl?.addEventListener('input', () => {
+            this._searchQuery = searchEl.value.trim().toLowerCase();
+            this._applyProductVisibility();
+        });
+
+        const stockEl = document.getElementById('product-instock');
+        stockEl?.addEventListener('change', () => {
+            this._onlyInStock = stockEl.checked;
+            this._applyProductVisibility();
+        });
+
+        const sortEl = document.getElementById('product-sort');
+        sortEl?.addEventListener('change', () => {
+            this._applyProductSort(sortEl.value);
+        });
+    }
+
+    // Critério único de visibilidade: categoria + busca + disponibilidade (AND lógico)
+    _isProductVisible(col) {
+        const matchesCategory = this._activeCategory === 'all' || col.dataset.category === this._activeCategory;
+        const matchesStock    = !this._onlyInStock || parseInt(col.dataset.estoque) > 0;
+
+        const query = this._searchQuery;
+        const matchesSearch = !query
+            || (col.dataset.nome   || '').toLowerCase().includes(query)
+            || (col.dataset.codigo || '').toLowerCase().includes(query);
+
+        return matchesCategory && matchesStock && matchesSearch;
+    }
+
+    _applyProductVisibility() {
+        const grid = document.getElementById('products-grid');
+        if (!grid) return;
+
+        const cols = grid.querySelectorAll('.product-col');
+        let anyVisible = false;
+
+        cols.forEach(col => {
+            const visible = this._isProductVisible(col);
+            // Visibilidade via style.display inline — nunca via regra de stylesheet (padrão do projeto)
+            col.style.display = visible ? '' : 'none';
+            if (visible) anyVisible = true;
+        });
+
+        const emptyMsg = document.getElementById('products-empty-msg');
+        if (emptyMsg) emptyMsg.style.display = (cols.length && !anyVisible) ? '' : 'none';
+    }
+
+    // Reordena os .product-col já existentes no DOM (appendChild) — não re-renderiza
+    _applyProductSort(sortValue) {
+        const grid = document.getElementById('products-grid');
+        if (!grid || !sortValue) return;
+
+        const comparators = {
+            'preco-asc':        (a, b) => parseFloat(a.dataset.preco) - parseFloat(b.dataset.preco),
+            'preco-desc':       (a, b) => parseFloat(b.dataset.preco) - parseFloat(a.dataset.preco),
+            'nome-asc':         (a, b) => (a.dataset.nome || '').localeCompare(b.dataset.nome || '', 'pt-BR'),
+            'disponibilidade':  (a, b) => (parseInt(b.dataset.estoque) > 0) - (parseInt(a.dataset.estoque) > 0),
+        };
+        const cmp = comparators[sortValue];
+        if (!cmp) return;
+
+        Array.from(grid.querySelectorAll('.product-col'))
+            .sort(cmp)
+            .forEach(col => grid.appendChild(col));
+    }
+
+    // Reaplica busca/ordenação/disponibilidade depois de qualquer (re)render do grid
+    _applyCurrentToolbarState() {
+        this._applyProductVisibility();
+        const sortEl = document.getElementById('product-sort');
+        if (sortEl?.value) this._applyProductSort(sortEl.value);
+    }
+
+    // ── DEEP LINK DE PRODUTO (?produto=ID) ───────────────────────────────────
+
+    _openDeepLinkProduct() {
+        const id = new URLSearchParams(window.location.search).get('produto');
+        if (!id) return;
+
+        const modalEl = document.getElementById('productModal' + id);
+        if (!modalEl) {
+            console.warn(`Deep link: produto "${id}" não encontrado ou indisponível.`);
+            return;
+        }
+        new bootstrap.Modal(modalEl).show();
+    }
+
+    // ── COMPARTILHAMENTO DE PRODUTO ───────────────────────────────────────────
+
+    setupProductSharing() {
+        document.addEventListener('click', (e) => {
+            const waBtn = e.target.closest('.btn-whatsapp-share');
+            if (waBtn) {
+                e.preventDefault();
+                this._shareViaWhatsApp(waBtn.dataset);
+                return;
+            }
+
+            const shareBtn = e.target.closest('.btn-share-product');
+            if (shareBtn) {
+                e.preventDefault();
+                this._shareProduct(shareBtn);
+                return;
+            }
+
+            const copyCodeBtn = e.target.closest('.btn-copy-code');
+            if (copyCodeBtn) {
+                e.preventDefault();
+                this._copyToClipboard(copyCodeBtn.dataset.codigo, copyCodeBtn, 'Copiado!');
+            }
+        });
+    }
+
+    _getProductShareUrl(productId) {
+        return `${window.location.origin}${window.location.pathname}?produto=${productId}`;
+    }
+
+    _shareViaWhatsApp(data) {
+        const { productId, productName, productCode } = data;
+        const url = this._getProductShareUrl(productId);
+
+        let mensagem = `Tenho interesse no ${productName}`;
+        if (productCode) mensagem += ` (código ${productCode})`;
+        mensagem += `: ${url}`;
+
+        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(mensagem)}`, '_blank', 'noopener');
+    }
+
+    async _shareProduct(btnEl) {
+        const { productId, productName, productCode } = btnEl.dataset;
+        const url  = this._getProductShareUrl(productId);
+        const text = productCode ? `${productName} (código ${productCode})` : productName;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: productName, text, url });
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return; // usuário cancelou o compartilhamento nativo
+                // qualquer outro erro cai para o fallback de clipboard abaixo
+            }
+        }
+        await this._copyToClipboard(url, btnEl, 'Link copiado!');
+    }
+
+    async _copyToClipboard(value, btnEl, feedbackText = 'Copiado!') {
+        if (!value) return;
+
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(value);
+            } else {
+                // Fallback para contexto não-seguro (HTTP) ou navegadores sem Clipboard API
+                const ta = document.createElement('textarea');
+                ta.value = value;
+                ta.style.position = 'fixed';
+                ta.style.opacity   = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
+            this._showCopyFeedback(btnEl, feedbackText);
+        } catch (_) {
+            // Clipboard indisponível — degrada silenciosamente, sem exceção não tratada
+        }
+    }
+
+    // Feedback só de ícone (nunca texto) — funciona tanto nos botões circulares de ação
+    // quanto no botão de copiar código, sem estourar layout fixo de nenhum dos dois
+    _showCopyFeedback(btnEl, title) {
+        if (!btnEl) return;
+        const original      = btnEl.innerHTML;
+        const originalTitle = btnEl.title;
+        btnEl.innerHTML = '<i class="fas fa-check"></i>';
+        btnEl.title     = title;
+        btnEl.disabled  = true;
+        setTimeout(() => {
+            btnEl.innerHTML = original;
+            btnEl.title     = originalTitle;
+            btnEl.disabled  = false;
+        }, 1800);
     }
 
     setupLGPD() {
@@ -908,10 +1102,31 @@ class App {
                     modalMedia = '';
                 }
 
-                // Código interno
+                // Código interno (com botão de copiar, reutilizado no card e no modal)
                 const codigoHtml = p.codigo_interno
-                    ? `<div class="text-muted small mb-2"><i class="fas fa-barcode me-1"></i>${p.codigo_interno}</div>`
+                    ? `<div class="text-muted small mb-2 d-flex align-items-center gap-1">
+                           <i class="fas fa-barcode me-1"></i>${p.codigo_interno}
+                           <button type="button" class="btn btn-link btn-sm p-0 btn-copy-code"
+                                   data-codigo="${p.codigo_interno}" title="Copiar código">
+                               <i class="fas fa-copy"></i>
+                           </button>
+                       </div>`
                     : '';
+
+                // Ações de compartilhamento (WhatsApp + Web Share/copiar link) — exibidas no modal de detalhes
+                const shareActionsHtml = `
+                    <div class="d-flex gap-2 mb-3 product-share-actions">
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-whatsapp-share"
+                                data-product-id="${p.id}" data-product-name="${p.nome}" data-product-code="${p.codigo_interno || ''}"
+                                title="Enviar no WhatsApp">
+                            <i class="fab fa-whatsapp"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-share-product"
+                                data-product-id="${p.id}" data-product-name="${p.nome}" data-product-code="${p.codigo_interno || ''}"
+                                title="Compartilhar produto">
+                            <i class="fas fa-share-nodes"></i>
+                        </button>
+                    </div>`;
 
                 // Indicador de disponibilidade (estoque = 0 → esgotado)
                 const estoqueHtml = p.estoque > 0
@@ -933,7 +1148,8 @@ class App {
                     : '';
 
                 cardsHtml += `
-                <div class="col-md-4 mb-4 product-col" data-category="${p.categoria}">
+                <div class="col-md-4 mb-4 product-col" data-category="${p.categoria}"
+                     data-nome="${p.nome}" data-preco="${p.preco}" data-estoque="${p.estoque}" data-codigo="${p.codigo_interno || ''}">
                     <div class="card product-card">
                         ${imgTag}
                         <div class="card-body">
@@ -982,6 +1198,7 @@ class App {
                                     <div class="col-md-6">
                                         <h4>${p.nome}</h4>
                                         ${codigoHtml}
+                                        ${shareActionsHtml}
                                         <span class="product-badge badge-${p.categoria} mb-2 d-inline-block">${label}</span>
                                         <p>${p.descricao || ''}</p>
                                         ${p.estoque > 0
@@ -1039,6 +1256,12 @@ class App {
             if (typeof AOS !== 'undefined') AOS.refresh();
 
         } catch (_) { /* mantém conteúdo estático do HTML se API falhar */ }
+        finally {
+            // Roda tanto no sucesso (produtos dinâmicos) quanto na falha (fallback estático já no DOM) —
+            // só neste ponto o grid/modais estão em seu estado final e é seguro ler/abrir por id.
+            this._openDeepLinkProduct();
+            this._applyCurrentToolbarState();
+        }
     }
 
     // ── RETORNO DO MERCADO PAGO ───────────────────────────────────────────────
