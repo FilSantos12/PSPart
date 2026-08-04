@@ -81,6 +81,11 @@ function layout_head(string $titulo, string $extra_head = ''): void {
             <i class="fas fa-tags fa-fw"></i> Categorias
         </a>
 
+        <div class="nav-section">Conteúdo</div>
+        <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'carrossel.php' ? 'active' : '' ?>" href="<?= $base ?>carrossel.php">
+            <i class="fas fa-images fa-fw"></i> Carrossel
+        </a>
+
         <div class="nav-section">Vendas</div>
         <a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['pedidos.php','pedido-detalhe.php']) ? 'active' : '' ?>" href="<?= $base ?>pedidos.php">
             <i class="fas fa-shopping-cart fa-fw"></i> Pedidos

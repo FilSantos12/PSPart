@@ -30,6 +30,7 @@ class App {
         this.setupProductSharing();
         this.setupHeroSearch();
         this.renderProducts();
+        this.renderCarrosselCampanhas();
         this.handleRetornoMP();
         this.setupFrete();
     }
@@ -37,7 +38,6 @@ class App {
     setupEventListeners() {
         this.setupContactForm();
         this.setupModalButtons();
-        this.setupNavigation();
     }
 
     setupContactForm() {
@@ -188,26 +188,6 @@ class App {
         nav.addEventListener('shown.bs.collapse', aplicar);
         nav.addEventListener('hidden.bs.collapse', aplicar);
         document.fonts?.ready?.then(aplicar);
-    }
-
-    setupNavigation() {
-        const verProdutosBtn = document.querySelector('.hero-section .btn-primary');
-        if (verProdutosBtn) {
-            verProdutosBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.scrollToSection('produtos');
-            });
-        }
-    }
-
-    scrollToSection(sectionId) {
-        const section = document.getElementById(sectionId);
-        if (section) {
-            section.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
-        }
     }
 
     setupScrollHandlers() {
@@ -1767,7 +1747,7 @@ class App {
                     : '';
 
                 cardsHtml += `
-                <div class="col-sm-6 col-md-4 mb-4 product-col" data-category="${p.categoria}"
+                <div class="col-sm-6 col-md-4 col-lg-3 mb-4 product-col" data-category="${p.categoria}"
                      data-nome="${p.nome}" data-preco="${p.preco}" data-estoque="${p.estoque}" data-codigo="${p.codigo_interno || ''}">
                     <div class="card product-card">
                         <div class="product-card-thumb">
@@ -1879,6 +1859,56 @@ class App {
             // só neste ponto o grid/modais estão em seu estado final e é seguro ler/abrir por id.
             this._openDeepLinkProduct();
             this._applyCurrentToolbarState();
+        }
+    }
+
+    // ── CARROSSEL DE CAMPANHAS (Feature D) ───────────────────────────────────
+    // Só imagens vigentes+ativas (cálculo server-side em backend/api/carrossel.php).
+    // Sem campanhas → seção fica com o display:none inline já presente no HTML,
+    // nunca uma caixa vazia.
+    async renderCarrosselCampanhas() {
+        const section = document.getElementById('carrosselCampanhas');
+        if (!section) return;
+
+        try {
+            const resp = await fetch('backend/api/carrossel.php');
+            const campanhas = await resp.json();
+            if (!Array.isArray(campanhas) || campanhas.length === 0) return;
+
+            const inner = document.getElementById('campanhasInner');
+            const indicators = document.getElementById('campanhasIndicators');
+
+            inner.innerHTML = campanhas.map((c, i) => {
+                const img = `<img src="${c.arquivo}" class="d-block w-100 campanha-img" alt="${c.titulo}" loading="lazy">`;
+                const conteudo = c.link_destino
+                    ? `<a href="${c.link_destino}" target="_blank" rel="noopener">${img}</a>`
+                    : img;
+                return `<div class="carousel-item${i === 0 ? ' active' : ''}">${conteudo}</div>`;
+            }).join('');
+
+            const temMultiplas = campanhas.length > 1;
+
+            indicators.innerHTML = temMultiplas
+                ? campanhas.map((_, i) => `
+                    <button type="button" data-bs-target="#campanhasCarousel" data-bs-slide-to="${i}"
+                            class="${i === 0 ? 'active' : ''}" aria-current="${i === 0 ? 'true' : 'false'}"
+                            aria-label="Slide ${i + 1}"></button>`).join('')
+                : '';
+
+            // Prev/next só fazem sentido com mais de uma campanha
+            document.getElementById('campanhasPrev').style.display = temMultiplas ? '' : 'none';
+            document.getElementById('campanhasNext').style.display = temMultiplas ? '' : 'none';
+
+            section.style.display = '';
+
+            new bootstrap.Carousel(document.getElementById('campanhasCarousel'), {
+                interval: 5000,
+                pause: 'hover',
+                ride: temMultiplas ? 'carousel' : false,
+            });
+
+        } catch (_) {
+            // falha silenciosa — seção permanece com o display:none padrão do HTML
         }
     }
 

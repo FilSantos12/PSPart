@@ -109,7 +109,20 @@
                                 <a class="nav-link" href="#contato">Contato</a>
                             </li>
                         </ul>
-                        <button id="themeToggle" class="theme-toggle" title="Alternar tema" aria-label="Alternar entre modo claro e escuro">
+
+                        <!-- Busca do header — mesmo form/IDs de antes (só relocado do hero), setupHeroSearch()
+                             continua alimentando #product-search sem duplicar lógica de filtro -->
+                        <form id="heroSearchForm" class="navbar-search ms-lg-3" role="search">
+                            <i class="fas fa-magnifying-glass navbar-search-icon"></i>
+                            <input type="text" id="heroSearchInput" class="navbar-search-input"
+                                   placeholder="Buscar por nome ou código..."
+                                   aria-label="Buscar peça no catálogo">
+                            <button type="submit" class="navbar-search-btn" aria-label="Buscar peça">
+                                <i class="fas fa-magnifying-glass"></i>
+                            </button>
+                        </form>
+
+                        <button id="themeToggle" class="theme-toggle ms-lg-3" title="Alternar tema" aria-label="Alternar entre modo claro e escuro">
                             <i class="fas fa-moon"></i>
                         </button>
                     </div>
@@ -128,26 +141,40 @@
             <span class="hero-badge">Soluções em Automação</span>
             <h1 class="display-4 fw-bold">Peças e partes Técnicas para Motorização, Robótica e Controle de acesso .</h1>
             <p class="lead">Componentes mecatrônicos de alta qualidade para automação industrial e predial.</p>
+        </div>
+    </section>
 
-            <form id="heroSearchForm" class="hero-search" role="search">
-                <i class="fas fa-magnifying-glass hero-search-icon"></i>
-                <input type="text" id="heroSearchInput" class="hero-search-input"
-                       placeholder="Buscar por nome ou código (ex.: motoredutor, SE.02.00002)"
-                       aria-label="Buscar peça no catálogo">
-                <button type="submit" class="btn btn-cta hero-search-btn">Buscar peça</button>
-            </form>
+    <!-- Selos de confiança — extraídos do hero (Patch E); +Pix e +SSL (Patch F), mesmo
+         texto/ícone já usados na seção #pagamentos-seguranca (nada de claim novo) -->
+    <section id="selosConfianca" class="selos-section">
+        <div class="container">
+            <div class="selos-row">
+                <span class="selo-item"><i class="fas fa-truck-fast"></i>Frete calculado no checkout</span>
+                <span class="selo-item"><i class="fas fa-lock"></i>Pagamento via Mercado Pago</span>
+                <span class="selo-item"><i class="fas fa-route"></i>Pedido rastreável</span>
+                <span class="selo-item"><i class="fa-solid fa-qrcode"></i>Pagamento via Pix</span>
+                <span class="selo-item"><i class="fa-solid fa-shield-halved"></i>Site seguro (SSL)</span>
+            </div>
+        </div>
+    </section>
 
-            <div class="d-flex justify-content-center gap-3 flex-wrap mt-4">
-                <a href="#produtos" class="btn btn-primary btn-lg">Ver Produtos</a>
-                <a href="https://wa.me/SEU_NUMERO" target="_blank" class="btn btn-whatsapp btn-lg">
-                    <i class="fab fa-whatsapp me-2"></i>Falar no WhatsApp
-                </a>
-            </div>
-            <div class="hero-trust">
-                <span class="hero-trust-chip"><i class="fas fa-truck-fast"></i>Frete calculado no checkout</span>
-                <span class="hero-trust-chip"><i class="fas fa-lock"></i>Pagamento via Mercado Pago</span>
-                <span class="hero-trust-chip"><i class="fas fa-route"></i>Pedido rastreável</span>
-            </div>
+    <!-- Carrossel de Campanhas — full-bleed (fora do .container de propósito, Patch E).
+         Populado via backend/api/carrossel.php (só vigentes+ativas); oculto via style.display
+         inline quando não há nenhuma (nunca display:none no CSS). -->
+    <section id="carrosselCampanhas" class="campanhas-section" style="display:none;">
+        <div id="campanhasCarousel" class="carousel slide campanhas-carousel">
+            <div class="carousel-indicators" id="campanhasIndicators"></div>
+            <div class="carousel-inner" id="campanhasInner"></div>
+            <button class="carousel-control-prev" type="button" id="campanhasPrev"
+                    data-bs-target="#campanhasCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Anterior</span>
+            </button>
+            <button class="carousel-control-next" type="button" id="campanhasNext"
+                    data-bs-target="#campanhasCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Próximo</span>
+            </button>
         </div>
     </section>
 
@@ -186,7 +213,7 @@
 
             <div class="row" id="products-grid">
                 <!-- Produto 1 -->
-                <div class="col-sm-6 col-md-4 mb-4 product-col" data-category="motorizacao"
+                <div class="col-sm-6 col-md-4 col-lg-3 mb-4 product-col" data-category="motorizacao"
                      data-nome="Motoredutor Porta" data-preco="189.90" data-estoque="0" data-codigo="">
                     <div class="card product-card">
                         <div class="product-card-thumb">
@@ -212,7 +239,7 @@
                 </div>
 
                 <!-- Produto 2 -->
-                <div class="col-sm-6 col-md-4 mb-4 product-col" data-category="motorizacao"
+                <div class="col-sm-6 col-md-4 col-lg-3 mb-4 product-col" data-category="motorizacao"
                      data-nome="Motoredutor de Tração" data-preco="249.90" data-estoque="1" data-codigo="">
                     <div class="card product-card">
                         <div class="product-card-thumb">
@@ -242,7 +269,7 @@
                 </div>
 
                 <!-- Produto 3 -->
-                <div class="col-sm-6 col-md-4 mb-4 product-col" data-category="robotica"
+                <div class="col-sm-6 col-md-4 col-lg-3 mb-4 product-col" data-category="robotica"
                      data-nome="Mini Motor" data-preco="59.90" data-estoque="1" data-codigo="MT.00.00020">
                     <div class="card product-card">
                         <div class="product-card-thumb">
@@ -278,7 +305,7 @@
                 </div>
 
                 <!-- Produto 4 -->
-                <div class="col-sm-6 col-md-4 mb-4 product-col" data-category="acesso"
+                <div class="col-sm-6 col-md-4 col-lg-3 mb-4 product-col" data-category="acesso"
                      data-nome="Leitor Biometrico" data-preco="179.90" data-estoque="1" data-codigo="">
                     <div class="card product-card">
                         <div class="product-card-thumb">
@@ -308,7 +335,7 @@
                 </div>
 
                 <!-- Produto 5 -->
-                <div class="col-sm-6 col-md-4 mb-4 product-col" data-category="acesso"
+                <div class="col-sm-6 col-md-4 col-lg-3 mb-4 product-col" data-category="acesso"
                      data-nome="Trava Eletrônica (Mitra)" data-preco="219.90" data-estoque="1" data-codigo="">
                     <div class="card product-card">
                         <div class="product-card-thumb">
@@ -340,7 +367,7 @@
                 </div>
 
                 <!-- Produto 6 -->
-                <div class="col-sm-6 col-md-4 mb-4 product-col" data-category="bluetooth"
+                <div class="col-sm-6 col-md-4 col-lg-3 mb-4 product-col" data-category="bluetooth"
                      data-nome="Trava Eletrônica Bluetooth (BLE)" data-preco="329.90" data-estoque="1" data-codigo="">
                     <div class="card product-card">
                         <div class="product-card-thumb">

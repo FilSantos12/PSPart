@@ -107,6 +107,73 @@ html {
     border-radius: 4px;
 }
 
+/* Busca do header (Patch C) — mesmo form #heroSearchForm de antes, só relocado e compactado;
+   alimenta #product-search via setupHeroSearch(), sem lógica de filtro duplicada */
+.navbar-search {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: rgba(255,255,255,.96);
+    border-radius: 999px;
+    padding: 0.25rem 0.25rem 0.25rem 0.75rem;
+    margin: 0.5rem 0;
+    max-width: 260px;
+}
+
+.navbar-search-icon {
+    color: var(--muted);
+    font-size: 0.78rem;
+    flex-shrink: 0;
+}
+
+.navbar-search-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    color: var(--ink);
+    padding: 0.32rem 0.1rem;
+}
+
+.navbar-search-input::placeholder {
+    color: var(--muted);
+}
+
+.navbar-search:has(.navbar-search-input:focus-visible) {
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .35);
+}
+
+.navbar-search-btn {
+    flex-shrink: 0;
+    background-color: var(--cta);
+    border: none;
+    color: #fff;
+    font-size: 0.78rem;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.navbar-search-btn:hover,
+.navbar-search-btn:focus-visible {
+    background-color: var(--cta-600);
+}
+
+@media (max-width: 991.98px) {
+    .navbar-search {
+        max-width: none;
+        width: 100%;
+        margin: 0.75rem 0;
+    }
+}
+
 .material-symbols-outlined {
     font-size: 25px;
     color: white;
@@ -122,7 +189,7 @@ html {
     position: relative;
     background: linear-gradient(135deg, var(--primary), #131c33);
     color: white;
-    min-height: 80vh;
+    min-height: 51vh; /* ~20% mais compacto que os 64vh do Patch C — hero enxuto (Patch E) */
     display: flex;
     align-items: center;
     overflow: hidden;
@@ -171,48 +238,6 @@ html {
     letter-spacing: 0.3px;
 }
 
-/* Busca proeminente do hero — alimenta a busca já existente da toolbar de produtos, não duplica lógica */
-.hero-search {
-    position: relative;
-    max-width: 620px;
-    margin: 1.75rem auto 0;
-    display: flex;
-    gap: 0.5rem;
-    background: rgba(255,255,255,.96);
-    border-radius: 999px;
-    padding: 0.4rem 0.4rem 0.4rem 1.1rem;
-    box-shadow: var(--shadow-lg);
-}
-
-.hero-search-icon {
-    align-self: center;
-    color: var(--muted);
-    font-size: 0.9rem;
-}
-
-.hero-search-input {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    font-family: var(--font-body);
-    font-size: 0.95rem;
-    color: var(--ink);
-    padding: 0.5rem 0.25rem;
-}
-
-.hero-search-input::placeholder {
-    color: var(--muted);
-}
-
-.hero-search-input:focus-visible {
-    outline: none;
-}
-
-.hero-search:has(.hero-search-input:focus-visible) {
-    box-shadow: var(--shadow-lg), 0 0 0 3px rgba(var(--accent-rgb), .35);
-}
-
 .btn-cta {
     background-color: var(--cta);
     border: none;
@@ -232,41 +257,92 @@ html {
     transform: translateY(-1px);
 }
 
-@media (max-width: 575.98px) {
-    .hero-search {
-        flex-wrap: wrap;
-        border-radius: var(--radius);
-        padding: 0.6rem;
-    }
-    .hero-search-btn {
-        width: 100%;
-    }
+/* ===== CARROSSEL DE CAMPANHAS — full-bleed (Patch E) ===== */
+.campanhas-section {
+    padding: 0;
+    background: var(--bg);
+    overflow-x: clip; /* proteção extra contra scroll lateral no breakout full-bleed */
 }
 
-/* Chips de confiança estruturais (sem métricas inventadas) */
-.hero-trust {
+.campanhas-carousel {
+    width: 100%;
+    max-width: 1920px; /* teto realista de desktop — full-bleed além disso só pioraria o corte vertical da imagem */
+    margin: 0 auto;
+}
+
+/* ===== SELOS DE CONFIANÇA — extraídos do hero (Patch E), sem claim inventado ===== */
+.selos-section {
+    padding: 1.5rem 0;
+    background: var(--bg);
+}
+
+.selos-row {
     display: flex;
     justify-content: center;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    margin-top: 1.75rem;
-}
-
-.hero-trust-chip {
-    display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.4rem 0.9rem;
-    background: rgba(255,255,255,.08);
-    border: 1px solid rgba(255,255,255,.18);
-    border-radius: 999px;
-    font-size: 0.8rem;
-    color: rgba(255,255,255,.92);
-    backdrop-filter: blur(4px);
+    flex-wrap: wrap;
 }
 
-.hero-trust-chip i {
-    color: #90b4f5;
+.selo-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 1.15rem;
+    font-size: 0.87rem;
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+.selo-item + .selo-item {
+    border-left: 1px solid var(--line);
+}
+
+.selo-item i {
+    color: var(--accent);
+    font-size: 1rem;
+}
+
+/* 5 itens espremem entre 768-1100px — reduz padding/fonte pra segurar numa linha só mais tempo */
+@media (max-width: 1100px) and (min-width: 768px) {
+    .selo-item {
+        padding: 0.4rem 0.85rem;
+        font-size: 0.83rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .selos-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .selo-item {
+        justify-content: center;
+        padding: 0.6rem 0;
+        white-space: normal;
+        text-align: center;
+    }
+
+    .selo-item + .selo-item {
+        border-left: none;
+        border-top: 1px solid var(--line);
+        padding-top: 0.85rem;
+    }
+}
+
+.campanha-img {
+    width: 100%;
+    height: 320px;
+    object-fit: cover;
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .campanha-img {
+        height: 180px;
+    }
 }
 
 /* ===== PRODUTOS SECTION ===== */
@@ -320,7 +396,7 @@ html {
 }
 
 .card-img-top {
-    height: 220px;
+    height: 140px; /* ~36% menor que 220px — grid 4-up compacto (Patch C) */
     width: 100%;
     display: block;
     object-fit: contain;
@@ -355,18 +431,19 @@ body.dark-mode .product-card-thumb .stock-badge {
 .product-eyebrow {
     display: block;
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: 0.66rem;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--accent);
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.3rem;
 }
 
 .product-card .card-body {
     display: flex;
     flex-direction: column;
     flex: 1;
+    padding: 0.85rem; /* menor que o 1rem padrão do Bootstrap — card compacto 4-up (Patch C) */
 }
 
 .product-card .card-title {
@@ -374,6 +451,7 @@ body.dark-mode .product-card-thumb .stock-badge {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    font-size: 1rem; /* menor que o 1.25rem padrão do h5 — card compacto 4-up (Patch C) */
     line-height: 1.3;
     min-height: 2.6em;
 }
@@ -384,7 +462,7 @@ body.dark-mode .product-card-thumb .stock-badge {
     justify-content: space-between;
     align-items: center;
     margin-top: auto;
-    padding-top: 0.6rem;
+    padding-top: 0.5rem;
 }
 
 /* Categoria em mono, tipo eyebrow técnico (mantido no modal de detalhes) */
@@ -396,10 +474,10 @@ body.dark-mode .product-card-thumb .stock-badge {
 .stock-badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    font-size: 0.72rem;
+    gap: 0.3rem;
+    font-size: 0.66rem;
     font-weight: 600;
-    padding: 0.2rem 0.65rem 0.2rem 0.5rem;
+    padding: 0.15rem 0.55rem 0.15rem 0.45rem;
     border-radius: 20px;
     letter-spacing: 0.3px;
     margin-bottom: 0.5rem;
@@ -434,15 +512,15 @@ body.dark-mode .product-card-thumb .stock-badge {
 .product-code-pill {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.3rem;
     font-family: var(--font-mono);
-    font-size: 0.76rem;
+    font-size: 0.7rem;
     color: var(--muted);
     background: var(--bg);
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
-    padding: 0.2rem 0.55rem;
-    margin-bottom: 0.6rem;
+    padding: 0.15rem 0.45rem;
+    margin-bottom: 0.45rem;
 }
 
 .product-code-pill .btn-copy-code {
@@ -720,7 +798,7 @@ footer {
 /* ===== RESPONSIVO ===== */
 @media (max-width: 768px) {
     .hero-section {
-        min-height: 52vh;
+        min-height: 34vh; /* ~20% mais compacto que os 42vh do Patch C — hero enxuto (Patch E) */
     }
 
     .hero-section h1 {
@@ -1652,7 +1730,7 @@ body.dark-mode .checkout-resumo {
 /* ===== PREÇO DO PRODUTO ===== */
 .product-price {
     font-family: var(--font-display);
-    font-size: 1.3rem;
+    font-size: 1.05rem; /* menor que 1.3rem — card compacto 4-up (Patch C) */
     font-weight: 800;
     color: var(--primary);
     letter-spacing: -0.02em;

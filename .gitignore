@@ -3,8 +3,9 @@ database.db
 database.db-shm
 database.db-wal
 
-# Uploads gerados pelo admin (imagens e data sheets de produtos)
+# Uploads gerados pelo admin (imagens e data sheets de produtos, imagens do carrossel de campanhas)
 img/prod_*
+img/carrossel_*
 docs/
 
 # Config gerada em runtime na raiz
