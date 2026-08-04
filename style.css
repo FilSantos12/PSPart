@@ -334,14 +334,14 @@ html {
 
 .campanha-img {
     width: 100%;
-    height: 320px;
+    height: 480px; /* subiu de 320px — banners reais (logo+tagline+tags) precisam de mais altura, menos corte vertical */
     object-fit: cover;
     display: block;
 }
 
 @media (max-width: 768px) {
     .campanha-img {
-        height: 180px;
+        height: 220px; /* proporcional ao aumento acima */
     }
 }
 

@@ -286,12 +286,15 @@ layout_head('Carrossel de Campanhas');
 
                     <div class="alert alert-light border small mb-3">
                         <i class="fas fa-ruler-combined me-1 text-primary"></i>
-                        <strong>Tamanho ideal: 2000×400px</strong> (proporção 5:1).
+                        <strong>Tamanho ideal: 2000×480px</strong> (proporção ~4,2:1).
                         O carrossel é full-bleed (ocupa a largura toda da tela) com altura fixa —
                         cada tamanho de tela corta uma parte diferente da imagem para preencher o
                         espaço (mais corte nas laterais em celular, pouco corte em cima/embaixo no
-                        desktop). Mantenha texto/logo <strong>centralizados</strong>, dentro de uns
-                        40% da largura e 90% da altura da imagem, para não serem cortados em nenhuma tela.
+                        desktop). Se sua arte tiver bastante conteúdo (logo + texto + tags, como um
+                        banner institucional), respeite bem essa proporção — imagens muito mais
+                        "altas" que isso (ex.: 1983×793) perdem uma fatia grande em cima/embaixo.
+                        Mantenha texto/logo <strong>centralizados</strong>, dentro de uns 40% da
+                        largura e 90% da altura da imagem, para não serem cortados em nenhuma tela.
                     </div>
 
                     <div class="mb-3">
