@@ -80,9 +80,55 @@ class MelhorEnvio
             'options'  => ['receipt' => false, 'own_hand' => false],
         ];
 
+        return $this->_cotarFrete($payload);
+    }
+
+    /**
+     * Calcula frete agregado para múltiplos produtos (carrinho) e CEP de destino.
+     * Mesma chamada /shipment/calculate, um "product" por item do carrinho — cada um
+     * com a quantidade real (ao contrário de calcularFrete(), que chumba quantity=1
+     * por ser sempre item único; aqui a quantidade importa para o cálculo agregado).
+     *
+     * @param array  $carrinho   Lista de ['produto' => linha do banco, 'quantidade' => int]
+     * @param string $cepDestino 8 dígitos numéricos
+     * @return array Serviços normalizados [{id, nome, transportadora, logo, preco, prazo_min, prazo_max}]
+     * @throws RuntimeException em falha irrecuperável
+     */
+    public function calcularFreteCarrinho(array $carrinho, string $cepDestino): array
+    {
+        $this->token = $this->getValidToken();
+
+        $products = array_map(function (array $item): array {
+            $produto = $item['produto'];
+            return [
+                'id'              => (string) $produto['id'],
+                'width'           => (float)  $produto['largura'],
+                'height'          => (float)  $produto['altura'],
+                'length'          => (float)  $produto['comprimento'],
+                'weight'          => (float)  $produto['peso'],
+                'insurance_value' => (float)  $produto['preco'],
+                'quantity'        => (int)    $item['quantidade'],
+            ];
+        }, $carrinho);
+
+        $payload = [
+            'from'     => ['postal_code' => LOJA_CEP_ORIGEM],
+            'to'       => ['postal_code' => $cepDestino],
+            'products' => $products,
+            'options'  => ['receipt' => false, 'own_hand' => false],
+        ];
+
+        return $this->_cotarFrete($payload);
+    }
+
+    /**
+     * Envia o payload de cotação ao Melhor Envio com retry automático em 401.
+     * Compartilhado por calcularFrete() (item único) e calcularFreteCarrinho() (agregado).
+     */
+    private function _cotarFrete(array $payload): array
+    {
         $resp = $this->_post('/api/v2/me/shipment/calculate', $payload);
 
-        // Token rejeitado na chamada — tenta renovar uma vez
         if ($resp['code'] === 401) {
             if (!$this->_renovarToken()) {
                 throw new RuntimeException(

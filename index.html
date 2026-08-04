@@ -39,7 +39,7 @@
     <!-- Font Awesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <!--Google Icones-->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=component_exchange" />
     <!-- AOS - Animate On Scroll -->
@@ -64,7 +64,7 @@
     }
     </script>
 </head>
-<body>
+<body class="storefront">
     <!-- Anti-FOUC: aplica o tema antes do primeiro paint -->
     <script>
     (function() {
@@ -74,7 +74,7 @@
     })();
     </script>
         <!-- Navbar -->
-            <nav class="navbar navbar-expand-lg navbar-dark custom-navbar sticky-top">
+            <nav class="navbar navbar-expand-lg navbar-dark custom-navbar" id="mainNavbar">
                 <div class="container">
 
                     <a class="navbar-brand d-flex align-items-center" href="#">
@@ -114,6 +114,11 @@
                         </button>
                     </div>
 
+                    <button id="cartToggle" class="cart-toggle" title="Ver carrinho" aria-label="Abrir carrinho de compras" aria-haspopup="dialog">
+                        <i class="fas fa-cart-shopping"></i>
+                        <span id="cartBadge" class="cart-badge" style="display:none;">0</span>
+                    </button>
+
                 </div>
             </nav>
 
@@ -121,121 +126,27 @@
     <section id="inicio" class="hero-section text-center">
         <div class="container">
             <span class="hero-badge">Soluções em Automação</span>
-            <h1 class="display-4 fw-bold">Bem-vindo à PSPart</h1>
+            <h1 class="display-4 fw-bold">Peças e partes Técnicas para Motorização, Robótica e Controle de acesso .</h1>
             <p class="lead">Componentes mecatrônicos de alta qualidade para automação industrial e predial.</p>
+
+            <form id="heroSearchForm" class="hero-search" role="search">
+                <i class="fas fa-magnifying-glass hero-search-icon"></i>
+                <input type="text" id="heroSearchInput" class="hero-search-input"
+                       placeholder="Buscar por nome ou código (ex.: motoredutor, SE.02.00002)"
+                       aria-label="Buscar peça no catálogo">
+                <button type="submit" class="btn btn-cta hero-search-btn">Buscar peça</button>
+            </form>
+
             <div class="d-flex justify-content-center gap-3 flex-wrap mt-4">
                 <a href="#produtos" class="btn btn-primary btn-lg">Ver Produtos</a>
                 <a href="https://wa.me/SEU_NUMERO" target="_blank" class="btn btn-whatsapp btn-lg">
                     <i class="fab fa-whatsapp me-2"></i>Falar no WhatsApp
                 </a>
             </div>
-            <!-- Atualize os valores abaixo conforme a realidade da empresa -->
-            <div class="hero-stats">
-                <div class="row justify-content-center g-4">
-                    <div class="col-6 col-md-3">
-                        <div class="stat-item">
-                            <span class="stat-number" data-target="13">0</span><span class="stat-suffix">+</span>
-                            <p>Produtos</p>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <div class="stat-item">
-                            <span class="stat-number" data-target="10">0</span><span class="stat-suffix">+</span>
-                            <p>Anos no Mercado</p>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <div class="stat-item">
-                            <span class="stat-number" data-target="50">0</span><span class="stat-suffix">+</span>
-                            <p>Clientes Atendidos</p>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <div class="stat-item">
-                            <span class="stat-number" data-target="100">0</span><span class="stat-suffix">%</span>
-                            <p>Suporte Técnico</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Diferenciais Section -->
-    <section class="diferenciais-section py-5">
-        <div class="container">
-            <div class="section-header text-center mb-5" data-aos="fade-up">
-                <span class="section-tag">Por que escolher a PSPart?</span>
-                <h2>Nossos Diferenciais</h2>
-            </div>
-            <div class="row g-4">
-                <div class="col-md-6 col-lg-3">
-                    <div class="diferencial-card text-center">
-                        <div class="diferencial-icon">
-                            <i class="fas fa-cog"></i>
-                        </div>
-                        <h5>Qualidade Técnica</h5>
-                        <p>Componentes selecionados com rigor técnico, garantindo desempenho e durabilidade.</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-lg-3">
-                    <div class="diferencial-card text-center">
-                        <div class="diferencial-icon">
-                            <i class="fas fa-headset"></i>
-                        </div>
-                        <h5>Suporte Especializado</h5>
-                        <p>Equipe técnica pronta para auxiliar na integração e configuração dos produtos.</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-lg-3">
-                    <div class="diferencial-card text-center">
-                        <div class="diferencial-icon">
-                            <i class="fas fa-shield-alt"></i>
-                        </div>
-                        <h5>Produtos Certificados</h5>
-                        <p>Todos os itens passam por rigoroso controle de qualidade antes de chegar até você.</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-lg-3">
-                    <div class="diferencial-card text-center">
-                        <div class="diferencial-icon">
-                            <i class="fas fa-truck"></i>
-                        </div>
-                        <h5>Entrega Rápida</h5>
-                        <p>Agilidade no despacho e envio para todo o Brasil com rastreamento.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Sobre Nós Section -->
-    <section id="sobre" class="sobre-section py-5">
-        <div class="container">
-            <div class="row align-items-center g-5">
-                <div class="col-lg-6" data-aos="fade-right">
-                    <span class="section-tag">Nossa História</span>
-                    <h2 class="fw-bold mb-3">Sobre a PSPart Automação</h2>
-                    <p>Com mais de 10 anos de experiência no mercado de automação, a PSPart nasceu com o propósito de fornecer componentes mecatrônicos de alta qualidade para integradores, desenvolvedores e indústrias de todo o Brasil.</p>
-                    <p>Atuamos com motoredutores, travas eletrônicas, leitores biométricos e soluções Bluetooth, sempre com foco em suporte técnico especializado e entrega ágil.</p>
-                    <div class="sobre-stats d-flex gap-4 mt-4">
-                        <div class="sobre-stat">
-                            <div class="sobre-stat-number">10+</div>
-                            <small>Anos no mercado</small>
-                        </div>
-                        <div class="sobre-stat">
-                            <div class="sobre-stat-number">50+</div>
-                            <small>Clientes atendidos</small>
-                        </div>
-                        <div class="sobre-stat">
-                            <div class="sobre-stat-number">6+</div>
-                            <small>Produtos no catálogo</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-6" data-aos="fade-left">
-                    <img src="img/FRENTE2.jpg" alt="PSPart Automação - Nossa empresa" class="sobre-img" loading="lazy">
-                </div>
+            <div class="hero-trust">
+                <span class="hero-trust-chip"><i class="fas fa-truck-fast"></i>Frete calculado no checkout</span>
+                <span class="hero-trust-chip"><i class="fas fa-lock"></i>Pagamento via Mercado Pago</span>
+                <span class="hero-trust-chip"><i class="fas fa-route"></i>Pedido rastreável</span>
             </div>
         </div>
     </section>
@@ -275,29 +186,24 @@
 
             <div class="row" id="products-grid">
                 <!-- Produto 1 -->
-                <div class="col-md-4 mb-4 product-col" data-category="motorizacao"
+                <div class="col-sm-6 col-md-4 mb-4 product-col" data-category="motorizacao"
                      data-nome="Motoredutor Porta" data-preco="189.90" data-estoque="0" data-codigo="">
                     <div class="card product-card">
-                        <img src="img/MOTO-REDUTOR-PORTA-2.png" class="card-img-top" alt="Motor Porta" loading="lazy">
+                        <div class="product-card-thumb">
+                            <span class="stock-badge stock-badge--req"><span class="stock-dot"></span>Esgotado</span>
+                            <img src="img/MOTO-REDUTOR-PORTA-2.png" class="card-img-top" alt="Motor Porta" loading="lazy">
+                        </div>
                         <div class="card-body">
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="product-badge badge-motorizacao">Motorização</span>
-                                <span class="product-badge badge-esgotado">Esgotado</span>
-                            </div>
+                            <span class="product-eyebrow">Motorização</span>
                             <h5 class="card-title">Motoredutor Porta</h5>
-                            <p class="card-text">Motoredutor para porta de automação é um sistema mecatrônico completo que combina um motor elétrico com um trem de engrenagens.</p>
-                            <div class="d-flex justify-content-between align-items-center mt-2">
+                            <div class="product-card-footer">
                                 <span class="product-price">R$ 189,90</span>
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#productModal1">
                                         Detalhes
                                     </button>
-                                    <button type="button" class="btn btn-success btn-sm btn-buy"
-                                            data-product-id="1"
-                                            data-product-name="Motoredutor Porta"
-                                            data-product-price="189.90"
-                                            title="Comprar">
-                                        <i class="fas fa-cart-shopping"></i>
+                                    <button type="button" class="btn btn-secondary btn-sm" disabled title="Sem estoque">
+                                        <i class="fas fa-ban"></i>
                                     </button>
                                 </div>
                             </div>
@@ -306,18 +212,17 @@
                 </div>
 
                 <!-- Produto 2 -->
-                <div class="col-md-4 mb-4 product-col" data-category="motorizacao"
+                <div class="col-sm-6 col-md-4 mb-4 product-col" data-category="motorizacao"
                      data-nome="Motoredutor de Tração" data-preco="249.90" data-estoque="1" data-codigo="">
                     <div class="card product-card">
-                        <img src="img/MOTOREDUTOR-TRACION-1.png" class="card-img-top" alt="Motor de Tração" loading="lazy">
+                        <div class="product-card-thumb">
+                            <span class="stock-badge stock-badge--ok"><span class="stock-dot"></span>Em estoque</span>
+                            <img src="img/MOTOREDUTOR-TRACION-1.png" class="card-img-top" alt="Motor de Tração" loading="lazy">
+                        </div>
                         <div class="card-body">
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="product-badge badge-motorizacao">Motorização</span>
-                                <span class="product-badge badge-disponivel">Em estoque</span>
-                            </div>
+                            <span class="product-eyebrow">Motorização</span>
                             <h5 class="card-title">Motoredutor de Tração</h5>
-                            <p class="card-text">Um motoredutor de tração é um acionamento eletromecânico compacto e integrado, composto por um motor elétrico.</p>
-                            <div class="d-flex justify-content-between align-items-center mt-2">
+                            <div class="product-card-footer">
                                 <span class="product-price">R$ 249,90</span>
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#productModal2">
@@ -337,24 +242,23 @@
                 </div>
 
                 <!-- Produto 3 -->
-                <div class="col-md-4 mb-4 product-col" data-category="robotica"
+                <div class="col-sm-6 col-md-4 mb-4 product-col" data-category="robotica"
                      data-nome="Mini Motor" data-preco="59.90" data-estoque="1" data-codigo="MT.00.00020">
                     <div class="card product-card">
-                        <img src="img/MINI-MOTOR.png" class="card-img-top" alt="Mini Motor" loading="lazy">
+                        <div class="product-card-thumb">
+                            <span class="stock-badge stock-badge--ok"><span class="stock-dot"></span>Em estoque</span>
+                            <img src="img/MINI-MOTOR.png" class="card-img-top" alt="Mini Motor" loading="lazy">
+                        </div>
                         <div class="card-body">
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="product-badge badge-robotica">Robótica</span>
-                                <span class="product-badge badge-disponivel">Em estoque</span>
-                            </div>
+                            <span class="product-eyebrow">Robótica</span>
                             <h5 class="card-title">Mini Motor</h5>
-                            <div class="text-muted small mb-2 d-flex align-items-center gap-1">
-                                <i class="fas fa-barcode me-1"></i>MT.00.00020
+                            <div class="product-code-pill">
+                                <i class="fas fa-barcode"></i>MT.00.00020
                                 <button type="button" class="btn btn-link btn-sm p-0 btn-copy-code" data-codigo="MT.00.00020" title="Copiar código">
                                     <i class="fas fa-copy"></i>
                                 </button>
                             </div>
-                            <p class="card-text">O Mini motor, é um mini motor robustos que conta com uma caixa de redução 200:1 de engrenagens de metal.</p>
-                            <div class="d-flex justify-content-between align-items-center mt-2">
+                            <div class="product-card-footer">
                                 <span class="product-price">R$ 59,90</span>
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#productModal3">
@@ -374,18 +278,17 @@
                 </div>
 
                 <!-- Produto 4 -->
-                <div class="col-md-4 mb-4 product-col" data-category="acesso"
+                <div class="col-sm-6 col-md-4 mb-4 product-col" data-category="acesso"
                      data-nome="Leitor Biometrico" data-preco="179.90" data-estoque="1" data-codigo="">
                     <div class="card product-card">
-                        <img src="img/BIO.png" class="card-img-top" alt="Leitor Biometrico" loading="lazy">
+                        <div class="product-card-thumb">
+                            <span class="stock-badge stock-badge--ok"><span class="stock-dot"></span>Em estoque</span>
+                            <img src="img/BIO.png" class="card-img-top" alt="Leitor Biometrico" loading="lazy">
+                        </div>
                         <div class="card-body">
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="product-badge badge-acesso">Controle de Acesso</span>
-                                <span class="product-badge badge-disponivel">Em estoque</span>
-                            </div>
+                            <span class="product-eyebrow">Controle de Acesso</span>
                             <h5 class="card-title">Leitor Biometrico</h5>
-                            <p class="card-text">Leitor Biometrico para integração em projetos.</p>
-                            <div class="d-flex justify-content-between align-items-center mt-2">
+                            <div class="product-card-footer">
                                 <span class="product-price">R$ 179,90</span>
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#productModal4">
@@ -405,20 +308,19 @@
                 </div>
 
                 <!-- Produto 5 -->
-                <div class="col-md-4 mb-4 product-col" data-category="acesso"
+                <div class="col-sm-6 col-md-4 mb-4 product-col" data-category="acesso"
                      data-nome="Trava Eletrônica (Mitra)" data-preco="219.90" data-estoque="1" data-codigo="">
                     <div class="card product-card">
-                        <div class="product-media-container">
-                            <img src="img/MITRA.png" class="card-img-top" alt="Trava Eletrônica" loading="lazy">
+                        <div class="product-card-thumb">
+                            <span class="stock-badge stock-badge--ok"><span class="stock-dot"></span>Em estoque</span>
+                            <div class="product-media-container">
+                                <img src="img/MITRA.png" class="card-img-top" alt="Trava Eletrônica" loading="lazy">
+                            </div>
                         </div>
                         <div class="card-body">
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="product-badge badge-acesso">Controle de Acesso</span>
-                                <span class="product-badge badge-disponivel">Em estoque</span>
-                            </div>
+                            <span class="product-eyebrow">Controle de Acesso</span>
                             <h5 class="card-title">Trava Eletrônica (Mitra)</h5>
-                            <p class="card-text">Dispositivo que permite trancar ou destrancar uma porta, controlando acessos em ambientes internos ou externos.</p>
-                            <div class="d-flex justify-content-between align-items-center mt-2">
+                            <div class="product-card-footer">
                                 <span class="product-price">R$ 219,90</span>
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#productModal5">
@@ -438,23 +340,22 @@
                 </div>
 
                 <!-- Produto 6 -->
-                <div class="col-md-4 mb-4 product-col" data-category="bluetooth"
+                <div class="col-sm-6 col-md-4 mb-4 product-col" data-category="bluetooth"
                      data-nome="Trava Eletrônica Bluetooth (BLE)" data-preco="329.90" data-estoque="1" data-codigo="">
                     <div class="card product-card">
-                        <div class="product-media-container">
-                            <video autoplay muted loop playsinline>
-                                <source src="video/AppBle.mp4" type="video/mp4">
-                                Seu navegador não suporta vídeos em HTML5.
-                            </video>
+                        <div class="product-card-thumb">
+                            <span class="stock-badge stock-badge--ok"><span class="stock-dot"></span>Em estoque</span>
+                            <div class="product-media-container">
+                                <video autoplay muted loop playsinline>
+                                    <source src="video/AppBle.mp4" type="video/mp4">
+                                    Seu navegador não suporta vídeos em HTML5.
+                                </video>
+                            </div>
                         </div>
                         <div class="card-body">
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="product-badge badge-bluetooth">Bluetooth</span>
-                                <span class="product-badge badge-disponivel">Em estoque</span>
-                            </div>
+                            <span class="product-eyebrow">Bluetooth</span>
                             <h5 class="card-title">Trava Eletrônica Bluetooth (BLE)</h5>
-                            <p class="card-text">Dispositivo que permite trancar ou destrancar uma porta, controlando acessos em ambientes internos ou externos por meio de aplicativo e conexão Bluetooth.</p>
-                            <div class="d-flex justify-content-between align-items-center mt-2">
+                            <div class="product-card-footer">
                                 <span class="product-price">R$ 329,90</span>
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#productModal6">
@@ -566,11 +467,8 @@
                     <button type="button" class="btn btn-outline-primary solicitar-orcamento" data-product="Motoredutor Porta">
                         Solicitar Orçamento
                     </button>
-                    <button type="button" class="btn btn-success btn-buy"
-                            data-product-id="1"
-                            data-product-name="Motoredutor Porta"
-                            data-product-price="189.90">
-                        <i class="fas fa-cart-shopping me-1"></i> Comprar Agora
+                    <button type="button" class="btn btn-secondary" disabled>
+                        <i class="fas fa-ban me-1"></i> Fora de estoque
                     </button>
                 </div>
             </div>
@@ -1024,6 +922,85 @@
 
     </div><!-- /#product-modals -->
 
+    <!-- Diferenciais Section -->
+    <section class="diferenciais-section py-5">
+        <div class="container">
+            <div class="section-header text-center mb-5" data-aos="fade-up">
+                <span class="section-tag">Por que escolher a PSPart?</span>
+                <h2>Nossos Diferenciais</h2>
+            </div>
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-3">
+                    <div class="diferencial-card text-center">
+                        <div class="diferencial-icon">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <h5>Qualidade Técnica</h5>
+                        <p>Componentes selecionados com rigor técnico, garantindo desempenho e durabilidade.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="diferencial-card text-center">
+                        <div class="diferencial-icon">
+                            <i class="fas fa-headset"></i>
+                        </div>
+                        <h5>Suporte Especializado</h5>
+                        <p>Equipe técnica pronta para auxiliar na integração e configuração dos produtos.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="diferencial-card text-center">
+                        <div class="diferencial-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h5>Produtos Certificados</h5>
+                        <p>Todos os itens passam por rigoroso controle de qualidade antes de chegar até você.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="diferencial-card text-center">
+                        <div class="diferencial-icon">
+                            <i class="fas fa-truck"></i>
+                        </div>
+                        <h5>Entrega Rápida</h5>
+                        <p>Agilidade no despacho e envio para todo o Brasil com rastreamento.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sobre Nós Section -->
+    <section id="sobre" class="sobre-section py-5">
+        <div class="container">
+            <div class="row align-items-center g-5">
+                <div class="col-lg-6" data-aos="fade-right">
+                    <span class="section-tag">Nossa História</span>
+                    <h2 class="fw-bold mb-3">Sobre a PSPart Automação</h2>
+                    <p>Com mais de 10 anos de experiência no mercado de automação, a PSPart nasceu com o propósito de fornecer componentes mecatrônicos de alta qualidade para integradores, desenvolvedores e indústrias de todo o Brasil.</p>
+                    <p>Atuamos com motoredutores, travas eletrônicas, leitores biométricos e soluções Bluetooth, sempre com foco em suporte técnico especializado e entrega ágil.</p>
+                    <div class="sobre-stats d-flex gap-4 mt-4">
+                        <div class="sobre-stat">
+                            <div class="sobre-stat-number">10+</div>
+                            <small>Anos no mercado</small>
+                        </div>
+                        <div class="sobre-stat">
+                            <div class="sobre-stat-number">50+</div>
+                            <small>Clientes atendidos</small>
+                        </div>
+                        <div class="sobre-stat">
+                            <div class="sobre-stat-number">6+</div>
+                            <small>Produtos no catálogo</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6" data-aos="fade-left">
+                    <img src="img/FRENTE2.jpg" alt="PSPart Automação - Nossa empresa" class="sobre-img" loading="lazy">
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Formulário de Contato -->
     <section id="contato" class="contact-section">
         <div class="container">
@@ -1444,6 +1421,98 @@
         </div>
     </div>
 
+    <!-- Modal de Checkout do Carrinho (B2b) — dados do comprador + endereço; CEP e frete já
+         resolvidos no drawer (B2a). Só redirect ao Checkout Pro — sem Bricks aqui (fora de escopo). -->
+    <div class="modal fade" id="cartCheckoutModal" tabindex="-1" aria-labelledby="cartCheckoutModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cartCheckoutModalLabel">
+                        <i class="fas fa-cart-shopping me-2 text-success"></i>Finalizar Compra
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="cart-checkout-error-msg" class="alert alert-danger d-none py-2 small mb-3"></div>
+                    <div id="cart-checkout-diverge-msg" class="alert alert-warning d-none py-2 small mb-3"></div>
+
+                    <form id="cartCheckoutForm" novalidate>
+                        <div class="mb-3">
+                            <label for="cart-checkout-nome" class="form-label fw-semibold">Nome completo *</label>
+                            <input type="text" class="form-control" id="cart-checkout-nome" placeholder="Seu nome completo" required>
+                            <div class="invalid-feedback">Informe seu nome completo.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="cart-checkout-email" class="form-label fw-semibold">E-mail *</label>
+                            <input type="email" class="form-control" id="cart-checkout-email" placeholder="seu@email.com" required>
+                            <div class="invalid-feedback">Informe um e-mail válido.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="cart-checkout-telefone" class="form-label fw-semibold">Telefone / WhatsApp *</label>
+                            <input type="tel" class="form-control" id="cart-checkout-telefone" placeholder="(00) 00000-0000" required>
+                            <div class="invalid-feedback">Informe seu telefone ou WhatsApp.</div>
+                        </div>
+
+                        <hr class="my-3">
+                        <p class="fw-semibold mb-3 text-muted small">
+                            <i class="fas fa-truck me-1"></i>Endereço de entrega — CEP <span id="cart-checkout-cep-label"></span>
+                        </p>
+
+                        <div class="row g-2 mb-2">
+                            <div class="col-sm-4">
+                                <label for="cart-checkout-numero" class="form-label fw-semibold">Número *</label>
+                                <input type="text" class="form-control" id="cart-checkout-numero" placeholder="Ex: 123" required>
+                                <div class="invalid-feedback">Informe o número.</div>
+                            </div>
+                            <div class="col-sm-3">
+                                <label for="cart-checkout-estado" class="form-label fw-semibold">UF</label>
+                                <input type="text" class="form-control bg-light" id="cart-checkout-estado" placeholder="UF" readonly>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" class="form-control bg-light" id="cart-checkout-endereco" placeholder="Rua / Avenida..." readonly>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-sm-6">
+                                <input type="text" class="form-control bg-light" id="cart-checkout-bairro" placeholder="Bairro" readonly>
+                            </div>
+                            <div class="col-sm-6">
+                                <input type="text" class="form-control bg-light" id="cart-checkout-cidade" placeholder="Cidade" readonly>
+                            </div>
+                        </div>
+                        <div class="mb-0">
+                            <input type="text" class="form-control" id="cart-checkout-complemento" placeholder="Complemento (opcional — apto, bloco, casa...)">
+                        </div>
+                    </form>
+
+                    <hr class="my-3">
+                    <div class="checkout-resumo">
+                        <div class="d-flex justify-content-between small text-muted mb-1">
+                            <span>Subtotal</span>
+                            <span id="cart-checkout-subtotal-val">R$ 0,00</span>
+                        </div>
+                        <div class="d-flex justify-content-between small mb-2">
+                            <span class="text-muted"><i class="fas fa-truck me-1"></i>Frete</span>
+                            <span id="cart-checkout-frete-val" class="fw-semibold text-success"></span>
+                        </div>
+                        <div class="d-flex justify-content-between fw-bold border-top pt-2">
+                            <span>Total</span>
+                            <span id="cart-checkout-grand-total" class="text-success">R$ 0,00</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer flex-column gap-2 pt-3">
+                    <button type="button" class="btn btn-success w-100 py-2" id="cart-checkout-submit">
+                        <i class="fas fa-arrow-up-right-from-square me-2"></i>Pagar no Mercado Pago
+                    </button>
+                    <p class="text-muted small text-center mb-0">
+                        <i class="fas fa-shield-alt me-1"></i>Pagamento 100% seguro via <strong>Mercado Pago</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Lightbox de imagem -->
     <div id="lightboxOverlay" class="lightbox-overlay" role="dialog" aria-modal="true" aria-label="Visualizar imagem ampliada">
         <button class="lightbox-close" id="lightboxClose" aria-label="Fechar">
@@ -1454,6 +1523,56 @@
             <p id="lightbox-caption" class="lightbox-caption"></p>
         </div>
     </div>
+
+    <!-- Carrinho — backdrop segue o mesmo padrão do lightbox (display fixo + opacity/pointer-events
+         via classe, nunca display:none/block por CSS de estado) e o painel desliza via transform -->
+    <div id="cartBackdrop" class="cart-backdrop"></div>
+    <aside id="cartDrawer" class="cart-drawer" role="dialog" aria-modal="true" aria-label="Carrinho de compras">
+        <div class="cart-drawer-header">
+            <h2 class="cart-drawer-title"><i class="fas fa-cart-shopping me-2"></i>Seu carrinho</h2>
+            <button id="cartDrawerClose" class="cart-drawer-close" aria-label="Fechar carrinho">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <p id="cartEmpty" class="cart-empty">
+            <i class="fas fa-cart-shopping"></i>
+            Seu carrinho está vazio.
+        </p>
+
+        <div id="cartItems" class="cart-items"></div>
+
+        <div id="cartFooter" class="cart-drawer-footer" style="display:none;">
+            <div class="cart-frete-block">
+                <label for="cartCepInput" class="frete-cep-label mb-1 d-block">
+                    <i class="fas fa-location-dot me-1"></i>CEP de entrega
+                </label>
+                <div class="cart-frete-cep-row">
+                    <input type="text" id="cartCepInput" class="form-control form-control-sm frete-cep-input"
+                           placeholder="00000-000" maxlength="9" inputmode="numeric" aria-label="CEP de entrega">
+                    <button type="button" id="cartCepBtn" class="btn btn-outline-primary btn-sm" aria-label="Calcular frete">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <div id="cartFreteResultado" class="cart-frete-resultado" style="display:none;"></div>
+            </div>
+
+            <div class="cart-subtotal-row">
+                <span>Subtotal</span>
+                <span id="cartSubtotal">R$ 0,00</span>
+            </div>
+            <div class="cart-subtotal-row" id="cartFreteRow" style="display:none;">
+                <span>Frete</span>
+                <span id="cartFreteValor">R$ 0,00</span>
+            </div>
+            <div class="cart-subtotal-row cart-total-row" id="cartTotalRow" style="display:none;">
+                <span>Total</span>
+                <span id="cartTotalValor">R$ 0,00</span>
+            </div>
+            <p class="cart-subtotal-nota">Valor informativo — total final autoritativo é recalculado no checkout.</p>
+            <button id="cartFinalizar" type="button" class="btn btn-cta w-100" disabled>Finalizar compra</button>
+        </div>
+    </aside>
 
     <!-- Modal Redirecionamento Mercado Pago -->
     <div class="modal fade" id="paymentRedirectModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">

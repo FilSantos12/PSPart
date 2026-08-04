@@ -15,16 +15,20 @@ class App {
     }
 
     init() {
+        this.medirAlturaHeader();
         this.setupEventListeners();
         this.setupScrollHandlers();
         this.setupCounters();
         this.setupLGPD();
         this.setupThemeToggle();
+        this.setupCart();
+        this.setupCartCheckout();
         this.setupCheckout();
         this.setupImageLightbox();
         this.setupProductFilter();
         this.setupProductToolbar();
         this.setupProductSharing();
+        this.setupHeroSearch();
         this.renderProducts();
         this.handleRetornoMP();
         this.setupFrete();
@@ -169,6 +173,23 @@ class App {
         }, 300);
     }
 
+    // Mede a altura real do header fixo (nunca chuta em px — varia por fonte carregada/mobile/wrap)
+    // e publica em --header-h, usada pelo padding-top do body e pelo scroll-padding-top das âncoras.
+    medirAlturaHeader() {
+        const nav = document.getElementById('mainNavbar');
+        if (!nav) return;
+
+        const aplicar = () => {
+            document.documentElement.style.setProperty('--header-h', `${nav.offsetHeight}px`);
+        };
+
+        aplicar();
+        window.addEventListener('resize', aplicar);
+        nav.addEventListener('shown.bs.collapse', aplicar);
+        nav.addEventListener('hidden.bs.collapse', aplicar);
+        document.fonts?.ready?.then(aplicar);
+    }
+
     setupNavigation() {
         const verProdutosBtn = document.querySelector('.hero-section .btn-primary');
         if (verProdutosBtn) {
@@ -220,8 +241,14 @@ class App {
         let currentSection = '';
         const scrollPosition = window.pageYOffset;
 
+        // Mesma fonte do offset do header que o resto do site usa (--header-h, Patch A) — evita
+        // dessincronizar do 100px fixo antigo quando a altura do header muda (mobile/fonte/menu)
+        const headerHVar = getComputedStyle(document.documentElement).getPropertyValue('--header-h');
+        const headerH = parseFloat(headerHVar) || document.getElementById('mainNavbar')?.offsetHeight || 76;
+        const offset = headerH + 20;
+
         sections.forEach(section => {
-            if (scrollPosition >= (section.offsetTop - 100)) {
+            if (scrollPosition >= (section.offsetTop - offset)) {
                 currentSection = section.getAttribute('id');
             }
         });
@@ -289,6 +316,23 @@ class App {
         const sortEl = document.getElementById('product-sort');
         sortEl?.addEventListener('change', () => {
             this._applyProductSort(sortEl.value);
+        });
+    }
+
+    // Busca do hero não duplica lógica — só alimenta e aciona a busca já existente da toolbar
+    setupHeroSearch() {
+        const form  = document.getElementById('heroSearchForm');
+        const input = document.getElementById('heroSearchInput');
+        const targetSearch = document.getElementById('product-search');
+        if (!form || !input || !targetSearch) return;
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            targetSearch.value = input.value;
+            targetSearch.dispatchEvent(new Event('input', { bubbles: true }));
+            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            document.getElementById('produtos')?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+            targetSearch.focus();
         });
     }
 
@@ -516,6 +560,591 @@ class App {
         requestAnimationFrame(update);
     }
 
+    // ── CARRINHO ──────────────────────────────────────────────────────────────
+    // psp_cart guarda SÓ {produto_id, quantidade}. Preço/nome/imagem nunca ficam no storage —
+    // são relidos do DOM já renderizado (_cartFindProdutoInfo) a cada exibição. Subtotal aqui
+    // é informativo; o valor autoritativo é sempre recalculado no servidor (Fase 2).
+
+    setupCart() {
+        this._cartFrete = null;          // { cep, selecionado } — nunca guarda preço fora de uma cotação em memória
+        this._cartSubtotalAtual = 0;
+        this._cartLoad();
+        this._cartRenderBadge();
+
+        document.getElementById('cartToggle')?.addEventListener('click', () => this._cartOpenDrawer());
+        document.getElementById('cartDrawerClose')?.addEventListener('click', () => this._cartCloseDrawer());
+        document.getElementById('cartBackdrop')?.addEventListener('click', () => this._cartCloseDrawer());
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.getElementById('cartDrawer')?.classList.contains('open')) {
+                this._cartCloseDrawer();
+            }
+        });
+
+        document.getElementById('cartCepBtn')?.addEventListener('click', () => this._cartSubmitCep());
+        document.getElementById('cartCepInput')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); this._cartSubmitCep(); }
+        });
+        document.getElementById('cartCepInput')?.addEventListener('input', (e) => {
+            e.target.classList.remove('is-invalid');
+        });
+
+        // Adiciona ao carrinho a partir de qualquer .btn-buy habilitado — idêntico no card
+        // estático, no renderProducts() e no botão "Comprar Agora" do modal de detalhe,
+        // já que os três reaproveitam a mesma classe/estrutura de dados.
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-buy');
+            if (!btn || btn.disabled) return;
+            const id = parseInt(btn.dataset.productId) || 0;
+            if (!id) return;
+            this._cartAdd(id);
+            this._cartToast('Adicionado ao carrinho');
+        });
+
+        document.getElementById('cartFinalizar')?.addEventListener('click', () => this._cartFinalizar());
+    }
+
+    _cartLoad() {
+        try {
+            const raw = JSON.parse(localStorage.getItem('psp_cart') || '[]');
+            this._cart = Array.isArray(raw)
+                ? raw.filter(i => i && Number.isInteger(i.produto_id) && i.quantidade > 0)
+                : [];
+        } catch {
+            this._cart = [];
+        }
+    }
+
+    _cartSave() {
+        localStorage.setItem('psp_cart', JSON.stringify(this._cart));
+        // Qualquer mutação do carrinho invalida a cotação de frete em memória — o carrinho
+        // que foi cotado não é mais o carrinho atual (trava do B2a: recalcular/limpar ao mudar).
+        this._cartFrete = null;
+        this._cartRenderBadge();
+        this._cartRenderDrawer();
+    }
+
+    _cartAdd(id, qty = 1) {
+        const item = this._cart.find(i => i.produto_id === id);
+        if (item) {
+            item.quantidade = Math.min(99, item.quantidade + qty);
+        } else {
+            this._cart.push({ produto_id: id, quantidade: Math.min(99, qty) });
+        }
+        this._cartSave();
+    }
+
+    _cartSetQty(id, qty) {
+        qty = Math.max(0, Math.min(99, qty));
+        const item = this._cart.find(i => i.produto_id === id);
+        if (!item) return;
+        if (qty === 0) {
+            this._cartRemove(id);
+            return;
+        }
+        item.quantidade = qty;
+        this._cartSave();
+    }
+
+    _cartRemove(id) {
+        this._cart = this._cart.filter(i => i.produto_id !== id);
+        this._cartSave();
+    }
+
+    _cartCount() {
+        return this._cart.reduce((sum, i) => sum + i.quantidade, 0);
+    }
+
+    // Nome/preço/código/imagem nunca vêm do storage — sempre relidos do card já renderizado
+    // em #products-grid (funciona igual para catálogo estático ou dinâmico).
+    _cartFindProdutoInfo(id) {
+        const btn = document.querySelector(`#products-grid .btn-buy[data-product-id="${id}"]`);
+        if (!btn) return null;
+        const col = btn.closest('.product-col');
+        const img = col?.querySelector('.product-card-thumb img');
+        return {
+            id,
+            nome: btn.dataset.productName || col?.dataset.nome || 'Produto',
+            preco: parseFloat(btn.dataset.productPrice) || parseFloat(col?.dataset.preco) || 0,
+            codigo: col?.dataset.codigo || '',
+            imagem: img?.getAttribute('src') || null,
+        };
+    }
+
+    _cartRenderBadge() {
+        const badge = document.getElementById('cartBadge');
+        if (!badge) return;
+        const count = this._cartCount();
+        badge.textContent = count > 9 ? '9+' : String(count);
+        badge.style.display = count > 0 ? '' : 'none';
+    }
+
+    _cartToast(msg) {
+        let toast = document.getElementById('cartToast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'cartToast';
+            toast.className = 'cart-toast';
+            toast.setAttribute('role', 'status');
+            document.body.appendChild(toast);
+        }
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(this._cartToastTimer);
+        this._cartToastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    _cartOpenDrawer() {
+        this._cartRenderDrawer();
+        document.getElementById('cartDrawer')?.classList.add('open');
+        document.getElementById('cartBackdrop')?.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    _cartCloseDrawer() {
+        document.getElementById('cartDrawer')?.classList.remove('open');
+        document.getElementById('cartBackdrop')?.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    _cartRenderDrawer() {
+        const list    = document.getElementById('cartItems');
+        const empty   = document.getElementById('cartEmpty');
+        const footer  = document.getElementById('cartFooter');
+        if (!list) return;
+
+        if (this._cart.length === 0) {
+            list.innerHTML = '';
+            if (empty)  empty.style.display  = '';
+            if (footer) footer.style.display = 'none';
+            this._cartUpdateFinalizarState();
+            return;
+        }
+
+        if (empty)  empty.style.display  = 'none';
+        if (footer) footer.style.display = '';
+
+        let subtotal = 0;
+        list.innerHTML = this._cart.map(item => {
+            const info = this._cartFindProdutoInfo(item.produto_id);
+            if (!info) {
+                return `
+                <div class="cart-item cart-item--indisponivel" data-id="${item.produto_id}">
+                    <div class="cart-item-info">
+                        <span class="cart-item-nome">Produto indisponível</span>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-danger cart-item-remove" data-id="${item.produto_id}">Remover</button>
+                    </div>
+                </div>`;
+            }
+            subtotal += info.preco * item.quantidade;
+            const thumbHtml = info.imagem
+                ? `<img src="${info.imagem}" alt="${info.nome}" class="cart-item-thumb">`
+                : `<div class="cart-item-thumb cart-item-thumb--placeholder"><i class="fas fa-image"></i></div>`;
+            const codigoHtml = info.codigo
+                ? `<span class="cart-item-codigo">${info.codigo}</span>`
+                : '';
+            const precoLinha = (info.preco * item.quantidade).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            return `
+            <div class="cart-item" data-id="${info.id}">
+                ${thumbHtml}
+                <div class="cart-item-info">
+                    <span class="cart-item-nome">${info.nome}</span>
+                    ${codigoHtml}
+                    <div class="cart-item-qty">
+                        <button type="button" class="cart-qty-btn cart-qty-minus" data-id="${info.id}" aria-label="Diminuir quantidade">−</button>
+                        <input type="number" class="cart-qty-input" min="1" max="99" value="${item.quantidade}" data-id="${info.id}" aria-label="Quantidade">
+                        <button type="button" class="cart-qty-btn cart-qty-plus" data-id="${info.id}" aria-label="Aumentar quantidade">+</button>
+                    </div>
+                </div>
+                <div class="cart-item-end">
+                    <span class="cart-item-preco">${precoLinha}</span>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-danger cart-item-remove" data-id="${info.id}" aria-label="Remover item">
+                        <i class="fas fa-trash-can"></i>
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
+
+        const subtotalEl = document.getElementById('cartSubtotal');
+        if (subtotalEl) {
+            subtotalEl.textContent = subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+        this._cartSubtotalAtual = subtotal;
+        this._cartRenderFreteSection();
+
+        // Event delegation seria ideal, mas o container é recriado a cada render — listeners
+        // diretos nos elementos recém-criados evitam duplicar handlers no document.
+        list.querySelectorAll('.cart-qty-minus').forEach(b => b.addEventListener('click', () => {
+            const id = parseInt(b.dataset.id);
+            const item = this._cart.find(i => i.produto_id === id);
+            if (item) this._cartSetQty(id, item.quantidade - 1);
+        }));
+        list.querySelectorAll('.cart-qty-plus').forEach(b => b.addEventListener('click', () => {
+            const id = parseInt(b.dataset.id);
+            const item = this._cart.find(i => i.produto_id === id);
+            if (item) this._cartSetQty(id, item.quantidade + 1);
+        }));
+        list.querySelectorAll('.cart-qty-input').forEach(inp => inp.addEventListener('change', () => {
+            this._cartSetQty(parseInt(inp.dataset.id), parseInt(inp.value) || 1);
+        }));
+        list.querySelectorAll('.cart-item-remove').forEach(b => b.addEventListener('click', () => {
+            this._cartRemove(parseInt(b.dataset.id));
+        }));
+    }
+
+    // Botão só é clicável com CEP+frete selecionados (_cartUpdateFinalizarState). Abre o modal
+    // de checkout do carrinho (B2b) — coleta comprador/endereço; CEP e frete já vêm do drawer.
+    _cartFinalizar() {
+        if (this._cart.length === 0 || !this._cartFrete?.selecionado) return;
+        this._cartOpenCheckoutModal();
+    }
+
+    // ── CARRINHO — FRETE AGREGADO (B2a) ──────────────────────────────────────
+    // this._cartFrete = { cep, selecionado } só existe em memória — nunca é a fonte
+    // autoritativa. O preço vem sempre da resposta do servidor (backend/api/frete-carrinho.php,
+    // que resolve peso/dimensão/preço do banco); é limpo a cada mutação do carrinho ou troca
+    // de CEP (_cartSave / _cartAlterarCep) para nunca referenciar uma cotação obsoleta.
+
+    _cartSubmitCep() {
+        const cepEl = document.getElementById('cartCepInput');
+        const cep   = cepEl?.value.replace(/\D/g, '');
+        if (!cep || cep.length !== 8) {
+            cepEl?.classList.add('is-invalid');
+            return;
+        }
+        cepEl.classList.remove('is-invalid');
+        this._cartBuscarFrete(cep);
+    }
+
+    // Chamado a cada (re)render do footer do drawer: se não há cotação em memória (carrinho/CEP
+    // acabou de mudar), esconde o resultado anterior e, se houver CEP salvo, recalcula sozinho.
+    _cartRenderFreteSection() {
+        const cepInput = document.getElementById('cartCepInput');
+        const resultEl = document.getElementById('cartFreteResultado');
+        if (!cepInput || !resultEl) return;
+
+        if (this._cartFrete) return; // cotação em memória ainda válida para o carrinho atual
+
+        resultEl.style.display = 'none';
+        resultEl.innerHTML = '';
+        this._cartUpdateTotais();
+        this._cartUpdateFinalizarState();
+
+        const saved = localStorage.getItem('psp_cep_entrega');
+        if (saved && document.activeElement !== cepInput) {
+            cepInput.value = saved;
+            const cepDigits = saved.replace(/\D/g, '');
+            if (cepDigits.length === 8) this._cartBuscarFrete(cepDigits);
+        }
+    }
+
+    async _cartBuscarFrete(cep) {
+        const resultEl = document.getElementById('cartFreteResultado');
+        const btn      = document.getElementById('cartCepBtn');
+        if (!resultEl || this._cart.length === 0) return;
+
+        resultEl.style.display = 'block';
+        resultEl.innerHTML = '<p class="text-muted small mt-2 mb-0"><i class="fas fa-spinner fa-spin me-1"></i>Calculando prazo de entrega...</p>';
+        this._cartFrete = null;
+        this._cartUpdateTotais();
+        this._cartUpdateFinalizarState();
+
+        const btnOriginal = btn?.innerHTML;
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+
+        try {
+            // Browser envia só {produto_id, quantidade} por item + CEP — nunca preço/dimensão
+            // (essas vêm sempre do banco, resolvidas no servidor).
+            const resp = await fetch('backend/api/frete-carrinho.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cart: this._cart, cep_destino: cep }),
+            });
+            const data = await resp.json();
+
+            if (!resp.ok || !data.ok) {
+                resultEl.innerHTML = `<p class="text-danger small mt-2 mb-0"><i class="fas fa-circle-exclamation me-1"></i>${data.erro || 'Não foi possível calcular o frete para este CEP.'}</p>`;
+                return;
+            }
+
+            localStorage.setItem('psp_cep_entrega', cep.replace(/(\d{5})(\d{3})/, '$1-$2'));
+            this._cartRenderFreteOpcoes(data.servicos, data.cep, resultEl);
+
+        } catch (_) {
+            resultEl.innerHTML = '<p class="text-danger small mt-2 mb-0"><i class="fas fa-circle-exclamation me-1"></i>Não foi possível calcular o frete para este CEP.</p>';
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = btnOriginal; }
+        }
+    }
+
+    // Mesmo padrão visual/estrutural de _renderFreteCheckout() (opções clicáveis,
+    // .frete-opcao--selec/--ativo, primeira opção pré-selecionada).
+    _cartRenderFreteOpcoes(servicos, cep, containerEl) {
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+
+        const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho',
+                       'agosto','setembro','outubro','novembro','dezembro'];
+        const fmt = d => `${d.getDate()} de ${MESES[d.getMonth()]}`;
+
+        const linhas = servicos.map((s, idx) => {
+            const dataMin  = this._adicionarDiasUteis(hoje, s.prazo_min);
+            const dataMax  = this._adicionarDiasUteis(hoje, s.prazo_max);
+            const mesmoDia = s.prazo_min === s.prazo_max;
+
+            const chegada = mesmoDia
+                ? `Chegará até <strong>${fmt(dataMax)}</strong>`
+                : `Chegará entre <strong>${fmt(dataMin)}</strong> e <strong>${fmt(dataMax)}</strong>`;
+
+            const precoHtml = s.preco === 0
+                ? '<span class="badge bg-success ms-1">Frete grátis</span>'
+                : `<span class="frete-preco">${s.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>`;
+
+            const logoHtml = s.logo
+                ? `<img src="${s.logo}" alt="${s.transportadora}" class="frete-logo">`
+                : `<span class="frete-logo-placeholder"><i class="fas fa-truck"></i></span>`;
+
+            const isFirst = idx === 0;
+            return `
+            <div class="frete-opcao frete-opcao--selec${isFirst ? ' frete-opcao--ativo' : ''}"
+                 data-frete='${JSON.stringify(s).replace(/'/g, '&#39;')}'>
+                <div class="frete-opcao-header">
+                    <span class="frete-selec-check"><i class="fas fa-circle-check"></i></span>
+                    ${logoHtml}
+                    <span class="frete-nome">${s.nome}</span>
+                    ${precoHtml}
+                </div>
+                <div class="frete-chegada">
+                    <i class="fas fa-calendar-days me-1"></i>${chegada}
+                </div>
+            </div>`;
+        }).join('');
+
+        containerEl.innerHTML = `
+            <div class="frete-resultado-box">
+                <p class="frete-cep-label mb-2 d-flex align-items-center justify-content-between">
+                    <span><i class="fas fa-location-dot me-1"></i>CEP ${cep} — escolha uma opção:</span>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-muted text-decoration-none frete-alterar-cep-btn" style="font-size:0.78rem;">
+                        <i class="fas fa-pencil me-1"></i>Alterar CEP
+                    </button>
+                </p>
+                ${linhas}
+            </div>`;
+
+        containerEl.querySelector('.frete-alterar-cep-btn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this._cartAlterarCep();
+        });
+
+        this._cartFrete = { cep, selecionado: servicos.length > 0 ? servicos[0] : null };
+        this._cartUpdateTotais();
+        this._cartUpdateFinalizarState();
+
+        containerEl.querySelectorAll('.frete-opcao--selec').forEach(el => {
+            el.addEventListener('click', () => {
+                containerEl.querySelectorAll('.frete-opcao--selec').forEach(o => o.classList.remove('frete-opcao--ativo'));
+                el.classList.add('frete-opcao--ativo');
+                try { this._cartFrete.selecionado = JSON.parse(el.dataset.frete); } catch (_) {}
+                this._cartUpdateTotais();
+                this._cartUpdateFinalizarState();
+            });
+        });
+    }
+
+    _cartAlterarCep() {
+        const resultEl = document.getElementById('cartFreteResultado');
+        if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
+        this._cartFrete = null;
+        this._cartUpdateTotais();
+        this._cartUpdateFinalizarState();
+        const cepEl = document.getElementById('cartCepInput');
+        if (cepEl) { cepEl.focus(); cepEl.select(); }
+    }
+
+    _cartUpdateTotais() {
+        const freteRow = document.getElementById('cartFreteRow');
+        const totalRow = document.getElementById('cartTotalRow');
+        const freteVal = document.getElementById('cartFreteValor');
+        const totalVal = document.getElementById('cartTotalValor');
+        if (!freteRow || !totalRow || !freteVal || !totalVal) return;
+
+        const preco = this._cartFrete?.selecionado?.preco;
+        if (preco === undefined || preco === null) {
+            freteRow.style.display = 'none';
+            totalRow.style.display = 'none';
+            return;
+        }
+
+        freteVal.textContent = preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        totalVal.textContent = (this._cartSubtotalAtual + preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        freteRow.style.display = '';
+        totalRow.style.display = '';
+    }
+
+    // Gate do B2a: "Finalizar compra" só fica clicável com CEP válido + opção de frete selecionada.
+    _cartUpdateFinalizarState() {
+        const btn = document.getElementById('cartFinalizar');
+        if (!btn) return;
+        btn.disabled = this._cart.length === 0 || !this._cartFrete?.selecionado;
+    }
+
+    // ── CHECKOUT DO CARRINHO (B2b) ───────────────────────────────────────────
+    // Modal enxuto, aditivo — não toca no #checkoutModal (item único, dormente desde o
+    // Patch B). CEP e frete já vêm resolvidos do drawer (this._cartFrete); aqui só se
+    // coleta comprador + número/complemento (endereço/bairro/cidade/UF vêm do ViaCEP,
+    // reaproveitando o mesmo CEP). Só redirect ao Checkout Pro — sem Bricks (fora de escopo).
+
+    setupCartCheckout() {
+        document.getElementById('cart-checkout-submit')?.addEventListener('click', () => this._cartCheckoutSubmit());
+
+        ['cart-checkout-nome', 'cart-checkout-email', 'cart-checkout-telefone', 'cart-checkout-numero'].forEach(id => {
+            document.getElementById(id)?.addEventListener('input', () => {
+                document.getElementById(id)?.classList.remove('is-invalid');
+            });
+        });
+
+        document.getElementById('cartCheckoutModal')?.addEventListener('hidden.bs.modal', () => {
+            document.getElementById('cart-checkout-error-msg')?.classList.add('d-none');
+            document.getElementById('cart-checkout-diverge-msg')?.classList.add('d-none');
+        });
+    }
+
+    _cartOpenCheckoutModal() {
+        const cep = this._cartFrete?.cep;
+        if (!cep) return;
+
+        document.getElementById('cart-checkout-error-msg')?.classList.add('d-none');
+        document.getElementById('cart-checkout-diverge-msg')?.classList.add('d-none');
+        ['cart-checkout-numero', 'cart-checkout-complemento'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        ['cart-checkout-nome', 'cart-checkout-email', 'cart-checkout-telefone', 'cart-checkout-numero'].forEach(id => {
+            document.getElementById(id)?.classList.remove('is-invalid');
+        });
+
+        const cepLabel = document.getElementById('cart-checkout-cep-label');
+        if (cepLabel) cepLabel.textContent = cep;
+
+        this._cartCheckoutRenderTotais();
+        this._cartCheckoutBuscarEndereco(cep.replace(/\D/g, ''));
+
+        new bootstrap.Modal(document.getElementById('cartCheckoutModal')).show();
+    }
+
+    _cartCheckoutRenderTotais() {
+        const preco = this._cartFrete?.selecionado?.preco ?? 0;
+        const subtotalEl = document.getElementById('cart-checkout-subtotal-val');
+        const freteEl    = document.getElementById('cart-checkout-frete-val');
+        const totalEl    = document.getElementById('cart-checkout-grand-total');
+        if (subtotalEl) subtotalEl.textContent = this._cartSubtotalAtual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        if (freteEl)    freteEl.textContent    = preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        if (totalEl)    totalEl.textContent    = (this._cartSubtotalAtual + preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    async _cartCheckoutBuscarEndereco(cep) {
+        try {
+            const r    = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+            const data = await r.json();
+            if (data.erro) return;
+            document.getElementById('cart-checkout-endereco').value = data.logradouro || '';
+            document.getElementById('cart-checkout-bairro').value   = data.bairro     || '';
+            document.getElementById('cart-checkout-cidade').value   = data.localidade || '';
+            document.getElementById('cart-checkout-estado').value   = data.uf         || '';
+        } catch (_) {
+            // falha silenciosa — usuário pode preencher manualmente não é possível aqui
+            // (campos são readonly por padrão do projeto), mas o endereço vai no pedido mesmo assim
+        }
+    }
+
+    _cartCheckoutValidar() {
+        let ok = true;
+        const nome  = document.getElementById('cart-checkout-nome');
+        const email = document.getElementById('cart-checkout-email');
+        const tel   = document.getElementById('cart-checkout-telefone');
+        const num   = document.getElementById('cart-checkout-numero');
+
+        if (!nome.value.trim())  { nome.classList.add('is-invalid');  ok = false; }
+        if (!/^\S+@\S+\.\S+$/.test(email.value.trim())) { email.classList.add('is-invalid'); ok = false; }
+        if (!tel.value.trim())   { tel.classList.add('is-invalid');   ok = false; }
+        if (!num.value.trim())   { num.classList.add('is-invalid');   ok = false; }
+
+        if (!ok) {
+            [nome, email, tel, num].find(el => el.classList.contains('is-invalid'))?.focus();
+        }
+        return ok;
+    }
+
+    async _cartCheckoutSubmit() {
+        if (!this._cartCheckoutValidar()) return;
+        if (!this._cartFrete?.selecionado) return;
+
+        const errEl = document.getElementById('cart-checkout-error-msg');
+        const divEl = document.getElementById('cart-checkout-diverge-msg');
+        errEl?.classList.add('d-none');
+        divEl?.classList.add('d-none');
+
+        const btn = document.getElementById('cart-checkout-submit');
+        const btnOriginal = btn?.innerHTML;
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processando...'; }
+
+        try {
+            const resp = await fetch('backend/api/pedido-carrinho.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nome_comprador:     document.getElementById('cart-checkout-nome').value.trim(),
+                    email_comprador:    document.getElementById('cart-checkout-email').value.trim(),
+                    telefone_comprador: document.getElementById('cart-checkout-telefone').value.trim(),
+                    cep_destino:        this._cartFrete.cep,
+                    endereco:           document.getElementById('cart-checkout-endereco').value,
+                    numero:             document.getElementById('cart-checkout-numero').value.trim(),
+                    complemento:        document.getElementById('cart-checkout-complemento').value.trim(),
+                    bairro:             document.getElementById('cart-checkout-bairro').value,
+                    cidade:             document.getElementById('cart-checkout-cidade').value,
+                    estado:             document.getElementById('cart-checkout-estado').value,
+                    cart:               this._cart,
+                    service_id:         this._cartFrete.selecionado.id,
+                    preco_frete_confirmado: this._cartFrete.selecionado.preco,
+                }),
+            });
+            const data = await resp.json();
+
+            if (resp.status === 409 && data.diverge) {
+                // Divergência de frete (cache esfriou) — atualiza a seleção e exige reconfirmação
+                // (nunca redireciona com um valor diferente do que o cliente acabou de ver).
+                this._cartFrete.selecionado = data.novo_frete;
+                this._cartCheckoutRenderTotais();
+                this._cartUpdateTotais();
+                if (divEl) {
+                    divEl.textContent = data.erro || 'O frete mudou. Confira o novo valor e clique novamente para confirmar.';
+                    divEl.classList.remove('d-none');
+                }
+                return;
+            }
+
+            if (!resp.ok || !data.ok) {
+                if (errEl) {
+                    errEl.textContent = data.erro || 'Não foi possível finalizar a compra. Tente novamente.';
+                    errEl.classList.remove('d-none');
+                }
+                return;
+            }
+
+            // Marca este pedido como "acabou de ser iniciado nesta aba" — acompanhar.html usa isso
+            // para limpar o carrinho só na confirmação de pagamento (nunca antes/otimisticamente).
+            sessionStorage.setItem('psp_checkout_pedido_pendente', String(data.pedido_id));
+            window.location.href = data.init_point;
+
+        } catch (_) {
+            if (errEl) {
+                errEl.textContent = 'Falha de conexão. Tente novamente.';
+                errEl.classList.remove('d-none');
+            }
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = btnOriginal; }
+        }
+    }
+
     // ── CHECKOUT ──────────────────────────────────────────────────────────────
 
     setupCheckout() {
@@ -524,24 +1153,9 @@ class App {
         this._brickErrorHandled  = false;
         this._selectedFrete      = null;
 
-        // Abre o modal de checkout ao clicar em qualquer .btn-buy
-        document.addEventListener('click', (e) => {
-            const btn = e.target.closest('.btn-buy');
-            if (!btn) return;
-
-            const productName  = btn.dataset.productName;
-            const productPrice = parseFloat(btn.dataset.productPrice);
-
-            // Fecha modal de produto se estiver aberto
-            const parentModal = btn.closest('.modal');
-            if (parentModal) {
-                bootstrap.Modal.getInstance(parentModal)?.hide();
-            }
-
-            this._checkoutPrice     = productPrice;
-            this._checkoutProductId = parseInt(btn.dataset.productId) || 0;
-            this._openCheckoutModal(productName, productPrice, !!parentModal);
-        });
+        // Fase 1 (Patch B): .btn-buy agora adiciona ao carrinho (ver setupCart()), não abre
+        // mais este modal direto. O modal/fluxo abaixo (quantidade, CEP, Bricks) fica pronto,
+        // dormente, para a Fase 2 plugar o checkout multi-item a partir do carrinho.
 
         // Controles de quantidade
         document.getElementById('checkout-qty-minus')?.addEventListener('click', () => {
@@ -1104,8 +1718,8 @@ class App {
 
                 // Código interno (com botão de copiar, reutilizado no card e no modal)
                 const codigoHtml = p.codigo_interno
-                    ? `<div class="text-muted small mb-2 d-flex align-items-center gap-1">
-                           <i class="fas fa-barcode me-1"></i>${p.codigo_interno}
+                    ? `<div class="product-code-pill">
+                           <i class="fas fa-barcode"></i>${p.codigo_interno}
                            <button type="button" class="btn btn-link btn-sm p-0 btn-copy-code"
                                    data-codigo="${p.codigo_interno}" title="Copiar código">
                                <i class="fas fa-copy"></i>
@@ -1128,10 +1742,15 @@ class App {
                         </button>
                     </div>`;
 
-                // Indicador de disponibilidade (estoque = 0 → esgotado)
-                const estoqueHtml = p.estoque > 0
-                    ? `<span class="product-badge badge-disponivel">Em estoque</span>`
-                    : `<span class="product-badge badge-esgotado">Esgotado</span>`;
+                // Indicador de disponibilidade — 3 estados a partir do estoque real (sem lógica de negócio nova)
+                let estoqueHtml;
+                if (p.estoque > 3) {
+                    estoqueHtml = `<span class="stock-badge stock-badge--ok"><span class="stock-dot"></span>Em estoque</span>`;
+                } else if (p.estoque > 0) {
+                    estoqueHtml = `<span class="stock-badge stock-badge--warn"><span class="stock-dot"></span>Últimas unidades</span>`;
+                } else {
+                    estoqueHtml = `<span class="stock-badge stock-badge--req"><span class="stock-dot"></span>Esgotado</span>`;
+                }
 
                 // Link data sheet
                 const datasheetHtml = p.datasheet
@@ -1148,19 +1767,18 @@ class App {
                     : '';
 
                 cardsHtml += `
-                <div class="col-md-4 mb-4 product-col" data-category="${p.categoria}"
+                <div class="col-sm-6 col-md-4 mb-4 product-col" data-category="${p.categoria}"
                      data-nome="${p.nome}" data-preco="${p.preco}" data-estoque="${p.estoque}" data-codigo="${p.codigo_interno || ''}">
                     <div class="card product-card">
-                        ${imgTag}
+                        <div class="product-card-thumb">
+                            ${estoqueHtml}
+                            ${imgTag}
+                        </div>
                         <div class="card-body">
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="product-badge badge-${p.categoria}">${label}</span>
-                                ${estoqueHtml}
-                            </div>
+                            <span class="product-eyebrow">${label}</span>
                             <h5 class="card-title">${p.nome}</h5>
                             ${codigoHtml}
-                            <p class="card-text">${p.descricao || ''}</p>
-                            <div class="d-flex justify-content-between align-items-center mt-2">
+                            <div class="product-card-footer">
                                 <span class="product-price">${preco}</span>
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-outline-primary btn-sm"

@@ -510,6 +510,15 @@
     const p   = data.pedido;
     const cfg = statusConfig[p.status] || { label: p.status, cls: 'badge-pendente', tl: 0, msg: null };
 
+    // Limpa o carrinho (B2b) só na confirmação de pagamento, e só se esta aba foi quem
+    // acabou de iniciar ESTE checkout (sessionStorage setado antes do redirect ao MP em
+    // script.js). Evita esvaziar o carrinho de quem só está revisitando um link antigo.
+    if ((p.status === 'aprovado' || p.status === 'em_processamento') &&
+        sessionStorage.getItem('psp_checkout_pedido_pendente') === String(p.id)) {
+      localStorage.removeItem('psp_cart');
+      sessionStorage.removeItem('psp_checkout_pedido_pendente');
+    }
+
     $('rPedidoId').textContent  = p.id;
     $('rCriadoEm').textContent  = 'Realizado em ' + fmtData(p.criado_em);
     $('rNome').textContent      = p.nome_comprador;
