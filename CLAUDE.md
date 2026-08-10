@@ -26,23 +26,29 @@ E-commerce da **PSPart - Partes e Peças Automação** (filipe@pentasis.com.br) 
 | `robots.txt` / `sitemap.xml` | SEO/indexação |
 
 ## Stack
-- Bootstrap 5.3, Font Awesome 6.4, AOS 2.3 (CDN)
-- Google Fonts: Poppins + Montserrat
+- Bootstrap 5.3, Font Awesome 6.4, AOS 2.3 (CDN — link ainda presente, mas **não é mais usado no catálogo de produtos**; sem animação nos cards desde o refresh visual)
+- Google Fonts: Poppins (corpo) + Montserrat (display, pesos 700/800) + **JetBrains Mono** (código interno, eyebrow de categoria) — um único `<link>` estende os três, sem request novo por fonte
 - **marked.js** (CDN) — renderiza Markdown da Especificação Técnica no frontend
 - FormSubmit.co (formulário sem backend) → filipe@pentasis.com.br
 - Google Analytics GA4: `G-XQBJ002YQC` com Consent Mode v2 (LGPD)
 
+> Histórico do redesign visual/estrutural: ver "Módulo Cards de Produto", "Módulo Header Fixo + Reordenação de Seções" e "Módulo Carrinho (Fase 1)" mais abaixo. O que segue nesta seção já reflete o estado atual.
+
 ## Estrutura da página
-1. Navbar — Início | Sobre | Produtos | Contato + toggle dark mode
-2. `#inicio` — Hero (gradiente sólido `var(--primary)` → navy escuro, sem foto/parallax) + contadores animados
-3. Diferenciais — 4 cards (sem animação AOS — só o cabeçalho da seção anima)
-4. `#sobre` — Sobre Nós (texto placeholder, aguarda conteúdo real)
-5. `#produtos` — cards dinâmicos (renderizados via API, sem animação AOS) + filtro de categorias dinâmico + modais de detalhe
+Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais → sobre → contato → pagamentos-seguranca → footer**. IDs de seção não mudam mesmo quando a ordem visual muda (âncoras/JS dependem deles).
+
+1. **Header** (`<nav id="mainNavbar" class="custom-navbar">`) — `position: fixed` no topo (não mais `sticky-top`), sempre visível durante a rolagem; Início | Sobre | Produtos | Contato + toggle dark mode + **ícone de carrinho com badge** (`#cartToggle`, fora do `.collapse` — visível mesmo com o menu mobile fechado). Classe `.storefront` no `<body>` escopa a tipografia de heading e o `padding-top` compensatório só à home (não vaza para `acompanhar.html`/admin)
+2. `#inicio` — Hero: gradiente de marca original + overlay de malha "blueprint" sutil; headline de benefício (não "Bem-vindo à PSPart"); **busca proeminente** que alimenta a busca já existente da seção de produtos (sem lógica duplicada); chips de confiança estruturais e verdadeiros (frete no checkout, pagamento MP, pedido rastreável) — **sem métricas inventadas/não verificadas** (o antigo bloco 13+/10+/50+/100% foi removido)
+3. `#produtos` — cards dinâmicos (renderizados via API) + filtro de categorias dinâmico + toolbar de busca/ordenação/disponibilidade + modais de detalhe; ver "Módulo Cards de Produto" para o layout atual
+4. Diferenciais — 4 cards (sem animação AOS — só o cabeçalho da seção anima)
+5. `#sobre` — Sobre Nós (métricas 10+/50+/6+ ainda presentes, não removidas — não confundir com as do hero, que foram removidas)
 6. `#contato` — Formulário + info de contato
-7. Footer — marca + link "Acompanhar Pedido" (`acompanhar.html`) + back-to-top; **sem ícones de rede social** (removidos por não terem URL real); botão WhatsApp flutuante **comentado no HTML**, pendente de número real
-8. **Modal de Checkout** (`#checkoutModal`, `modal-lg`) — dados do comprador + endereço com ViaCEP + controle de quantidade
-9. **Modal de Redirecionamento MP** (`#paymentRedirectModal`) — spinner enquanto redireciona
-10. **Lightbox de imagem** (`#lightboxOverlay`) — overlay customizado para ampliar imagens
+7. `#pagamentos-seguranca` — faixa de confiança (bandeiras, Pix/Boleto/MP, bloco de segurança) — posição fixa antes do footer, não reordenada
+8. Footer — marca + link "Acompanhar Pedido" (`acompanhar.html`) + back-to-top; **sem ícones de rede social** (removidos por não terem URL real); botão WhatsApp flutuante **comentado no HTML**, pendente de número real
+9. **Drawer do carrinho** (`#cartDrawer` + `#cartBackdrop`) — painel lateral direito, ver "Módulo Carrinho"
+10. **Modal de Checkout item único** (`#checkoutModal`, `modal-lg`) — dados do comprador + endereço com ViaCEP + controle de quantidade. **Não é mais aberto pelo botão "Comprar"** desde o Patch B — máquina de estado mantida dormente (não reconectada; o carrinho tem seu próprio modal, `#cartCheckoutModal`, ver "Módulo Carrinho"). Suas funções de Brick (`_renderBrick`/`_showBricksResult`/`_showPaymentError`/`_unmountBrick`) foram parametrizadas na Fase 2c e são reaproveitadas pelo `#cartCheckoutModal` sem duplicar a lógica de tokenização
+11. **Modal de Redirecionamento MP** (`#paymentRedirectModal`) — spinner enquanto redireciona
+12. **Lightbox de imagem** (`#lightboxOverlay`) — overlay customizado para ampliar imagens
 
 ## Página de Acompanhamento (`acompanhar.html`)
 - Standalone — não depende de `index.html`
@@ -78,49 +84,63 @@ E-commerce da **PSPart - Partes e Peças Automação** (filipe@pentasis.com.br) 
 - `MP_BASE_URL` (de `mercadopago.php`) é usado como base dos links nos e-mails
 
 ## Classe App (script.js)
+- `medirAlturaHeader()` — mede `#mainNavbar.offsetHeight` (nunca chuta px fixo) e publica em `--header-h` no `:root`; recalcula em `resize`, ao abrir/fechar o menu mobile (`shown.bs.collapse`/`hidden.bs.collapse`) e quando as fontes terminam de carregar (`document.fonts.ready`); chamado bem no início de `init()`, antes de tudo, para o primeiro paint já ter o offset certo
 - `setupScrollHandlers()` — scroll spy + back-to-top unificados com `requestAnimationFrame`
+- `updateActiveNavLink()` — decide o link ativo do menu lendo `--header-h` (+ ~20px de folga) via `getComputedStyle`, com fallback pro `offsetHeight` de `#mainNavbar`; **não usa mais o `100px` fixo antigo** (consolidado no Patch A/B para não dessincronizar da altura real do header)
 - `setupThemeToggle()` — dark/light, persiste em `localStorage('psp_theme')`
-- `setupProductFilter()` — registra listener com **event delegation** no `#product-filters`; consulta `.product-col` no momento do clique (sem NodeList stale); chamado uma vez em `init()`
+- `setupHeroSearch()` — busca do hero (`#heroSearchForm`); no submit, popula `#product-search` (a busca já existente da toolbar), dispara um evento `input` real nela e rola até `#produtos` — **não duplica a lógica de filtro**, só aciona a que já existe
+- `setupCart()` / métodos `_cart*` — módulo do carrinho; ver "Módulo Carrinho" para a lista completa
+- `setupProductFilter()` — registra listener com **event delegation** no `#product-filters`; consulta `.product-col` no momento do clique (sem NodeList stale); chamado uma vez em `init()`; atualiza `this._activeCategory` e delega a visibilidade para `_applyProductVisibility()`
+- `setupProductToolbar()` — listeners estáticos (não delegados, os controles já existem no HTML) para busca (`#product-search`), disponibilidade (`#product-instock`) e ordenação (`#product-sort`); ver seção "Módulo Produtos — Deep Link, Compartilhamento e Busca/Ordenação"
+- `setupProductSharing()` — event delegation para `.btn-whatsapp-share`, `.btn-share-product` e `.btn-copy-code`
 - `setupLGPD()` — banner de cookies, persiste em `localStorage('psp_lgpd_consent')`
 - `setupContactForm()` → `submitForm()` — fetch para FormSubmit.co
-- `setupCounters()` — Intersection Observer nos `.stat-number`
+- `setupCounters()` — Intersection Observer nos `.stat-number`; **hoje é código inerte** — o único bloco que usava essa classe (métricas do hero) foi removido; guard `if (counters.length === 0) return` evita erro, método mantido sem uso (a seção "Sobre" usa `.sobre-stat-number`, uma classe diferente, sem animação)
 - `setupModalButtons()` — botão "Solicitar Orçamento" preenche formulário de contato
-- `setupCheckout()` — registra listeners dos dois botões de pagamento (redirect e Bricks), link de fallback redirect dentro do Brick, e limpeza do Brick ao fechar o modal
-- `setupImageLightbox()` — lightbox customizado para `img.card-img-top`, `img.carousel-img`, `img.modal-product-image`
-- `renderProducts()` — busca categorias e produtos em paralelo (`Promise.all`); gera botões de filtro dinamicamente em `#product-filters`; gera cards e modais em `#products-grid` / `#product-modals`; card mostra `codigo_interno` (se preenchido) e badge de disponibilidade (`.badge-disponivel`/`.badge-esgotado`, reaproveitando `.product-badge`); desabilita botão se `estoque = 0`; sem `data-aos` (removido do template); em caso de falha na API, mantém o markup estático de fallback em `#products-grid` (6 produtos hardcoded, com os mesmos campos de código/estoque para consistência visual)
+- `setupCheckout()` — **desde o Patch B, `.btn-buy` não abre mais este modal** (ver "Módulo Carrinho"); o método continua registrando os listeners internos do modal de item único (quantidade, CEP, submit por redirect) como código dormente — não reconectado. As funções de Brick que ele também registra (Bricks, `bricks-use-redirect`) foram generalizadas na Fase 2c e passaram a ser compartilhadas com `setupCartCheckout()`
+- `setupImageLightbox()` — lightbox customizado para `img.card-img-top`, `img.carousel-img`, `img.modal-product-image`; **padrão de visibilidade de referência do projeto**: overlay sempre `display:flex` no CSS, show/hide real via classe `.active` alternando `opacity`/`pointer-events` (nunca `display`) — reaproveitado pelo backdrop do carrinho
+- `renderProducts()` — busca categorias e produtos em paralelo (`Promise.all`); gera botões de filtro dinamicamente em `#product-filters`; gera cards e modais em `#products-grid` / `#product-modals`; card mostra `codigo_interno` em pílula mono (se preenchido, senão omitido — sem buraco no layout) e badge de disponibilidade de **3 estados** (`.stock-badge--ok/--warn/--req`, ponto colorido, sobreposto no topo do thumb — ver "Módulo Cards de Produto"); desabilita botão se `estoque = 0` (agora idêntico no caminho estático); sem `data-aos` (removido do template); em caso de falha na API, mantém o markup estático de fallback em `#products-grid` (6 produtos hardcoded, com os mesmos campos de código/estoque para consistência visual)
 - `handleRetornoMP()` — detecta `?pagamento=recusado|pendente` na URL após retorno do MP; limpa o param com `history.replaceState`; exibe modal apropriado
 - `_validateCheckoutForm()` — valida campos obrigatórios com `is-invalid`, foca no primeiro inválido
-- `_doCheckoutSubmit(mode)` — fluxo unificado: valida, grava pedido, cria preference; bifurca por `mode`: `'redirect'` abre `paymentRedirectModal` e redireciona; `'bricks'` esconde form/footer e renderiza o Brick
-- `_renderBrick(preferenceId, email, amount)` — busca Public Key em `public-config.php`, inicializa `MercadoPago` SDK com locale pt-BR e tema dark/light; cria Payment Brick no `#bricks-container`; no `onSubmit` chama `processar-pagamento.php` e exibe `_showBricksResult()`
-- `_showBricksResult(result)` — fecha o modal de checkout e abre `#bricksResultModal` com três estados: `approved` (✅ ícone verde, botão "Acompanhar pedido"), `rejected` (❌ ícone vermelho, mensagem traduzida via `_traduzirStatusDetail()`), outros (⏳ ícone amarelo, "em análise")
+- `_doCheckoutSubmit(mode)` — fluxo do item único: valida, grava pedido (`pedidos.php`), cria preference; bifurca por `mode`: `'redirect'` abre `paymentRedirectModal` e redireciona; `'bricks'` esconde form/footer e renderiza o Brick. **Dormente desde o Patch B** — não é mais alcançável a partir do botão "Comprar" (o carrinho usa `_cartCheckoutSubmit()` + `pedido-carrinho.php`, não este método)
+- `_renderBrick(preferenceId, email, amount, { containerId = 'bricks-container', sourceModalId = 'checkoutModal' } = {})` — **(Fase 2c: parametrizado)** busca Public Key em `public-config.php`, inicializa `MercadoPago` SDK com locale pt-BR e tema dark/light; cria Payment Brick no container informado (`bricks-container` para item único, `cart-bricks-container` para o carrinho); guarda `sourceModalId` em `this._brickSourceModalId` (usado por `_showBricksResult`/`_showPaymentError` pra saber qual modal fechar); no `onSubmit` chama `processar-pagamento.php` (sempre com `this._currentPedidoId`) e exibe `_showBricksResult()`. `onError` ignora `type` `'recoverable_error'` **e `'non_critical'`** (ex.: `no_payment_method_for_provided_bin` disparado enquanto o BIN do cartão ainda está incompleto) — só erros reais abrem o modal de falha
+- `_showBricksResult(result)` / `_showPaymentError(message)` — fecham `this._brickSourceModalId` (não mais sempre `#checkoutModal`) e abrem `#bricksResultModal`, compartilhado pelos dois fluxos; três estados: `approved` (✅ ícone verde, botão "Acompanhar pedido"), `rejected` (❌ ícone vermelho, mensagem traduzida via `_traduzirStatusDetail()`), outros (⏳ ícone amarelo, "em análise")
 - `_traduzirStatusDetail(detail)` — converte `status_detail` do MP (`cc_rejected_insufficient_amount` etc.) em mensagem legível em PT-BR para o modal de recusa
-- `_unmountBrick()` — desmonta instância do Brick, reseta estado (`_bricksInstance`, `_currentPedidoId`, `_currentToken`, `_currentInitPoint`), restaura visibilidade do form e footer
-- `_openCheckoutModal()` — chama `_unmountBrick()` antes de abrir para garantir estado limpo
+- `_unmountBrick({ formId = 'checkoutForm', footerId = 'checkout-footer', sectionId = 'bricks-section', containerId = 'bricks-container' } = {})` — **(Fase 2c: parametrizado)** desmonta instância do Brick, reseta estado (`_bricksInstance`, `_brickSourceModalId`, `_currentPedidoId`, `_currentToken`, `_currentInitPoint`); `formId`/`footerId` nulos (usado pelo carrinho) pulam a restauração de visibilidade de form/footer que não existem nesse contexto
+- `_openCheckoutModal()` — chama `_unmountBrick()` (defaults do item único) antes de abrir para garantir estado limpo
 - `_buscarCep()` — consulta ViaCEP e preenche campos de endereço automaticamente
 
-## Fluxo de compra
-1. Clicar em **botão verde de carrinho** (card) ou **"Comprar Agora"** (modal de produto)
-2. Modal de checkout (`modal-lg`) abre com resumo do produto + controle de quantidade
-3. Preencher: nome, e-mail, telefone, CEP (auto-preenche via ViaCEP), número, complemento (opcional)
-4. Validação inline (campos obrigatórios: nome, e-mail, telefone, CEP, número)
-5. Escolher forma de pagamento:
+## Fluxo de compra (carrinho — estado atual, pós B2a/B2b/Fase 2c)
+1. Clicar em **"Comprar"** (ícone no card, dois caminhos) ou **"Comprar Agora"** (modal de detalhe) **adiciona o produto ao carrinho** — não abre checkout direto. Contador do header atualiza + toast de confirmação
+2. Ícone de carrinho no header (`#cartToggle`) abre o **drawer lateral** com os itens, quantidade editável, CEP + frete agregado (B2a) — "Finalizar compra" só fica clicável com frete selecionado
+3. **"Finalizar compra"** fecha o drawer e abre `#cartCheckoutModal` — passo 1 (comprador + número/complemento; endereço já vem do CEP do drawer). Ao confirmar, `_cartCheckoutSubmit()` chama `pedido-carrinho.php`, que cria (ou reaproveita, via `checkout_hash`) o pedido com `total = subtotal + frete` e devolve `pedido_id` + `init_point` + `preference_id`
+4. **Passo 2 (Fase 2c)** — `_cartShowMetodoEscolha()` troca form pelo resumo de N itens e oferece os dois caminhos, sem criar um segundo pedido:
 
 **Opção A — Pagar no Mercado Pago (redirect)**
-- Spinner de redirecionamento → `window.location.href = mp.init_point`
+- `_cartPagarRedirect()` primeiro checa `tracking.php?order_id=X` (guarda anti-dupla-cobrança do lado do cliente); se `pedido_status` já for `aprovado`/`em_processamento`, bloqueia com aviso em vez de redirecionar
+- `window.location.href = init_point` (já obtido no passo 1, mesma preference — `criarOuObterPreferencePedido()` é idempotente)
 - Pagamento processado no site do MP → webhook atualiza status no banco
-- `aprovado` → redireciona para `acompanhar.html?pedido=X&token=Y`
-- `recusado` → homepage com modal de erro
-- `pendente` → homepage com modal informando análise
+- `aprovado` → redireciona para `acompanhar.html?pedido=X&token=Y`; `recusado` → homepage com modal de erro; `pendente` → homepage com modal informando análise
 
-**Opção B — Pagar aqui mesmo (Checkout Bricks)**
-- Form e footer somem; Payment Brick renderiza inline (cartão, débito, PIX, boleto)
-- Usuário preenche dados de pagamento no próprio site
-- `onSubmit` do Brick chama `processar-pagamento.php` → MP Payments API
-- Resultado exibido em `#bricksResultModal` com nome e e-mail do comprador:
-  - `approved` → ✅ "Pagamento aprovado!" + botão "Acompanhar pedido"
-  - `rejected` → ❌ "Pagamento não aprovado" + mensagem baseada no `status_detail` (ex: saldo insuficiente, CVV inválido)
-  - `pending`/`in_process` → ⏳ "Pagamento em análise" + instrução de aguardar e-mail
-- Link "Pagar pelo site do MP" dentro do Brick permite trocar para Opção A sem reiniciar
+**Opção B — Pagar aqui mesmo (Checkout Bricks, reconectado na Fase 2c)**
+- `_cartPagarAqui()` mostra `#cart-bricks-section` e chama `_renderBrick(preference_id, email, total, { containerId: 'cart-bricks-container', sourceModalId: 'cartCheckoutModal' })` — mesma função/lógica de tokenização do item único, só o container/modal-alvo mudam
+- `onSubmit` do Brick chama `processar-pagamento.php` → MP Payments API. **Guarda anti-dupla-cobrança server-side**: se `pedidos.status` já `aprovado`/`em_processamento` (`statusPermiteRastreamento()`), recusa com HTTP 409 sem chamar a Payments API. `description` do pagamento lista todos os itens do pedido (não só o primeiro do JOIN — corrigido na Fase 2c)
+- Resultado exibido em `#bricksResultModal` (compartilhado com o item único) com nome e e-mail do comprador: `approved` → ✅; `rejected` → ❌ com `status_detail` traduzido; `pending`/`in_process` → ⏳
+- Botão "Pagar pelo site do MP" (`cart-bricks-use-redirect`) troca para a Opção A sem reiniciar (mesma guarda de `_cartPagarRedirect()`)
+
+> `transaction_amount` do Brick **sempre** vem de `pedidos.total` já persistido (nunca recalculado no navegador); `pedidos.total` já inclui frete desde a criação em `pedido-carrinho.php` (B2a/B2b). O modal de item único (`#checkoutModal`) e `pedidos.php`/`_doCheckoutSubmit()` continuam existindo mas **dormentes** — o carrinho usa exclusivamente `pedido-carrinho.php` (multi-item nativo desde B2b).
+
+## Módulo Carrinho (Patch B → B2a/B2b → Fase 2c)
+> Patch B = estado do carrinho + UI (drawer, contador, adicionar/remover/quantidade) + persistência. B2a/B2b = frete agregado + `pedido-carrinho.php` (preference multi-item no servidor, checkout_hash). Fase 2c = reconecta o pagamento inline (Bricks) ao `#cartCheckoutModal`, ao lado do redirect — ver "Fluxo de compra" para o passo a passo completo.
+
+- **Estado:** `localStorage('psp_cart')` guarda **só** `[{produto_id, quantidade}]` — nunca preço, nome ou total. Regra reforçada porque a feature toca dinheiro: preço é sempre relido do DOM (client, para exibição no drawer) ou do banco (servidor, em `pedido-carrinho.php`/`processar-pagamento.php`) — nunca confiado do que já está salvo
+- **Lookup de exibição:** `_cartFindProdutoInfo(id)` relê nome/preço/código/imagem do card correspondente em `#products-grid` (funciona igual para catálogo estático ou dinâmico); se o produto não existir mais no DOM (ex.: removido do catálogo), a linha aparece como "Produto indisponível" com opção de remover — não quebra
+- **Adicionar:** qualquer `.btn-buy` habilitado (card estático, `renderProducts()` e "Comprar Agora" do modal de detalhe — os três reaproveitam a mesma classe) chama `_cartAdd(id)`; **esgotado é bloqueado nos dois caminhos de card** — corrigida a divergência antiga em que o card estático de "Motoredutor Porta" (id 1, `estoque=0`) tinha o botão habilitado mesmo com badge "Esgotado"
+- **Ícone + badge:** `#cartToggle` no header, fora do `.collapse` (sempre visível, inclusive mobile); `#cartBadge` usa `style.display` inline para sumir quando o carrinho está vazio
+- **Drawer (`#cartDrawer` + `#cartBackdrop`):** painel desliza da direita via `transform: translateX()`; segue **o mesmo padrão de visibilidade do lightbox** — nunca no DOM como `display:none`, entra/sai via classe (`.open` no painel, `.active` no backdrop alternando `opacity`/`pointer-events`). Fecha com Esc, clique no backdrop ou botão X; foco visível em todos os controles
+- **Z-index:** backdrop `1060`, painel `1061` — acima do header (`1030`), banner LGPD (`1040`) e assistente PSPart (`1050`); abaixo do lightbox (`9999`+), que não deveria coexistir com o carrinho aberto
+- **Toast de feedback:** `.cart-toast`, mesma técnica opacity/pointer-events, sem lib nova
+- **`_cartFinalizar()`** — fecha o drawer e abre `#cartCheckoutModal` (`_cartOpenCheckoutModal()`), passo 1 do checkout do carrinho (ver "Fluxo de compra")
 
 ## Banner de consentimento LGPD (`#lgpdBanner`)
 - `position: fixed; bottom: 0; z-index: 1040` (abaixo de modais Bootstrap ~1050-1055, acima do conteúdo normal)
@@ -134,6 +154,7 @@ E-commerce da **PSPart - Partes e Peças Automação** (filipe@pentasis.com.br) 
 - Cursor `zoom-in` nas imagens, `zoom-out` no fundo
 
 ## Validação de checkout
+> Descreve o modal `#checkoutModal` de item único — **dormente desde o Patch B** (ver "Módulo Carrinho"), não é mais alcançado por nenhum botão da UI hoje. O carrinho tem sua própria validação equivalente em `_cartCheckoutValidar()` (`#cartCheckoutModal`), mesmo padrão de `is-invalid`.
 - Inline via classe `is-invalid` do Bootstrap + `<div class="invalid-feedback">` em cada campo
 - **Nunca usar `showErrorModal()` dentro do checkout** — modal de erro abre atrás do modal de checkout
 - Foco automático no primeiro campo inválido
@@ -144,10 +165,12 @@ E-commerce da **PSPart - Partes e Peças Automação** (filipe@pentasis.com.br) 
 - Classe `body.dark-mode` (não media query)
 - Anti-FOUC: script inline logo após `<body>` aplica a classe antes do primeiro render
 - Fallback: `prefers-color-scheme` se não houver preferência salva
-- **Cobertura de variáveis: 6 de 10** (`--text-dark`, `--text-muted`, `--bg-light`, `--bg-white`, `--shadow-sm`, `--shadow-md`). `--primary` e `--accent` **não** têm override global — têm papel duplo (fundo de elementos "chrome" como navbar/footer/botão de filtro ativo, que devem continuar navy/azul escuro em qualquer tema, **e** cor de texto em alguns badges/ícones sobre fundo claro). Um override de variável global quebra o primeiro uso; correção exigiria overrides pontuais por seletor (padrão já usado em `body.dark-mode .product-price`, `.product-price-modal`) — não feito ainda, ~8 seletores identificados com contraste subótimo em dark mode mas não regredidos por essa decisão (comportamento pré-existente). `--radius` não precisa de versão dark (dimensional, não é cor)
+- **Cobertura de variáveis legadas: 6 de 10** (`--text-dark`, `--text-muted`, `--bg-light`, `--bg-white`, `--shadow-sm`, `--shadow-md`). `--primary` e `--accent` **não** têm override global — têm papel duplo (fundo de elementos "chrome" como navbar/footer/botão de filtro ativo, que devem continuar navy/azul escuro em qualquer tema, **e** cor de texto em alguns badges/ícones sobre fundo claro). Um override de variável global quebra o primeiro uso; correção exigiria overrides pontuais por seletor (padrão já usado em `body.dark-mode .product-price`, `.product-price-modal`) — não feito ainda, ~8 seletores identificados com contraste subótimo em dark mode mas não regredidos por essa decisão (comportamento pré-existente). `--radius` não precisa de versão dark (dimensional, não é cor)
+- **Tokens do refresh visual têm cobertura própria** (adicionada junto com os tokens, não é a mesma limitação acima): `--ink`, `--muted`, `--line`, `--bg`, `--card` e `--shadow-lg` **têm** override em `body.dark-mode` — cards, drawer do carrinho e superfícies do refresh usam só esses tokens e por isso já adaptam automaticamente ao tema escuro sem overrides pontuais por seletor
 
 ## CSS variables principais
 ```css
+/* Tokens originais (nunca substituídos — só adição por cima) */
 --primary: #274185
 --accent: #3457a6        /* derivado do --primary, contraste 6.86:1 com texto branco */
 --accent-rgb: 52, 87, 166 /* para usos em rgba(), ex. anéis de foco, hero-badge */
@@ -156,9 +179,27 @@ E-commerce da **PSPart - Partes e Peças Automação** (filipe@pentasis.com.br) 
 --cta-hover: #0f5f3f
 --text-dark / --text-muted / --bg-light / --bg-white
 --shadow-sm / --shadow-md / --radius: 12px
+
+/* Tokens do refresh visual (adicionados; --card branco sobre --bg cinza-frio é o contraste "vitrine") */
+--primary-700: #1d3266
+--primary-900: #152449
+--cta-600: #0d5940       /* hover dos CTAs verdes — variante mais escura do --cta real, não laranja */
+--ink: #16203a           /* texto principal do refresh */
+--muted: #5b6b82         /* texto secundário do refresh */
+--line: #e4e9f2          /* bordas sutis */
+--bg: #f5f8fc            /* fundo de página/seção */
+--card: #ffffff          /* superfícies de card (produto, diferencial, contato, pagamentos) */
+--ok / --warn / --req    /* estados do badge de disponibilidade — ver Módulo Cards de Produto */
+--radius-sm: 8px
+--shadow-lg: 0 18px 44px rgba(16,32,74,.18)
+--font-display: 'Montserrat', system-ui, sans-serif   /* escopado a .storefront h1-h6 */
+--font-body: 'Poppins', system-ui, sans-serif
+--font-mono: 'JetBrains Mono', ui-monospace, monospace /* código interno, eyebrow de categoria */
+--header-h                /* NÃO é um valor fixo — publicada em runtime por medirAlturaHeader() */
 ```
-- Verde (`--cta`) reservado para ação/status: botão de compra (`.btn-buy`), badge de disponibilidade (`.badge-disponivel`, cor própria não ligada a `--cta`), botão WhatsApp. **Preço do produto usa `--primary`, não `--cta`** (em ambos os contextos, card e modal) — evita poluição visual com verde demais na mesma tela
+- Verde (`--cta`) reservado para ação/status: botão de compra (`.btn-buy`), botão WhatsApp, CTA do hero/drawer (`.btn-cta`, usa `--cta-600` no hover). **Preço do produto usa `--primary`, não `--cta`** (em ambos os contextos, card e modal) — evita poluição visual com verde demais na mesma tela
 - `body.dark-mode .product-price` e `body.dark-mode .product-price-modal` compartilham override para `#90b4f5` (mesmo tom usado em outros textos-sobre-fundo-escuro do projeto)
+- **`.storefront`** (classe no `<body>` de `index.html`) escopa a regra global de heading (`--font-display`) e o `padding-top: var(--header-h)` — existe justamente para não vazar para `acompanhar.html`/admin, que carregam `style.css` mas não têm essa classe
 
 ## Schema do banco (SQLite — `database.db`)
 
@@ -319,6 +360,53 @@ const imgSrc = imgPrincipal ? imgPrincipal.caminho : (p.imagem || '');
 ```
 
 > Histórico de fases: ver CHANGELOG.md
+
+## Módulo Produtos — Deep Link, Compartilhamento e Busca/Ordenação (Fase 19)
+
+> Origem: `docs/produtos-tools-audit.md` mapeou 10 candidatos a "ferramenta faltante" na seção de Produtos; esta fase implementa o bloco marcado "Agora" (deep link, WhatsApp, compartilhar/copiar, busca/ordenação/disponibilidade). Itens #5 (comparação), #6 (ficha exportável) e #10 (orçamento múltiplo) ficaram de fora — ver o audit para o motivo de cada um.
+
+### Deep link de produto (`?produto=ID`)
+- `_openDeepLinkProduct()` lê `URLSearchParams`, procura `#productModal{id}` e abre com `new bootstrap.Modal(el).show()` — ID inexistente só loga `console.warn`, não quebra a página
+- **Só é chamado num bloco `finally` ao final de `renderProducts()`** — roda tanto no sucesso (produtos dinâmicos recém-injetados) quanto na falha (fallback estático já presente desde o carregamento), nunca antes de os modais existirem no DOM
+- Gera a URL canônica de um produto via `_getProductShareUrl(id)`: `${origin}${pathname}?produto={id}`
+- **Fora de escopo deliberadamente**: não usa `history.pushState` ao abrir um modal manualmente — o deep link só funciona no sentido "chegar via link", a URL do navegador não se atualiza sozinha ao clicar em "Detalhes"
+
+### Compartilhamento (WhatsApp + Web Share + copiar código)
+- `WHATSAPP_NUMBER` — constante central no topo de `script.js` (fora da classe), mesmo placeholder `SEU_NUMERO` já usado nos links estáticos do `index.html`; **não duplicar** o número em outro literal
+- `_shareViaWhatsApp(data)` — monta `Tenho interesse no {nome} (código {código}): {url}`, chama `window.open('https://wa.me/{numero}?text=' + encodeURIComponent(mensagem), '_blank', 'noopener')`
+- `_shareProduct(btnEl)` — tenta `navigator.share({ title, text, url })`; se a API não existir, ou falhar por qualquer motivo que não seja `AbortError` (cancelamento do usuário), cai para `_copyToClipboard()`
+- `_copyToClipboard(value, btnEl, feedbackText)` — usa `navigator.clipboard.writeText()` quando `window.isSecureContext`; senão, fallback via `<textarea>` temporário + `document.execCommand('copy')`; qualquer falha é engolida silenciosamente (sem exceção não tratada)
+- `_showCopyFeedback(btnEl, title)` — troca o `innerHTML` do botão só pelo ícone `fa-check` (nunca por texto) por 1,8s; texto estouraria os botões circulares de ação (`.product-share-actions .btn` é 34×34px, `padding:0`)
+- Botões: `.btn-whatsapp-share` e `.btn-share-product` no modal de detalhes (dinâmico e nos 6 modais estáticos de fallback); `.btn-copy-code` reaproveita o `codigoHtml` já usado no card e no modal — aparece nos dois lugares automaticamente
+
+### Busca, ordenação e filtro de disponibilidade
+- Critério único de visibilidade em `_isProductVisible(col)`: categoria (`this._activeCategory`) **AND** busca (`this._searchQuery` contra `data-nome`/`data-codigo`) **AND** disponibilidade (`this._onlyInStock` contra `data-estoque`) — evita 3 mecanismos de show/hide paralelos
+- `_applyProductVisibility()` aplica o critério a todo `.product-col` via **`style.display` inline** (nunca classe de stylesheet — segue a regra do projeto); mostra `#products-empty-msg` (fora do `.row#products-grid`, para sobreviver ao `innerHTML` dinâmico) quando nenhum produto passa no filtro
+- `_applyProductSort(sortValue)` reordena os `.product-col` já existentes via `appendChild` (não re-renderiza); comparadores: `preco-asc`, `preco-desc`, `nome-asc`, `disponibilidade`
+- `_applyCurrentToolbarState()` reaplica busca/ordenação/disponibilidade depois de qualquer (re)render do grid — chamado junto com `_openDeepLinkProduct()` no `finally` de `renderProducts()`
+- Cada `.product-col` (dinâmico e os 6 estáticos de fallback) carrega `data-nome`, `data-preco`, `data-estoque`, `data-codigo` — tudo client-side sobre o payload que a API já retorna, sem nova chamada de rede
+- Controles (`#product-search`, `#product-sort`, `#product-instock`) são estáticos no HTML (não gerados dinamicamente como os botões de categoria) — por isso `setupProductToolbar()` usa listeners diretos, não event delegation
+
+## Módulo Cards de Produto (Refresh visual + Patch 2)
+> Layout atual do card na grade (`#products-grid`) — aplicado **identicamente** no HTML estático de `index.html` e em `renderProducts()` (script.js). Qualquer mudança de card precisa ser feita nos dois lugares — regressão conhecida de uma correção anterior que só mexeu no estático.
+
+- **Thumb full-bleed** (`.product-card-thumb`): imagem/vídeo de ponta a ponta, fundo com malha "blueprint" sutil atrás da foto (`.card-img-top`), borda inferior `--line`
+- **Badge de disponibilidade — 3 estados**, sobreposto no canto superior esquerdo do thumb (`.stock-badge` + `.stock-dot`), mapeado do `estoque` real sem lógica de negócio nova: `estoque > 3` → `--ok` verde "Em estoque"; `1–3` → `--warn` âmbar "Últimas unidades"; `0` → `--req` cinza "Esgotado" (substituiu as antigas `.badge-disponivel`/`.badge-esgotado`, que não existem mais no markup)
+- **Categoria como eyebrow mono** (`.product-eyebrow`, `--font-mono`, maiúscula, cor `--accent`) acima do nome — não é mais pílula colorida no corpo do card (a pílula colorida `.product-badge.badge-{categoria}` continua existindo só no modal de detalhe)
+- **Nome** em Montserrat, com `-webkit-line-clamp: 2` (altura reservada mesmo pra nomes curtos, garante linha uniforme entre cards)
+- **Código interno** em pílula mono (`.product-code-pill`, reaproveita o botão `.btn-copy-code`) — **omitida inteiramente** quando o produto não tem `codigo_interno` cadastrado (é dado ausente real no banco para alguns produtos, não bug de render; a ausência não deixa buraco no layout porque o elemento simplesmente não é renderizado)
+- **Descrição removida da grade** — só aparece no modal de detalhe
+- **Preço** grande (`--font-display`, 800), **CTA** (`.btn-buy` = comprar, ver "Módulo Carrinho"; `.btn-outline-primary` = Detalhes; desabilitado com ícone de proibido quando esgotado — **agora idêntico nos dois caminhos**, incluindo o card estático "Motoredutor Porta" que antes divergia)
+- **Altura uniforme:** `.product-card-footer` (preço + botões) fixado no rodapé via `margin-top: auto` dentro do `card-body` flex — junto com o clamp do título, garante que todos os cards da linha tenham a mesma altura independente do tamanho do nome
+- **Hover:** `translateY(-4px)` + `--shadow-lg` + borda de acento no topo via `::before` com `scaleX`
+- Grid responsivo: `col-sm-6 col-md-4` (3 colunas desktop → 2 tablet → 1 mobile)
+
+## Módulo Header Fixo + Reordenação de Seções (Patch A)
+- `.custom-navbar` é `position: fixed` (não mais `sticky-top` do Bootstrap), `z-index: 1030`
+- **Altura do header nunca é um valor fixo em CSS** — `medirAlturaHeader()` mede `#mainNavbar.offsetHeight` em runtime e publica em `--header-h` (fallback `76px` só cobre o primeiro paint antes do JS rodar)
+- `.storefront { padding-top: var(--header-h) }` compensa o hero (escopado só à home, ver seção CSS variables)
+- `html { scroll-padding-top: var(--header-h) }` faz todas as âncoras (menu, botão "Ver Produtos", busca do hero) pararem abaixo do header — substituiu o antigo `section { scroll-margin-top: 70px }` fixo
+- Ordem das seções no HTML foi trocada (produtos logo após o hero) — ver "Estrutura da página"; **IDs de seção não mudaram**, só a posição do bloco inteiro no arquivo
 
 ## Módulo Frete — Melhor Envio (Fase 11)
 
@@ -556,6 +644,14 @@ Retorna adicionalmente: `chosen_carrier`, `chosen_service`, `shipping_price`, `s
 - **Pagamentos sem frete bloqueados:** botões de pagamento iniciam `disabled`; habilitados apenas quando `_selectedFrete` está definido; aviso "Calcule o frete para continuar" exibido via `_updatePaymentBtns()`
 - **Bloco de resumo no checkout (`#checkout-resumo`):** aparece após frete selecionado; exibe subtotal + linha de frete + total; atualizado por `_updateCheckoutTotal()` a cada mudança de quantidade ou opção de frete
 - **Botão "Alterar CEP" no checkout:** renderizado dentro de `_renderFreteCheckout()` na label do CEP; chama `_alterarCepCheckout()` que limpa o frete, desabilita botões e foca o campo CEP para re-digitação
+- **Deep link só dispara em `finally`:** `_openDeepLinkProduct()` e `_applyCurrentToolbarState()` rodam depois do `try/catch` de `renderProducts()`, nunca dentro — garante que o DOM (dinâmico ou fallback estático) já está no estado final antes de procurar `#productModal{id}` ou reaplicar filtros
+- **Ordenação de produtos via `appendChild`, não re-render:** evita perder o estado de busca/categoria/estoque já aplicado; o critério de visibilidade e a ordem do DOM são independentes um do outro
+- **`#products-empty-msg` fora de `#products-grid`:** fica como irmão do `.row`, não dentro dele — se estivesse dentro, o `grid.innerHTML = cardsHtml` do `renderProducts()` apagaria o elemento a cada re-render bem-sucedido
+
+## Pendências conhecidas (não são placeholder de conteúdo, mas ficaram em aberto)
+- **Investigação do "fundo creme" (Patch 3):** o dono relatou ver um fundo bege/creme na página real, mas 3 varreduras exaustivas (hex, `rgb()/hsl()`, nomes de cor CSS, overrides do Bootstrap, gradientes, inline styles, JS, segundo stylesheet) não encontraram nenhuma cor creme em lugar nenhum do código — todos os fundos resolvem para `--bg`/`--bg-light` (cinza-frio). Ficou pendente o valor computado do DevTools pra continuar; **Estágios 2 e 3 do Patch 3 foram aplicados** (cards viraram `--card` branco, heading escopado a `.storefront`), mas o **Estágio 1 (troca do creme em si) nunca foi executado** por falta desse dado
+- **Checkout do carrinho (B2a/B2b/Fase 2c):** construído — preference multi-item no servidor (`pedido-carrinho.php`), frete agregado, CEP unificado (`psp_cep_entrega`) e os dois caminhos de pagamento (redirect + Bricks inline) já reconectados. Pendência real remanescente: guarda anti-dupla-cobrança do lado do redirect (`_cartGuardPedidoNaoPago()`) é uma checagem client-side best-effort via `tracking.php` — a guarda autoritativa fica em `processar-pagamento.php` (server-side, só protege o caminho Bricks); um MP preference já pago reaberto via redirect depende do próprio MP recusar novo pagamento na página deles
+- `updateActiveNavLink()` observação menor: o offset de 100px foi consolidado em `--header-h`, mas isso é sobre *qual* link fica marcado ativo no scroll — não afeta onde as âncoras param (isso é `scroll-padding-top`, mecanismo separado e já correto)
 
 ## Placeholders pendentes (necessários antes do deploy)
 - `SEU_NUMERO` — WhatsApp (2 ocorrências: botão hero + botão flutuante)
@@ -666,6 +762,7 @@ Ver seção "Helper de Status" para a definição completa. Adicionado na Fase 1
 - **Bloco de segurança:** HTTPS, PCI-DSS (MP), sem armazenamento de cartão, LGPD — copy factualmente verificável
 - Logos 54×38px (`object-fit: contain`); CSS em `style.css` com variáveis existentes; dark mode coberto
 - Sem JS, sem dependências novas, sem `display:none` no CSS
+- **Patch 3:** fundo da seção e superfícies (`.ps-bandeira`, `.ps-seguranca`) migrados de hex hardcoded (`#fff`) para `--bg`/`--card` — mesmo contraste "cartão branco sobre fundo frio" do resto do refresh; overrides de dark mode (hex customizados, não tokens) mantidos como estavam, já funcionavam
 
 ## Preferências
 - Abordagem não agressiva: melhorar sem reescrever seções inteiras

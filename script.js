@@ -775,6 +775,7 @@ class App {
     // de checkout do carrinho (B2b) — coleta comprador/endereço; CEP e frete já vêm do drawer.
     _cartFinalizar() {
         if (this._cart.length === 0 || !this._cartFrete?.selecionado) return;
+        this._cartCloseDrawer();
         this._cartOpenCheckoutModal();
     }
 
@@ -967,14 +968,20 @@ class App {
         btn.disabled = this._cart.length === 0 || !this._cartFrete?.selecionado;
     }
 
-    // ── CHECKOUT DO CARRINHO (B2b) ───────────────────────────────────────────
-    // Modal enxuto, aditivo — não toca no #checkoutModal (item único, dormente desde o
-    // Patch B). CEP e frete já vêm resolvidos do drawer (this._cartFrete); aqui só se
-    // coleta comprador + número/complemento (endereço/bairro/cidade/UF vêm do ViaCEP,
-    // reaproveitando o mesmo CEP). Só redirect ao Checkout Pro — sem Bricks (fora de escopo).
+    // ── CHECKOUT DO CARRINHO (B2b + Fase 2c) ─────────────────────────────────
+    // CEP e frete já vêm resolvidos do drawer (this._cartFrete); aqui só se coleta
+    // comprador + número/complemento (endereço/bairro/cidade/UF vêm do ViaCEP,
+    // reaproveitando o mesmo CEP). Passo 1 grava/reaproveita o pedido via
+    // pedido-carrinho.php; passo 2 (Fase 2c) oferece os dois caminhos de pagamento
+    // já existentes — redirect ao Checkout Pro ou cartão inline via Brick,
+    // reaproveitando _renderBrick()/_showBricksResult() do #checkoutModal (item
+    // único) com IDs de container próprios (cart-bricks-*) para N itens.
 
     setupCartCheckout() {
         document.getElementById('cart-checkout-submit')?.addEventListener('click', () => this._cartCheckoutSubmit());
+        document.getElementById('cart-checkout-pagar-redirect')?.addEventListener('click', () => this._cartPagarRedirect());
+        document.getElementById('cart-checkout-pagar-aqui')?.addEventListener('click', () => this._cartPagarAqui());
+        document.getElementById('cart-bricks-use-redirect')?.addEventListener('click', () => this._cartPagarRedirect());
 
         ['cart-checkout-nome', 'cart-checkout-email', 'cart-checkout-telefone', 'cart-checkout-numero'].forEach(id => {
             document.getElementById(id)?.addEventListener('input', () => {
@@ -985,7 +992,90 @@ class App {
         document.getElementById('cartCheckoutModal')?.addEventListener('hidden.bs.modal', () => {
             document.getElementById('cart-checkout-error-msg')?.classList.add('d-none');
             document.getElementById('cart-checkout-diverge-msg')?.classList.add('d-none');
+            this._cartCheckoutResetSteps();
         });
+    }
+
+    // Volta o modal do carrinho ao passo 1 (form) e desmonta o Brick, se montado.
+    // Chamado ao fechar o modal — nunca deixa o próximo "Finalizar compra" reabrir
+    // já no passo 2 de uma tentativa anterior.
+    _cartCheckoutResetSteps() {
+        this._unmountBrick({ formId: null, footerId: null, sectionId: 'cart-bricks-section', containerId: 'cart-bricks-container' });
+        this._cartCheckoutPedido = null;
+        document.getElementById('cart-checkout-step-form')?.classList.remove('d-none');
+        document.getElementById('cart-checkout-footer-form')?.classList.remove('d-none');
+        document.getElementById('cart-checkout-step-metodo')?.classList.add('d-none');
+        document.getElementById('cart-checkout-footer-metodo')?.classList.add('d-none');
+        const btn = document.getElementById('cart-checkout-submit');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-arrow-right me-2"></i>Continuar para pagamento'; }
+    }
+
+    // Guarda anti-dupla-cobrança do lado do redirect (espelha a checagem obrigatória em
+    // processar-pagamento.php para o caminho inline) — consulta o status real do pedido
+    // via tracking.php antes de mandar o cliente pro Checkout Pro de novo.
+    async _cartGuardPedidoNaoPago(pedidoId) {
+        try {
+            const resp = await fetch(`backend/api/tracking.php?order_id=${encodeURIComponent(pedidoId)}`);
+            const data = await resp.json();
+            if (!resp.ok) return true; // sem confirmação de status — não bloqueia por falha de rede/rate-limit
+            return !['aprovado', 'em_processamento'].includes(data.pedido_status);
+        } catch (_) {
+            return true;
+        }
+    }
+
+    async _cartPagarRedirect() {
+        const pedido = this._cartCheckoutPedido;
+        if (!pedido) return;
+
+        const podeCobrar = await this._cartGuardPedidoNaoPago(pedido.pedido_id);
+        if (!podeCobrar) {
+            const errEl = document.getElementById('cart-checkout-error-msg');
+            if (errEl) {
+                errEl.textContent = 'Este pedido já foi pago. Acompanhe pelo link enviado por e-mail.';
+                errEl.classList.remove('d-none');
+            }
+            return;
+        }
+
+        window.location.href = pedido.init_point;
+    }
+
+    async _cartPagarAqui() {
+        const pedido = this._cartCheckoutPedido;
+        if (!pedido) return;
+
+        document.getElementById('cart-checkout-footer-metodo')?.classList.add('d-none');
+        document.getElementById('cart-bricks-section')?.classList.remove('d-none');
+
+        const email = document.getElementById('cart-checkout-email')?.value.trim() ?? '';
+        await this._renderBrick(pedido.preference_id, email, pedido.total, {
+            containerId: 'cart-bricks-container',
+            sourceModalId: 'cartCheckoutModal',
+        });
+    }
+
+    // Lista os itens do carrinho no resumo do passo 2 (nome × qtd por linha) — mesmo
+    // lookup de exibição do drawer (_cartFindProdutoInfo), nunca preço vindo do localStorage.
+    _cartShowMetodoEscolha(pedido) {
+        const itemsEl = document.getElementById('cart-bricks-summary-items');
+        if (itemsEl) {
+            itemsEl.innerHTML = this._cart.map(i => {
+                const info = this._cartFindProdutoInfo(i.produto_id);
+                const nome = info ? info.nome : 'Produto indisponível';
+                return `<div class="d-flex justify-content-between"><span>${nome}</span><span>× ${i.quantidade}</span></div>`;
+            }).join('');
+        }
+        const fmt = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const freteEl = document.getElementById('cart-bricks-summary-frete-val');
+        const totalEl = document.getElementById('cart-bricks-summary-total');
+        if (freteEl) freteEl.textContent = fmt(pedido.frete);
+        if (totalEl) totalEl.textContent = fmt(pedido.total);
+
+        document.getElementById('cart-checkout-step-form')?.classList.add('d-none');
+        document.getElementById('cart-checkout-footer-form')?.classList.add('d-none');
+        document.getElementById('cart-checkout-step-metodo')?.classList.remove('d-none');
+        document.getElementById('cart-checkout-footer-metodo')?.classList.remove('d-none');
     }
 
     _cartOpenCheckoutModal() {
@@ -1112,8 +1202,17 @@ class App {
 
             // Marca este pedido como "acabou de ser iniciado nesta aba" — acompanhar.html usa isso
             // para limpar o carrinho só na confirmação de pagamento (nunca antes/otimisticamente).
+            // Vale para os dois caminhos de pagamento do passo 2 (redirect ou inline).
             sessionStorage.setItem('psp_checkout_pedido_pendente', String(data.pedido_id));
-            window.location.href = data.init_point;
+
+            this._cartCheckoutPedido = data;
+            this._currentPedidoId    = data.pedido_id;
+            this._currentToken       = data.token;
+            this._currentInitPoint   = data.init_point;
+            this._buyerName          = document.getElementById('cart-checkout-nome').value.trim();
+            this._buyerEmail         = document.getElementById('cart-checkout-email').value.trim();
+
+            this._cartShowMetodoEscolha(data);
 
         } catch (_) {
             if (errEl) {
@@ -1323,7 +1422,12 @@ class App {
         }
     }
 
-    async _renderBrick(preferenceId, email, amount) {
+    async _renderBrick(preferenceId, email, amount, { containerId = 'bricks-container', sourceModalId = 'checkoutModal' } = {}) {
+        // sourceModalId é o modal que este Brick deve fechar ao concluir (#checkoutModal,
+        // item único, ou #cartCheckoutModal, carrinho — Fase 2c); lido por
+        // _showBricksResult()/_showPaymentError() abaixo via this._brickSourceModalId.
+        this._brickSourceModalId = sourceModalId;
+
         // Carrega o MP SDK sob demanda — não bloqueia o carregamento inicial da página
         if (!window.MercadoPago) {
             await new Promise((resolve, reject) => {
@@ -1342,7 +1446,7 @@ class App {
         const mpSDK   = new MercadoPago(cfg.mp_public_key, { locale: 'pt-BR' });
         const builder = mpSDK.bricks();
 
-        this._bricksInstance = await builder.create('payment', 'bricks-container', {
+        this._bricksInstance = await builder.create('payment', containerId, {
             initialization: {
                 amount,
                 payer: { email, entityType: 'individual' },
@@ -1362,7 +1466,11 @@ class App {
                 onReady: () => {},
                 onError: (error) => {
                     console.error('Brick error:', error);
-                    if (!this._brickErrorHandled && error.type !== 'recoverable_error') {
+                    // 'non_critical' cobre avisos transitórios do próprio Brick durante a digitação
+                    // (ex.: BIN do cartão ainda incompleto, "no_payment_method_for_provided_bin") —
+                    // não é falha de pagamento, não deve fechar o modal nem assustar o cliente.
+                    const tiposIgnorados = ['recoverable_error', 'non_critical'];
+                    if (!this._brickErrorHandled && !tiposIgnorados.includes(error.type)) {
                         this._showPaymentError('Ocorreu um erro ao processar o pagamento.<br>Tente novamente em instantes.');
                     }
                     this._brickErrorHandled = false;
@@ -1418,7 +1526,7 @@ class App {
             trackBtn.classList.add('d-none');
         }
 
-        bootstrap.Modal.getInstance(document.getElementById('checkoutModal'))?.hide();
+        bootstrap.Modal.getInstance(document.getElementById(this._brickSourceModalId || 'checkoutModal'))?.hide();
         setTimeout(() => {
             new bootstrap.Modal(document.getElementById('bricksResultModal')).show();
         }, 450);
@@ -1454,23 +1562,24 @@ class App {
         msgEl.innerHTML     = message || 'Ocorreu um erro ao processar o pagamento.<br>Tente novamente em instantes.';
         trackBtn.classList.add('d-none');
 
-        bootstrap.Modal.getInstance(document.getElementById('checkoutModal'))?.hide();
+        bootstrap.Modal.getInstance(document.getElementById(this._brickSourceModalId || 'checkoutModal'))?.hide();
         setTimeout(() => {
             new bootstrap.Modal(document.getElementById('bricksResultModal')).show();
         }, 450);
     }
 
-    _unmountBrick() {
-        this._brickErrorHandled = false;
+    _unmountBrick({ formId = 'checkoutForm', footerId = 'checkout-footer', sectionId = 'bricks-section', containerId = 'bricks-container' } = {}) {
+        this._brickErrorHandled  = false;
+        this._brickSourceModalId = null;
         this._bricksInstance?.unmount();
         this._bricksInstance   = null;
         this._currentPedidoId  = null;
         this._currentToken     = null;
         this._currentInitPoint = null;
-        document.getElementById('checkoutForm')?.classList.remove('d-none');
-        document.getElementById('checkout-footer')?.classList.remove('d-none');
-        document.getElementById('bricks-section')?.classList.add('d-none');
-        const c = document.getElementById('bricks-container');
+        if (formId)   document.getElementById(formId)?.classList.remove('d-none');
+        if (footerId) document.getElementById(footerId)?.classList.remove('d-none');
+        document.getElementById(sectionId)?.classList.add('d-none');
+        const c = document.getElementById(containerId);
         if (c) c.innerHTML = '';
     }
 

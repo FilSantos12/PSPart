@@ -1463,6 +1463,7 @@
                     <div id="cart-checkout-error-msg" class="alert alert-danger d-none py-2 small mb-3"></div>
                     <div id="cart-checkout-diverge-msg" class="alert alert-warning d-none py-2 small mb-3"></div>
 
+                    <div id="cart-checkout-step-form">
                     <form id="cartCheckoutForm" novalidate>
                         <div class="mb-3">
                             <label for="cart-checkout-nome" class="form-label fw-semibold">Nome completo *</label>
@@ -1527,13 +1528,56 @@
                             <span id="cart-checkout-grand-total" class="text-success">R$ 0,00</span>
                         </div>
                     </div>
+                    </div>
+                    <!-- Escolha de método — passo 2, após criar/reaproveitar o pedido (B2b) -->
+                    <div id="cart-checkout-step-metodo" class="d-none">
+                        <div id="cart-bricks-order-summary" class="rounded-3 p-3 mb-3" style="background:var(--bg-light);">
+                            <p class="fw-semibold small text-muted mb-2"><i class="fas fa-receipt me-1"></i>Resumo do pedido</p>
+                            <div id="cart-bricks-summary-items" class="small text-muted mb-2"></div>
+                            <div class="d-flex justify-content-between small mb-2">
+                                <span class="text-muted"><i class="fas fa-truck me-1"></i>Frete</span>
+                                <span id="cart-bricks-summary-frete-val" class="fw-semibold text-success"></span>
+                            </div>
+                            <div class="d-flex justify-content-between fw-bold border-top pt-2">
+                                <span>Total a pagar</span>
+                                <span id="cart-bricks-summary-total" class="text-success fs-5"></span>
+                            </div>
+                        </div>
+                        <!-- Pagamento inline — Checkout Bricks (mesmo Brick/lógica de #checkoutModal, container próprio) -->
+                        <div id="cart-bricks-section" class="d-none mt-2">
+                            <div class="d-flex justify-content-between align-items-center mb-3 pt-1">
+                                <small class="text-muted fw-semibold">
+                                    <i class="fas fa-lock me-1 text-success"></i>Pagamento seguro
+                                </small>
+                                <button type="button" class="btn btn-link btn-sm text-muted p-0 text-decoration-none" id="cart-bricks-use-redirect">
+                                    <i class="fas fa-arrow-up-right-from-square me-1"></i>Pagar pelo site do MP
+                                </button>
+                            </div>
+                            <div id="cart-bricks-container"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="modal-footer flex-column gap-2 pt-3">
+                <div class="modal-footer flex-column gap-2 pt-3" id="cart-checkout-footer-form">
                     <button type="button" class="btn btn-success w-100 py-2" id="cart-checkout-submit">
-                        <i class="fas fa-arrow-up-right-from-square me-2"></i>Pagar no Mercado Pago
+                        <i class="fas fa-arrow-right me-2"></i>Continuar para pagamento
                     </button>
+                </div>
+                <div class="modal-footer flex-column gap-2 pt-3 d-none" id="cart-checkout-footer-metodo">
+                    <div class="d-flex gap-2 w-100">
+                        <button type="button" class="btn btn-outline-primary flex-fill py-2" id="cart-checkout-pagar-redirect">
+                            <i class="fas fa-arrow-up-right-from-square me-2"></i>Pix, boleto ou cartão — no MP
+                        </button>
+                        <button type="button" class="btn btn-success flex-fill py-2" id="cart-checkout-pagar-aqui">
+                            <i class="fas fa-credit-card me-2"></i>Cartão aqui no site
+                        </button>
+                    </div>
+                    <div class="cart-checkout-metodos text-muted small text-center" aria-hidden="true">
+                        <span><i class="fas fa-credit-card me-1"></i>Cartão</span>
+                        <span><i class="fa-solid fa-qrcode me-1"></i>Pix</span>
+                        <span><i class="fas fa-barcode me-1"></i>Boleto</span>
+                    </div>
                     <p class="text-muted small text-center mb-0">
-                        <i class="fas fa-shield-alt me-1"></i>Pagamento 100% seguro via <strong>Mercado Pago</strong>
+                        <i class="fas fa-shield-alt me-1"></i>Você finaliza o pagamento no ambiente do <strong>Mercado Pago</strong>, ou aqui mesmo com cartão
                     </p>
                 </div>
             </div>

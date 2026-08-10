@@ -2274,6 +2274,15 @@ body.dark-mode .pagamentos-seguranca .ps-seguranca-lista li { color: #ccc; }
     margin: 0 0 0.85rem;
 }
 
+/* Fileira presentacional de métodos aceitos, abaixo do botão de pagamento do
+   checkout do carrinho — apenas reforço visual/copy, sem link ou estado. */
+.cart-checkout-metodos {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
 /* Toast simples de "adicionado ao carrinho" — mesma técnica opacity/pointer-events */
 .cart-toast {
     position: fixed;

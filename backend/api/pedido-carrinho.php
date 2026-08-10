@@ -126,8 +126,9 @@ try {
         'subtotal'   => $subtotal,
         'frete'      => $fretePrice,
         'total'      => $total,
-        'token'      => $stmtToken->fetchColumn(),
-        'init_point' => $preference['init_point'],
+        'token'          => $stmtToken->fetchColumn(),
+        'init_point'     => $preference['init_point'],
+        'preference_id'  => $preference['preference_id'],
     ], 201);
 
 } catch (InvalidArgumentException $e) {

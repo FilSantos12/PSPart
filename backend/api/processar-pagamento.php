@@ -29,18 +29,41 @@ try {
     $pdo = getDB();
 
     $stmt = $pdo->prepare("
-        SELECT p.total, p.token_acompanhamento, p.nome_comprador, p.email_comprador,
-               pr.nome AS produto_nome
-        FROM pedidos p
-        JOIN itens_pedido ip ON ip.pedido_id = p.id
-        JOIN produtos pr ON pr.id = ip.produto_id
-        WHERE p.id = :id
-        LIMIT 1
+        SELECT id, total, token_acompanhamento, nome_comprador, email_comprador, status
+        FROM pedidos WHERE id = :id
     ");
     $stmt->execute([':id' => $pedidoId]);
     $pedido = $stmt->fetch();
 
     if (!$pedido) json_erro('Pedido não encontrado.', 404);
+
+    // Guarda anti-dupla-cobrança: pedido já pago/em processamento não pode ser cobrado de novo
+    // por este caminho (ex.: duplo clique, ou já aprovado via redirect noutra aba).
+    if (statusPermiteRastreamento($pedido['status'])) {
+        json_erro('Este pedido já foi pago. Nenhuma cobrança adicional foi feita.', 409);
+    }
+
+    $stmtItens = $pdo->prepare("
+        SELECT pr.nome AS produto_nome, ip.quantidade, ip.preco_unitario
+        FROM itens_pedido ip JOIN produtos pr ON pr.id = ip.produto_id
+        WHERE ip.pedido_id = :id
+    ");
+    $stmtItens->execute([':id' => $pedidoId]);
+    $itensPedido = $stmtItens->fetchAll();
+
+    if (empty($itensPedido)) json_erro('Pedido sem itens.', 404);
+
+    // Descrição honesta do pagamento — lista todos os itens, não só o primeiro do JOIN
+    $partesDescricao = array_map(
+        fn($i) => $i['produto_nome'] . ' × ' . (int) $i['quantidade'],
+        $itensPedido
+    );
+    $descricao = count($itensPedido) === 1
+        ? $partesDescricao[0]
+        : count($itensPedido) . ' itens: ' . implode(', ', $partesDescricao);
+    if (mb_strlen($descricao) > 250) {
+        $descricao = mb_substr($descricao, 0, 247) . '...';
+    }
 
     MercadoPagoConfig::setAccessToken(MP_ACCESS_TOKEN);
 
@@ -54,7 +77,7 @@ try {
     // O webhook de Bricks é desnecessário aqui; o Checkout Pro usa o webhook via preference.
     $paymentData = array_merge($formData, [
         'transaction_amount' => (float) $pedido['total'],
-        'description'        => $pedido['produto_nome'],
+        'description'        => $descricao,
         'external_reference' => (string) $pedidoId,
     ]);
 
@@ -82,15 +105,7 @@ try {
             VALUES (:oid, 0, :now)
         ")->execute([':oid' => (string) $pedidoId, ':now' => date('Y-m-d H:i:s')]);
 
-        $stmtItens = $pdo->prepare("
-            SELECT pr.nome AS produto_nome, ip.quantidade, ip.preco_unitario
-            FROM itens_pedido ip JOIN produtos pr ON pr.id = ip.produto_id
-            WHERE ip.pedido_id = :id
-        ");
-        $stmtItens->execute([':id' => $pedidoId]);
-        $itensEmail = $stmtItens->fetchAll();
-
-        emailPagamentoAprovado($pedido, $itensEmail, $pedido['token_acompanhamento']);
+        emailPagamentoAprovado($pedido, $itensPedido, $pedido['token_acompanhamento']);
     }
 
     json_ok([

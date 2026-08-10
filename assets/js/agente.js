@@ -38,7 +38,7 @@ class AgenteChat {
     }
 
     _agendarAbertura() {
-        // Abre automaticamente após 30s, apenas uma vez por sessão
+        // Abre automaticamente após 10s, apenas uma vez por sessão
         if (sessionStorage.getItem('psp_agente_auto_aberto')) return;
         setTimeout(() => {
             if (this._painel.style.display !== 'flex') {
