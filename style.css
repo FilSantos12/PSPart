@@ -134,12 +134,12 @@ html {
     background: transparent;
     font-family: var(--font-body);
     font-size: 0.82rem;
-    color: var(--ink);
+    color: #16203a;
     padding: 0.32rem 0.1rem;
 }
 
 .navbar-search-input::placeholder {
-    color: var(--muted);
+    color: #5b6b82;
 }
 
 .navbar-search:has(.navbar-search-input:focus-visible) {
@@ -2096,6 +2096,18 @@ body.dark-mode .pagamentos-seguranca .ps-seguranca-lista li { color: #ccc; }
     outline-offset: 2px;
 }
 
+.cart-drawer-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.cart-drawer-actions {
+    flex-shrink: 0;
+    padding: 1rem 1.25rem 1.25rem;
+    border-top: 1px solid var(--line);
+}
+
 .cart-empty {
     display: flex;
     flex-direction: column;
@@ -2113,15 +2125,13 @@ body.dark-mode .pagamentos-seguranca .ps-seguranca-lista li { color: #ccc; }
 }
 
 .cart-items {
-    flex: 1;
-    overflow-y: auto;
     padding: 0.5rem 1.25rem;
 }
 
 .cart-item {
     display: flex;
-    gap: 0.75rem;
-    padding: 0.9rem 0;
+    gap: 1rem;
+    padding: 1.1rem 0;
     border-bottom: 1px solid var(--line);
 }
 
@@ -2130,10 +2140,11 @@ body.dark-mode .pagamentos-seguranca .ps-seguranca-lista li { color: #ccc; }
 }
 
 .cart-item-thumb {
-    width: 56px;
-    height: 56px;
+    width: 76px;
+    height: 76px;
     flex-shrink: 0;
     border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
     object-fit: contain;
     background-color: var(--bg-light);
 }
@@ -2154,7 +2165,7 @@ body.dark-mode .pagamentos-seguranca .ps-seguranca-lista li { color: #ccc; }
 }
 
 .cart-item-nome {
-    font-size: 0.9rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--ink);
     line-height: 1.3;
@@ -2162,27 +2173,27 @@ body.dark-mode .pagamentos-seguranca .ps-seguranca-lista li { color: #ccc; }
 
 .cart-item-codigo {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: var(--muted);
 }
 
 .cart-item-qty {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    margin-top: 0.2rem;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
 }
 
 .cart-qty-btn {
-    width: 24px;
-    height: 24px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     border: 1px solid var(--line);
     background: var(--bg);
     color: var(--ink);
     cursor: pointer;
     line-height: 1;
-    font-size: 0.9rem;
+    font-size: 1rem;
 }
 
 .cart-qty-btn:hover {
@@ -2191,14 +2202,14 @@ body.dark-mode .pagamentos-seguranca .ps-seguranca-lista li { color: #ccc; }
 }
 
 .cart-qty-input {
-    width: 40px;
+    width: 44px;
     text-align: center;
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
     background: var(--card);
     color: var(--ink);
-    font-size: 0.85rem;
-    padding: 0.2rem;
+    font-size: 0.95rem;
+    padding: 0.3rem;
 }
 
 .cart-item-end {
@@ -2212,14 +2223,13 @@ body.dark-mode .pagamentos-seguranca .ps-seguranca-lista li { color: #ccc; }
 .cart-item-preco {
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     color: var(--primary);
     white-space: nowrap;
 }
 
 .cart-drawer-footer {
-    flex-shrink: 0;
-    padding: 1rem 1.25rem 1.25rem;
+    padding: 1rem 1.25rem;
     border-top: 1px solid var(--line);
 }
 
@@ -2283,32 +2293,30 @@ body.dark-mode .pagamentos-seguranca .ps-seguranca-lista li { color: #ccc; }
     flex-wrap: wrap;
 }
 
-/* Toast simples de "adicionado ao carrinho" — mesma técnica opacity/pointer-events */
-.cart-toast {
-    position: fixed;
-    left: 50%;
-    bottom: 28px;
-    transform: translate(-50%, 12px);
-    z-index: 1062;
-    background: var(--ink);
-    color: #fff;
-    font-size: 0.85rem;
-    font-weight: 600;
-    padding: 0.6rem 1.1rem;
-    border-radius: 999px;
-    box-shadow: var(--shadow-lg);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.cart-toast.show {
-    opacity: 1;
-    transform: translate(-50%, 0);
-}
-
 @media (max-width: 480px) {
     .cart-drawer {
         width: 100vw;
+    }
+
+    .cart-items {
+        padding: 0.5rem 1rem;
+    }
+
+    .cart-item-thumb {
+        width: 68px;
+        height: 68px;
+    }
+
+    .cart-item-nome {
+        font-size: 0.95rem;
+    }
+
+    .cart-item-preco {
+        font-size: 1rem;
+    }
+
+    .cart-qty-btn {
+        width: 32px;
+        height: 32px;
     }
 }

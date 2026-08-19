@@ -14,6 +14,8 @@ if (!$pedido) {
     exit;
 }
 
+$numeroPedido = $pedido['numero_pedido'] ?? $id;
+
 $stmtItens = $pdo->prepare("
     SELECT ip.quantidade, pr.nome AS produto_nome, pr.codigo_interno
     FROM itens_pedido ip
@@ -48,7 +50,7 @@ $statusLabel = match($pedido['status']) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ficha de Separação — Pedido #<?= $id ?></title>
+  <title>Ficha de Separação — Pedido #<?= htmlspecialchars($numeroPedido) ?></title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, sans-serif; font-size: 13px; color: #222; background: #fff; padding: 24px; }
@@ -90,7 +92,7 @@ $statusLabel = match($pedido['status']) {
     <small>Partes e Peças Automação</small>
   </div>
   <div class="ficha-pedido">
-    <strong>Pedido #<?= $id ?></strong>
+    <strong>Pedido #<?= htmlspecialchars($numeroPedido) ?></strong>
     <?= date('d/m/Y H:i', strtotime($pedido['criado_em'])) ?><br>
     Status: <?= htmlspecialchars($statusLabel) ?>
   </div>

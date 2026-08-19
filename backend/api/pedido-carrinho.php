@@ -31,6 +31,7 @@ require_once __DIR__ . '/../config/melhorenvio.php';
 require_once __DIR__ . '/../helpers/frete_carrinho.php';
 require_once __DIR__ . '/../helpers/mercadopago_preference.php';
 require_once __DIR__ . '/../helpers/email.php';
+require_once __DIR__ . '/../helpers/numero_pedido.php';
 
 exigir_metodo('POST');
 
@@ -117,16 +118,18 @@ try {
     // ── Preference (idempotente — reaproveita se o pedido já tem uma) ───────────
     $preference = criarOuObterPreferencePedido($pdo, $pedidoId);
 
-    $stmtToken = $pdo->prepare("SELECT token_acompanhamento FROM pedidos WHERE id = :id");
-    $stmtToken->execute([':id' => $pedidoId]);
+    $stmtPedido = $pdo->prepare("SELECT token_acompanhamento, numero_pedido FROM pedidos WHERE id = :id");
+    $stmtPedido->execute([':id' => $pedidoId]);
+    $dadosPedido = $stmtPedido->fetch();
 
     json_ok([
-        'ok'         => true,
-        'pedido_id'  => $pedidoId,
-        'subtotal'   => $subtotal,
-        'frete'      => $fretePrice,
-        'total'      => $total,
-        'token'          => $stmtToken->fetchColumn(),
+        'ok'            => true,
+        'pedido_id'     => $pedidoId,
+        'numero_pedido' => $dadosPedido['numero_pedido'] ?? null,
+        'subtotal'      => $subtotal,
+        'frete'         => $fretePrice,
+        'total'         => $total,
+        'token'          => $dadosPedido['token_acompanhamento'] ?? null,
         'init_point'     => $preference['init_point'],
         'preference_id'  => $preference['preference_id'],
     ], 201);
@@ -163,58 +166,69 @@ function criarPedidoCarrinho(
 
     $token = bin2hex(random_bytes(16));
 
-    try {
-        $pdo->beginTransaction();
+    // Retry em caso de corrida rara no UNIQUE(numero_pedido) — dois requests gerando
+    // o mesmo próximo sequencial do mês; distinto da corrida de UNIQUE(checkout_hash) abaixo.
+    $maxTentativas = 5;
+    for ($tentativa = 0; $tentativa < $maxTentativas; $tentativa++) {
+        $numeroPedido = proximoNumeroPedido($pdo);
+        try {
+            $pdo->beginTransaction();
 
-        $stmt = $pdo->prepare("
-            INSERT INTO pedidos (nome_comprador, email_comprador, telefone_comprador,
-                                 cep, endereco, numero, complemento, bairro, cidade, estado,
-                                 total, status, token_acompanhamento, checkout_hash, criado_em)
-            VALUES (:nome, :email, :telefone,
-                    :cep, :endereco, :numero, :complemento, :bairro, :cidade, :estado,
-                    :total, 'pendente', :token, :hash, :criado_em)
-        ");
-        $stmt->execute([
-            ':nome' => $nome, ':email' => $email, ':telefone' => $telefone,
-            ':cep' => $cepFmt, ':endereco' => $endereco, ':numero' => $numero,
-            ':complemento' => $complemento, ':bairro' => $bairro, ':cidade' => $cidade, ':estado' => $estado,
-            ':total' => $total, ':token' => $token, ':hash' => $checkoutHash,
-            ':criado_em' => date('Y-m-d H:i:s'),
-        ]);
-        $pedidoId = (int) $pdo->lastInsertId();
-
-        $stmtItem = $pdo->prepare("
-            INSERT INTO itens_pedido (pedido_id, produto_id, quantidade, preco_unitario)
-            VALUES (:pedido_id, :produto_id, :quantidade, :preco_unitario)
-        ");
-        $stmtEstoque = $pdo->prepare("UPDATE produtos SET estoque = estoque - :qty WHERE id = :id");
-
-        $itensEmail = [];
-        foreach ($carrinhoResolvido as $item) {
-            $produto = $item['produto'];
-            $stmtItem->execute([
-                ':pedido_id' => $pedidoId, ':produto_id' => $produto['id'],
-                ':quantidade' => $item['quantidade'], ':preco_unitario' => $produto['preco'],
+            $stmt = $pdo->prepare("
+                INSERT INTO pedidos (nome_comprador, email_comprador, telefone_comprador,
+                                     cep, endereco, numero, complemento, bairro, cidade, estado,
+                                     total, status, token_acompanhamento, checkout_hash, numero_pedido, criado_em)
+                VALUES (:nome, :email, :telefone,
+                        :cep, :endereco, :numero, :complemento, :bairro, :cidade, :estado,
+                        :total, 'pendente', :token, :hash, :numero_pedido, :criado_em)
+            ");
+            $stmt->execute([
+                ':nome' => $nome, ':email' => $email, ':telefone' => $telefone,
+                ':cep' => $cepFmt, ':endereco' => $endereco, ':numero' => $numero,
+                ':complemento' => $complemento, ':bairro' => $bairro, ':cidade' => $cidade, ':estado' => $estado,
+                ':total' => $total, ':token' => $token, ':hash' => $checkoutHash,
+                ':numero_pedido' => $numeroPedido, ':criado_em' => date('Y-m-d H:i:s'),
             ]);
-            $stmtEstoque->execute([':qty' => $item['quantidade'], ':id' => $produto['id']]);
-            $itensEmail[] = [
-                'produto_nome'   => $produto['nome'],
-                'quantidade'     => $item['quantidade'],
-                'preco_unitario' => $produto['preco'],
-            ];
+            $pedidoId = (int) $pdo->lastInsertId();
+
+            $stmtItem = $pdo->prepare("
+                INSERT INTO itens_pedido (pedido_id, produto_id, quantidade, preco_unitario)
+                VALUES (:pedido_id, :produto_id, :quantidade, :preco_unitario)
+            ");
+            $stmtEstoque = $pdo->prepare("UPDATE produtos SET estoque = estoque - :qty WHERE id = :id");
+
+            $itensEmail = [];
+            foreach ($carrinhoResolvido as $item) {
+                $produto = $item['produto'];
+                $stmtItem->execute([
+                    ':pedido_id' => $pedidoId, ':produto_id' => $produto['id'],
+                    ':quantidade' => $item['quantidade'], ':preco_unitario' => $produto['preco'],
+                ]);
+                $stmtEstoque->execute([':qty' => $item['quantidade'], ':id' => $produto['id']]);
+                $itensEmail[] = [
+                    'produto_nome'   => $produto['nome'],
+                    'quantidade'     => $item['quantidade'],
+                    'preco_unitario' => $produto['preco'],
+                ];
+            }
+
+            $pdo->commit();
+            break;
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+
+            if (strpos($e->getMessage(), 'numero_pedido') !== false && $tentativa < $maxTentativas - 1) {
+                continue;
+            }
+
+            // UNIQUE(checkout_hash) — corrida com outra requisição idêntica: reaproveita o pedido dela.
+            $stmtExistente = $pdo->prepare("SELECT id FROM pedidos WHERE checkout_hash = :h ORDER BY id DESC LIMIT 1");
+            $stmtExistente->execute([':h' => $checkoutHash]);
+            $existenteId = $stmtExistente->fetchColumn();
+            if ($existenteId) return (int) $existenteId;
+
+            throw $e;
         }
-
-        $pdo->commit();
-    } catch (Exception $e) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
-
-        // UNIQUE(checkout_hash) — corrida com outra requisição idêntica: reaproveita o pedido dela.
-        $stmtExistente = $pdo->prepare("SELECT id FROM pedidos WHERE checkout_hash = :h ORDER BY id DESC LIMIT 1");
-        $stmtExistente->execute([':h' => $checkoutHash]);
-        $existenteId = $stmtExistente->fetchColumn();
-        if ($existenteId) return (int) $existenteId;
-
-        throw $e;
     }
 
     // Persiste o frete rederivado em order_tracking (fonte única — nunca o do browser)
@@ -243,7 +257,7 @@ function criarPedidoCarrinho(
     ]);
 
     $pedidoEmail = [
-        'id' => $pedidoId, 'nome_comprador' => $nome, 'email_comprador' => $email,
+        'id' => $pedidoId, 'numero_pedido' => $numeroPedido, 'nome_comprador' => $nome, 'email_comprador' => $email,
         'total' => $total, 'status' => 'pendente', 'criado_em' => date('d/m/Y H:i'),
         'endereco' => $endereco, 'numero' => $numero, 'complemento' => $complemento,
         'bairro' => $bairro, 'cidade' => $cidade, 'estado' => $estado, 'cep' => $cepFmt,

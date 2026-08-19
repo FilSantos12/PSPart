@@ -18,6 +18,8 @@ if (!$pedido) {
     exit;
 }
 
+$numeroPedido = $pedido['numero_pedido'] ?? $id;
+
 $itens = $pdo->prepare("
     SELECT ip.quantidade, ip.preco_unitario,
            pr.nome AS produto_nome, pr.imagem, pr.codigo_interno
@@ -76,7 +78,7 @@ $statusBadge = [
     'enviado'          => 'primary',
 ];
 
-layout_head('Pedido #' . $id);
+layout_head('Pedido #' . $numeroPedido);
 ?>
 <style>
   .bg-purple { background-color: #6f42c1 !important; }
@@ -395,7 +397,7 @@ layout_head('Pedido #' . $id);
                     <ul class="small mb-3">
                         <li>Transportadora: <strong><?= htmlspecialchars(($tracking['chosen_carrier'] ?? '') . ' — ' . ($tracking['chosen_service'] ?? '')) ?></strong></li>
                         <li>Valor do frete: <strong><?= $fretePreco !== null ? 'R$ ' . number_format($fretePreco, 2, ',', '.') : 'ver carteira ME' ?></strong></li>
-                        <li>Pedido: <strong>#<?= $id ?></strong></li>
+                        <li>Pedido: <strong>#<?= htmlspecialchars($numeroPedido) ?></strong></li>
                     </ul>
                     <p class="text-muted small mb-0">Após confirmar, o saldo não pode ser estornado automaticamente.</p>
                 </div>

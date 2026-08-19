@@ -136,7 +136,7 @@ function emailPedidoCriado(array $pedido, array $itens, string $token): void {
 
     $total   = number_format($pedido['total'], 2, ',', '.');
     $nome    = htmlspecialchars($pedido['nome_comprador']);
-    $pedidoId = $pedido['id'];
+    $pedidoId = $pedido['numero_pedido'] ?? $pedido['id'];
     $criado   = $pedido['criado_em'] ?? date('d/m/Y H:i');
 
     $endereco = implode(', ', array_filter([
@@ -202,7 +202,7 @@ function emailPedidoEnviado(array $pedido, array $itens, string $token, string $
     $linkRastreio = 'https://rastreamento.correios.com.br/app/index.php?objeto=' . urlencode($codigoRastreio);
     $total        = number_format($pedido['total'], 2, ',', '.');
     $nome         = htmlspecialchars($pedido['nome_comprador']);
-    $pedidoId     = $pedido['id'];
+    $pedidoId     = $pedido['numero_pedido'] ?? $pedido['id'];
 
     $linhasItens = '';
     foreach ($itens as $item) {
@@ -274,7 +274,7 @@ function emailPedidoEnviado(array $pedido, array $itens, string $token, string $
  */
 function emailFichaSeparacao(array $pedido, array $itens): bool {
     $destinatario = defined('EMAIL_SEPARACAO_INTERNA') ? EMAIL_SEPARACAO_INTERNA : 'filipe@pentasis.com.br';
-    $pedidoId     = $pedido['id'];
+    $pedidoId     = $pedido['numero_pedido'] ?? $pedido['id'];
     $data         = date('d/m/Y H:i', strtotime($pedido['criado_em']));
     $status       = _statusLabel($pedido['status'] ?? 'pendente');
     $nome         = htmlspecialchars($pedido['nome_comprador']);
@@ -336,7 +336,7 @@ function emailPagamentoAprovado(array $pedido, array $itens, string $token): voi
     $linkAcomp = $baseUrl . '/acompanhar.html?pedido=' . $pedido['id'] . '&token=' . $token;
     $total     = number_format($pedido['total'], 2, ',', '.');
     $nome      = htmlspecialchars($pedido['nome_comprador']);
-    $pedidoId  = $pedido['id'];
+    $pedidoId  = $pedido['numero_pedido'] ?? $pedido['id'];
 
     $linhasItens = '';
     foreach ($itens as $item) {

@@ -104,7 +104,7 @@ layout_head('Pedidos');
             <tbody>
             <?php foreach ($pedidos as $p): ?>
                 <tr>
-                    <td class="text-muted small"><?= $p['id'] ?></td>
+                    <td class="text-muted small" title="ID interno: <?= $p['id'] ?>"><?= htmlspecialchars($p['numero_pedido'] ?? $p['id']) ?></td>
                     <td class="fw-semibold"><?= htmlspecialchars($p['nome_comprador']) ?></td>
                     <td class="text-muted small"><?= htmlspecialchars($p['email_comprador']) ?></td>
                     <td>R$ <?= number_format($p['total'], 2, ',', '.') ?></td>

@@ -12,17 +12,27 @@ require_once __DIR__ . '/_core.php';
 
 exigir_metodo('GET');
 
-$pdo   = getDB();
-$token = trim($_GET['token']    ?? '');
-$pid   = (int) ($_GET['pedido_id'] ?? 0);
-$email = trim($_GET['email']    ?? '');
+$pdo      = getDB();
+$token    = trim($_GET['token']      ?? '');
+$pidRaw   = trim($_GET['pedido_id']  ?? '');
+$email    = trim($_GET['email']      ?? '');
 
 if ($token !== '') {
     $stmt = $pdo->prepare("SELECT * FROM pedidos WHERE token_acompanhamento = :token LIMIT 1");
     $stmt->execute([':token' => $token]);
-} elseif ($pid > 0 && $email !== '') {
-    $stmt = $pdo->prepare("SELECT * FROM pedidos WHERE id = :id AND LOWER(email_comprador) = LOWER(:email) LIMIT 1");
-    $stmt->execute([':id' => $pid, ':email' => $email]);
+} elseif ($pidRaw !== '' && $email !== '') {
+    // Aceita o número de pedido exibido ao cliente (AAAAMM+sequencial) e,
+    // por compatibilidade, o ID interno legado.
+    $stmt = $pdo->prepare("
+        SELECT * FROM pedidos
+        WHERE (numero_pedido = :num OR id = :id) AND LOWER(email_comprador) = LOWER(:email)
+        LIMIT 1
+    ");
+    $stmt->execute([
+        ':num'   => $pidRaw,
+        ':id'    => ctype_digit($pidRaw) ? (int) $pidRaw : 0,
+        ':email' => $email,
+    ]);
 } else {
     json_erro('Informe o token ou pedido_id + email.', 422);
 }

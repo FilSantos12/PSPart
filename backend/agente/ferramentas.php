@@ -45,7 +45,7 @@ function getDefinicoesFerramentas(): array
             'input_schema' => [
                 'type'       => 'object',
                 'properties' => [
-                    'id_pedido'            => ['type' => 'string', 'description' => 'Número/identificador do pedido'],
+                    'id_pedido'            => ['type' => 'string', 'description' => 'Número do pedido informado pelo cliente (formato AAAAMM+sequencial, ex.: 202608000)'],
                     'email_cliente'        => ['type' => 'string', 'description' => 'E-mail usado na compra (para conferir titularidade)'],
                     'token_acompanhamento' => ['type' => 'string', 'description' => 'Token de acompanhamento, alternativa ao e-mail'],
                 ],
@@ -177,14 +177,20 @@ function calcularFreteAgente(string $produtoId, string $cepDestino): array
 
 function consultarPedido(string $idPedido, ?string $emailCliente, ?string $token): array
 {
-    $id = (int) $idPedido;
-    if ($id <= 0) {
+    $idPedido = trim($idPedido);
+    if ($idPedido === '') {
         return ['encontrado' => false, 'mensagem' => 'Número de pedido inválido.'];
     }
 
-    $pdo  = getDB();
-    $stmt = $pdo->prepare("SELECT * FROM pedidos WHERE id = :id LIMIT 1");
-    $stmt->execute([':id' => $id]);
+    $pdo = getDB();
+
+    // Aceita o número de pedido exibido ao cliente (AAAAMM+sequencial) e,
+    // por compatibilidade, o ID interno legado (pedidos anteriores à numeração).
+    $stmt = $pdo->prepare("SELECT * FROM pedidos WHERE numero_pedido = :num OR id = :id LIMIT 1");
+    $stmt->execute([
+        ':num' => $idPedido,
+        ':id'  => ctype_digit($idPedido) ? (int) $idPedido : 0,
+    ]);
     $pedido = $stmt->fetch();
 
     if (!$pedido) {
@@ -208,7 +214,7 @@ function consultarPedido(string $idPedido, ?string $emailCliente, ?string $token
 
     // Busca rastreamento
     $stmtT = $pdo->prepare("SELECT * FROM order_tracking WHERE order_id = :oid LIMIT 1");
-    $stmtT->execute([':oid' => (string) $id]);
+    $stmtT->execute([':oid' => (string) $pedido['id']]);
     $tracking = $stmtT->fetch() ?: null;
 
     $status = derivarStatusPedido($pedido, $tracking);
@@ -216,7 +222,7 @@ function consultarPedido(string $idPedido, ?string $emailCliente, ?string $token
     // Retornar apenas o mínimo necessário — sem PII (sem e-mail, telefone, endereço)
     return [
         'encontrado'        => true,
-        'pedido_id'         => $pedido['id'],
+        'pedido_id'         => $pedido['numero_pedido'] ?? $pedido['id'],
         'total'             => (float) $pedido['total'],
         'criado_em'         => $pedido['criado_em'],
         'status_pagamento'  => $status['status_pagamento'],

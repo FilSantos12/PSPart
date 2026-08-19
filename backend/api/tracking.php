@@ -36,9 +36,11 @@ if ($method === 'GET') {
 
     if (!$row) json_erro('Pedido não encontrado no sistema de rastreio.', 404);
 
-    $stmtPedido = $pdo->prepare("SELECT status FROM pedidos WHERE id = :id LIMIT 1");
+    $stmtPedido = $pdo->prepare("SELECT status, numero_pedido FROM pedidos WHERE id = :id LIMIT 1");
     $stmtPedido->execute([':id' => (int) $orderId]);
-    $pedidoStatus = $stmtPedido->fetchColumn() ?: 'pendente';
+    $dadosPedido  = $stmtPedido->fetch();
+    $pedidoStatus = $dadosPedido['status'] ?? 'pendente';
+    $numeroPedido = $dadosPedido['numero_pedido'] ?? null;
 
     $labels = ['Em Preparação', 'Embalado', 'Enviado', 'Código de Rastreio'];
     $status = (int) $row['status'];
@@ -51,6 +53,7 @@ if ($method === 'GET') {
 
     json_ok([
         'order_id'         => $row['order_id'],
+        'numero_pedido'    => $numeroPedido,
         'pedido_status'    => $pedidoStatus,
         'status'           => $status,
         'status_label'     => $labels[$status] ?? 'Desconhecido',

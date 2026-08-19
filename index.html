@@ -279,12 +279,6 @@
                         <div class="card-body">
                             <span class="product-eyebrow">Robótica</span>
                             <h5 class="card-title">Mini Motor</h5>
-                            <div class="product-code-pill">
-                                <i class="fas fa-barcode"></i>MT.00.00020
-                                <button type="button" class="btn btn-link btn-sm p-0 btn-copy-code" data-codigo="MT.00.00020" title="Copiar código">
-                                    <i class="fas fa-copy"></i>
-                                </button>
-                            </div>
                             <div class="product-card-footer">
                                 <span class="product-price">R$ 59,90</span>
                                 <div class="d-flex gap-2">
@@ -1606,41 +1600,46 @@
             </button>
         </div>
 
-        <p id="cartEmpty" class="cart-empty">
-            <i class="fas fa-cart-shopping"></i>
-            Seu carrinho está vazio.
-        </p>
+        <div class="cart-drawer-body">
+            <p id="cartEmpty" class="cart-empty">
+                <i class="fas fa-cart-shopping"></i>
+                Seu carrinho está vazio.
+            </p>
 
-        <div id="cartItems" class="cart-items"></div>
+            <div id="cartItems" class="cart-items"></div>
 
-        <div id="cartFooter" class="cart-drawer-footer" style="display:none;">
-            <div class="cart-frete-block">
-                <label for="cartCepInput" class="frete-cep-label mb-1 d-block">
-                    <i class="fas fa-location-dot me-1"></i>CEP de entrega
-                </label>
-                <div class="cart-frete-cep-row">
-                    <input type="text" id="cartCepInput" class="form-control form-control-sm frete-cep-input"
-                           placeholder="00000-000" maxlength="9" inputmode="numeric" aria-label="CEP de entrega">
-                    <button type="button" id="cartCepBtn" class="btn btn-outline-primary btn-sm" aria-label="Calcular frete">
-                        <i class="fas fa-search"></i>
-                    </button>
+            <div id="cartFooter" class="cart-drawer-footer" style="display:none;">
+                <div class="cart-frete-block">
+                    <label for="cartCepInput" class="frete-cep-label mb-1 d-block">
+                        <i class="fas fa-location-dot me-1"></i>CEP de entrega
+                    </label>
+                    <div class="cart-frete-cep-row">
+                        <input type="text" id="cartCepInput" class="form-control form-control-sm frete-cep-input"
+                               placeholder="00000-000" maxlength="9" inputmode="numeric" aria-label="CEP de entrega">
+                        <button type="button" id="cartCepBtn" class="btn btn-outline-primary btn-sm" aria-label="Calcular frete">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <div id="cartFreteResultado" class="cart-frete-resultado" style="display:none;"></div>
                 </div>
-                <div id="cartFreteResultado" class="cart-frete-resultado" style="display:none;"></div>
-            </div>
 
-            <div class="cart-subtotal-row">
-                <span>Subtotal</span>
-                <span id="cartSubtotal">R$ 0,00</span>
+                <div class="cart-subtotal-row">
+                    <span>Subtotal</span>
+                    <span id="cartSubtotal">R$ 0,00</span>
+                </div>
+                <div class="cart-subtotal-row" id="cartFreteRow" style="display:none;">
+                    <span>Frete</span>
+                    <span id="cartFreteValor">R$ 0,00</span>
+                </div>
+                <div class="cart-subtotal-row cart-total-row" id="cartTotalRow" style="display:none;">
+                    <span>Total</span>
+                    <span id="cartTotalValor">R$ 0,00</span>
+                </div>
+                <p class="cart-subtotal-nota">Valor informativo — total final autoritativo é recalculado no checkout.</p>
             </div>
-            <div class="cart-subtotal-row" id="cartFreteRow" style="display:none;">
-                <span>Frete</span>
-                <span id="cartFreteValor">R$ 0,00</span>
-            </div>
-            <div class="cart-subtotal-row cart-total-row" id="cartTotalRow" style="display:none;">
-                <span>Total</span>
-                <span id="cartTotalValor">R$ 0,00</span>
-            </div>
-            <p class="cart-subtotal-nota">Valor informativo — total final autoritativo é recalculado no checkout.</p>
+        </div>
+
+        <div class="cart-drawer-actions" id="cartActions" style="display:none;">
             <button id="cartFinalizar" type="button" class="btn btn-cta w-100" disabled>Finalizar compra</button>
         </div>
     </aside>

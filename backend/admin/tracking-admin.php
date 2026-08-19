@@ -12,7 +12,7 @@ $labelColors = ['secondary', 'primary', 'warning', 'success'];
 $rows = $pdo->query("
     SELECT ot.order_id, ot.status, ot.tracking_code, ot.carrier, ot.notes, ot.updated_at,
            ot.chosen_carrier, ot.chosen_service, ot.shipping_price, ot.shipping_deadline, ot.destination_cep,
-           p.nome_comprador, p.email_comprador, p.status AS pedido_status
+           p.nome_comprador, p.email_comprador, p.status AS pedido_status, p.numero_pedido
     FROM order_tracking ot
     LEFT JOIN pedidos p ON p.id = CAST(ot.order_id AS INTEGER)
     ORDER BY ot.updated_at DESC
@@ -84,7 +84,10 @@ layout_head('Rastreamento de Pedidos');
                 $falhaInfo  = $isFalha ? $pedidoStatusFalha[$pStatus] : null;
             ?>
             <tr data-orderid="<?= htmlspecialchars($r['order_id']) ?>"<?= $isFalha ? ' class="table-danger opacity-75"' : '' ?>>
-                <td><strong>#<?= htmlspecialchars($r['order_id']) ?></strong></td>
+                <td>
+                    <strong>#<?= htmlspecialchars($r['numero_pedido'] ?? $r['order_id']) ?></strong>
+                    <div class="text-muted" style="font-size:.7rem;">ID interno: <?= htmlspecialchars($r['order_id']) ?></div>
+                </td>
                 <td>
                     <div class="small"><?= htmlspecialchars($r['nome_comprador'] ?? '—') ?></div>
                     <div class="text-muted" style="font-size:.75rem;"><?= htmlspecialchars($r['email_comprador'] ?? '') ?></div>
@@ -115,6 +118,7 @@ layout_head('Rastreamento de Pedidos');
                     <button class="btn btn-outline-primary btn-sm"
                             onclick='abrirModal(<?= json_encode([
                                 "order_id"        => $r["order_id"],
+                                "numero_pedido"   => $r["numero_pedido"] ?? $r["order_id"],
                                 "status"          => $s,
                                 "tracking_code"   => $r["tracking_code"] ?? "",
                                 "carrier"         => $r["carrier"] ?? "",
@@ -234,7 +238,7 @@ function abrirModal(data) {
 
     if (data) {
         isEditing         = true;
-        title.textContent = 'Editar Rastreamento — Pedido #' + data.order_id;
+        title.textContent = 'Editar Rastreamento — Pedido #' + (data.numero_pedido || data.order_id);
         oId.value         = data.order_id;
         oId.readOnly      = true;
         document.getElementById('mStatus').value  = data.status;

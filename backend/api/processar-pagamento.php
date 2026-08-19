@@ -29,7 +29,7 @@ try {
     $pdo = getDB();
 
     $stmt = $pdo->prepare("
-        SELECT id, total, token_acompanhamento, nome_comprador, email_comprador, status
+        SELECT id, numero_pedido, total, token_acompanhamento, nome_comprador, email_comprador, status
         FROM pedidos WHERE id = :id
     ");
     $stmt->execute([':id' => $pedidoId]);

@@ -23,6 +23,7 @@
 require_once __DIR__ . '/_core.php';
 require_once __DIR__ . '/../config/mercadopago.php';
 require_once __DIR__ . '/../helpers/email.php';
+require_once __DIR__ . '/../helpers/numero_pedido.php';
 
 exigir_metodo('POST');
 
@@ -125,33 +126,48 @@ try {
 
     $token = bin2hex(random_bytes(16));
 
-    $pdo->beginTransaction();
+    // Insere o pedido (total já inclui frete). Retry em caso de corrida rara no
+    // UNIQUE(numero_pedido) — dois requests gerando o mesmo próximo sequencial do mês.
+    $maxTentativas = 5;
+    for ($tentativa = 0; $tentativa < $maxTentativas; $tentativa++) {
+        $numeroPedido = proximoNumeroPedido($pdo);
+        try {
+            $pdo->beginTransaction();
 
-    // Insere o pedido (total já inclui frete)
-    $stmt = $pdo->prepare("
-        INSERT INTO pedidos (nome_comprador, email_comprador, telefone_comprador,
-                             cep, endereco, numero, complemento, bairro, cidade, estado,
-                             total, status, token_acompanhamento, criado_em)
-        VALUES (:nome, :email, :telefone,
-                :cep, :endereco, :numero, :complemento, :bairro, :cidade, :estado,
-                :total, 'pendente', :token, :criado_em)
-    ");
-    $stmt->execute([
-        ':nome'        => $nome,
-        ':email'       => $email,
-        ':telefone'    => $telefone,
-        ':cep'         => $cep,
-        ':endereco'    => $endereco,
-        ':numero'      => $numero,
-        ':complemento' => $complemento,
-        ':bairro'      => $bairro,
-        ':cidade'      => $cidade,
-        ':estado'      => $estado,
-        ':total'       => $total,
-        ':token'       => $token,
-        ':criado_em'   => date('Y-m-d H:i:s'),
-    ]);
-    $pedidoId = (int) $pdo->lastInsertId();
+            $stmt = $pdo->prepare("
+                INSERT INTO pedidos (nome_comprador, email_comprador, telefone_comprador,
+                                     cep, endereco, numero, complemento, bairro, cidade, estado,
+                                     total, status, token_acompanhamento, numero_pedido, criado_em)
+                VALUES (:nome, :email, :telefone,
+                        :cep, :endereco, :numero, :complemento, :bairro, :cidade, :estado,
+                        :total, 'pendente', :token, :numero_pedido, :criado_em)
+            ");
+            $stmt->execute([
+                ':nome'          => $nome,
+                ':email'         => $email,
+                ':telefone'      => $telefone,
+                ':cep'           => $cep,
+                ':endereco'      => $endereco,
+                ':numero'        => $numero,
+                ':complemento'   => $complemento,
+                ':bairro'        => $bairro,
+                ':cidade'        => $cidade,
+                ':estado'        => $estado,
+                ':total'         => $total,
+                ':token'         => $token,
+                ':numero_pedido' => $numeroPedido,
+                ':criado_em'     => date('Y-m-d H:i:s'),
+            ]);
+            $pedidoId = (int) $pdo->lastInsertId();
+            break;
+        } catch (PDOException $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            if (strpos($e->getMessage(), 'numero_pedido') !== false && $tentativa < $maxTentativas - 1) {
+                continue;
+            }
+            throw $e;
+        }
+    }
 
     // Insere o item do pedido
     $stmt = $pdo->prepare("
@@ -205,6 +221,7 @@ try {
     // Envia e-mail de confirmação de pedido recebido
     $pedidoEmail = [
         'id'               => $pedidoId,
+        'numero_pedido'    => $numeroPedido,
         'nome_comprador'   => $nome,
         'email_comprador'  => $email,
         'total'            => $total,
@@ -222,12 +239,13 @@ try {
     emailPedidoCriado($pedidoEmail, $itensEmail, $token);
 
     json_ok([
-        'pedido_id' => $pedidoId,
-        'total'     => $total,
-        'subtotal'  => $subtotal,
-        'frete'     => $fretePrice,
-        'status'    => 'pendente',
-        'token'     => $token,
+        'pedido_id'     => $pedidoId,
+        'numero_pedido' => $numeroPedido,
+        'total'         => $total,
+        'subtotal'      => $subtotal,
+        'frete'         => $fretePrice,
+        'status'        => 'pendente',
+        'token'         => $token,
     ], 201);
 
 } catch (Exception $e) {

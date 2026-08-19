@@ -577,7 +577,7 @@ class App {
             const id = parseInt(btn.dataset.productId) || 0;
             if (!id) return;
             this._cartAdd(id);
-            this._cartToast('Adicionado ao carrinho');
+            this._cartOpenDrawer();
         });
 
         document.getElementById('cartFinalizar')?.addEventListener('click', () => this._cartFinalizar());
@@ -658,21 +658,6 @@ class App {
         badge.style.display = count > 0 ? '' : 'none';
     }
 
-    _cartToast(msg) {
-        let toast = document.getElementById('cartToast');
-        if (!toast) {
-            toast = document.createElement('div');
-            toast.id = 'cartToast';
-            toast.className = 'cart-toast';
-            toast.setAttribute('role', 'status');
-            document.body.appendChild(toast);
-        }
-        toast.textContent = msg;
-        toast.classList.add('show');
-        clearTimeout(this._cartToastTimer);
-        this._cartToastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
-    }
-
     _cartOpenDrawer() {
         this._cartRenderDrawer();
         document.getElementById('cartDrawer')?.classList.add('open');
@@ -690,18 +675,21 @@ class App {
         const list    = document.getElementById('cartItems');
         const empty   = document.getElementById('cartEmpty');
         const footer  = document.getElementById('cartFooter');
+        const actions = document.getElementById('cartActions');
         if (!list) return;
 
         if (this._cart.length === 0) {
             list.innerHTML = '';
-            if (empty)  empty.style.display  = '';
-            if (footer) footer.style.display = 'none';
+            if (empty)   empty.style.display   = '';
+            if (footer)  footer.style.display  = 'none';
+            if (actions) actions.style.display = 'none';
             this._cartUpdateFinalizarState();
             return;
         }
 
-        if (empty)  empty.style.display  = 'none';
-        if (footer) footer.style.display = '';
+        if (empty)   empty.style.display   = 'none';
+        if (footer)  footer.style.display  = '';
+        if (actions) actions.style.display = '';
 
         let subtotal = 0;
         list.innerHTML = this._cart.map(item => {
@@ -1805,17 +1793,6 @@ class App {
                     modalMedia = '';
                 }
 
-                // Código interno (com botão de copiar, reutilizado no card e no modal)
-                const codigoHtml = p.codigo_interno
-                    ? `<div class="product-code-pill">
-                           <i class="fas fa-barcode"></i>${p.codigo_interno}
-                           <button type="button" class="btn btn-link btn-sm p-0 btn-copy-code"
-                                   data-codigo="${p.codigo_interno}" title="Copiar código">
-                               <i class="fas fa-copy"></i>
-                           </button>
-                       </div>`
-                    : '';
-
                 // Ações de compartilhamento (WhatsApp + Web Share/copiar link) — exibidas no modal de detalhes
                 const shareActionsHtml = `
                     <div class="d-flex gap-2 mb-3 product-share-actions">
@@ -1866,7 +1843,6 @@ class App {
                         <div class="card-body">
                             <span class="product-eyebrow">${label}</span>
                             <h5 class="card-title">${p.nome}</h5>
-                            ${codigoHtml}
                             <div class="product-card-footer">
                                 <span class="product-price">${preco}</span>
                                 <div class="d-flex gap-2">
@@ -1904,7 +1880,6 @@ class App {
                                     <div class="col-md-6 modal-image-container">${modalMedia}</div>
                                     <div class="col-md-6">
                                         <h4>${p.nome}</h4>
-                                        ${codigoHtml}
                                         ${shareActionsHtml}
                                         <span class="product-badge badge-${p.categoria} mb-2 d-inline-block">${label}</span>
                                         <p>${p.descricao || ''}</p>
