@@ -811,6 +811,12 @@ class App {
         const btn      = document.getElementById('cartCepBtn');
         if (!resultEl || this._cart.length === 0) return;
 
+        // Chamadas concorrentes (drawer re-renderiza e dispara de novo antes da anterior
+        // terminar) faziam a segunda chamada guardar o ícone de spinner como "original" do
+        // botão e travá-lo girando pra sempre ao restaurar — ignora a nova chamada nesse caso.
+        if (this._cartFreteBusy) return;
+        this._cartFreteBusy = true;
+
         resultEl.style.display = 'block';
         resultEl.innerHTML = '<p class="text-muted small mt-2 mb-0"><i class="fas fa-spinner fa-spin me-1"></i>Calculando prazo de entrega...</p>';
         this._cartFrete = null;
@@ -842,6 +848,7 @@ class App {
             resultEl.innerHTML = '<p class="text-danger small mt-2 mb-0"><i class="fas fa-circle-exclamation me-1"></i>Não foi possível calcular o frete para este CEP.</p>';
         } finally {
             if (btn) { btn.disabled = false; btn.innerHTML = btnOriginal; }
+            this._cartFreteBusy = false;
         }
     }
 
