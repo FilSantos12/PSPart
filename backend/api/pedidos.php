@@ -24,6 +24,7 @@ require_once __DIR__ . '/_core.php';
 require_once __DIR__ . '/../config/mercadopago.php';
 require_once __DIR__ . '/../helpers/email.php';
 require_once __DIR__ . '/../helpers/numero_pedido.php';
+require_once __DIR__ . '/../helpers/disponibilidade.php';
 
 exigir_metodo('POST');
 
@@ -55,7 +56,7 @@ try {
     $pdo = getDB();
 
     // Busca o produto para obter preço atual
-    $stmt = $pdo->prepare("SELECT id, nome, preco, estoque, ativo FROM produtos WHERE id = :id");
+    $stmt = $pdo->prepare("SELECT id, nome, preco, estoque, ativo, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias FROM produtos WHERE id = :id");
     $stmt->execute([':id' => $produtoId]);
     $produto = $stmt->fetch();
 
@@ -65,8 +66,10 @@ try {
     if (!$produto['ativo']) {
         json_erro('Produto indisponível.', 422);
     }
-    if ($produto['estoque'] < $quantidade) {
-        json_erro('Estoque insuficiente.', 422);
+    // Mesma regra do checkout do carrinho — fonte única em disponibilidade_produto()
+    $erroDisp = disponibilidade_validar_item($produto['nome'], $quantidade, disponibilidade_produto($produto));
+    if ($erroDisp !== null) {
+        json_erro($erroDisp, 422);
     }
 
     $precoUnitario = (float) $produto['preco'];
@@ -171,18 +174,23 @@ try {
 
     // Insere o item do pedido
     $stmt = $pdo->prepare("
-        INSERT INTO itens_pedido (pedido_id, produto_id, quantidade, preco_unitario)
-        VALUES (:pedido_id, :produto_id, :quantidade, :preco_unitario)
+        INSERT INTO itens_pedido (pedido_id, produto_id, quantidade, preco_unitario, qtd_sob_encomenda)
+        VALUES (:pedido_id, :produto_id, :quantidade, :preco_unitario, :qtd_sob_encomenda)
     ");
+    // Estoque relido dentro da transação; excedente vira qtd_sob_encomenda
+    $stmtLeEstoque = $pdo->prepare("SELECT estoque FROM produtos WHERE id = :id");
+    $stmtLeEstoque->execute([':id' => $produtoId]);
+    $estoqueAtual = max(0, (int) $stmtLeEstoque->fetchColumn());
     $stmt->execute([
-        ':pedido_id'      => $pedidoId,
-        ':produto_id'     => $produtoId,
-        ':quantidade'     => $quantidade,
-        ':preco_unitario' => $precoUnitario,
+        ':pedido_id'         => $pedidoId,
+        ':produto_id'        => $produtoId,
+        ':quantidade'        => $quantidade,
+        ':preco_unitario'    => $precoUnitario,
+        ':qtd_sob_encomenda' => max(0, $quantidade - $estoqueAtual),
     ]);
 
-    // Decrementa o estoque
-    $pdo->prepare("UPDATE produtos SET estoque = estoque - :qty WHERE id = :id")
+    // Decrementa o estoque — piso em 0
+    $pdo->prepare("UPDATE produtos SET estoque = MAX(0, estoque - :qty) WHERE id = :id")
         ->execute([':qty' => $quantidade, ':id' => $produtoId]);
 
     $pdo->commit();

@@ -2,6 +2,7 @@
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/_layout.php';
+require_once __DIR__ . '/../helpers/disponibilidade.php';
 
 $pdo     = getDB();
 $produtos = $pdo->query("
@@ -14,7 +15,7 @@ $produtos = $pdo->query("
     ORDER BY p.id ASC
 ")->fetchAll();
 
-layout_head('Produtos');
+layout_head('Produtos', '<link rel="stylesheet" href="../../assets/css/disponibilidade.css">');
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -41,7 +42,7 @@ layout_head('Produtos');
                     <th>Código</th>
                     <th>Categoria</th>
                     <th>Preço</th>
-                    <th>Estoque</th>
+                    <th>Disponibilidade</th>
                     <th>Status</th>
                     <th>Ações</th>
                 </tr>
@@ -72,9 +73,9 @@ layout_head('Produtos');
                     <td><span class="badge bg-secondary"><?= htmlspecialchars($p['categoria']) ?></span></td>
                     <td>R$ <?= number_format($p['preco'], 2, ',', '.') ?></td>
                     <td>
-                        <span class="badge bg-<?= $p['estoque'] == 0 ? 'danger' : ($p['estoque'] < 5 ? 'warning text-dark' : 'success') ?>">
-                            <?= $p['estoque'] ?>
-                        </span>
+                        <?php $disp = disponibilidade_produto($p); ?>
+                        <span class="stock-badge <?= htmlspecialchars($disp['badge_class']) ?> mb-0"><span class="stock-dot"></span><?= htmlspecialchars($disp['label']) ?></span>
+                        <div class="text-muted small">Estoque: <?= (int) $p['estoque'] ?></div>
                     </td>
                     <td>
                         <span class="badge bg-<?= $p['ativo'] ? 'success' : 'secondary' ?>">

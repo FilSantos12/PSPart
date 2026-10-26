@@ -1,0 +1,49 @@
+/* ===== DISPONIBILIDADE (Patch I) =====
+   Fonte única dos tokens de estado e do badge de disponibilidade — carregado pela loja
+   (antes do style.css) e pelo admin (sozinho, sem o style.css). Só tokens e o badge:
+   nada de fonte, spacing global ou reset, para não alterar o admin.
+   Sem override dark: os três tokens valem igual nos dois temas (comportamento anterior). */
+:root {
+  --ok: #16a34a;
+  --warn: #d97706;
+  --req: #64748b;
+}
+
+/* Badge de disponibilidade com ponto de status — classe de estado vem pronta do servidor
+   (disponibilidade_produto() → badge_class) */
+.stock-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.66rem;
+    font-weight: 600;
+    padding: 0.15rem 0.55rem 0.15rem 0.45rem;
+    border-radius: 20px;
+    letter-spacing: 0.3px;
+    margin-bottom: 0.5rem;
+}
+
+.stock-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.stock-badge--ok {
+    background-color: rgba(22, 163, 74, 0.1);
+    color: var(--ok);
+}
+.stock-badge--ok .stock-dot { background-color: var(--ok); }
+
+.stock-badge--warn {
+    background-color: rgba(217, 119, 6, 0.12);
+    color: var(--warn);
+}
+.stock-badge--warn .stock-dot { background-color: var(--warn); }
+
+.stock-badge--req {
+    background-color: rgba(100, 116, 139, 0.12);
+    color: var(--req);
+}
+.stock-badge--req .stock-dot { background-color: var(--req); }

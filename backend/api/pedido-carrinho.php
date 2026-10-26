@@ -32,7 +32,7 @@ require_once __DIR__ . '/../helpers/frete_carrinho.php';
 require_once __DIR__ . '/../helpers/mercadopago_preference.php';
 require_once __DIR__ . '/../helpers/email.php';
 require_once __DIR__ . '/../helpers/numero_pedido.php';
-
+require_once __DIR__ . '/../helpers/disponibilidade.php';
 exigir_metodo('POST');
 
 $body = body_json();
@@ -158,9 +158,14 @@ function criarPedidoCarrinho(
     string $nome, string $email, string $telefone,
     string $endereco, string $numero, string $complemento, string $bairro, string $cidade, string $estado
 ): int {
+    // Disponibilidade revalidada pelo helper (fonte única) — colunas lidas aqui porque o
+    // SELECT de frete_carrinho.php não as traz. Bloqueia esgotado/indisponível e excedente não permitido.
+    $stmtDisp = $pdo->prepare("SELECT estoque, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias FROM produtos WHERE id = :id");
     foreach ($carrinhoResolvido as $item) {
-        if ((int) $item['produto']['estoque'] < $item['quantidade']) {
-            throw new FreteIndisponivelException("Estoque insuficiente para \"{$item['produto']['nome']}\".");
+        $stmtDisp->execute([':id' => $item['produto']['id']]);
+        $erroDisp = disponibilidade_validar_item($item['produto']['nome'], (int) $item['quantidade'], disponibilidade_produto($stmtDisp->fetch() ?: []));
+        if ($erroDisp !== null) {
+            throw new FreteIndisponivelException($erroDisp);
         }
     }
 
@@ -192,17 +197,23 @@ function criarPedidoCarrinho(
             $pedidoId = (int) $pdo->lastInsertId();
 
             $stmtItem = $pdo->prepare("
-                INSERT INTO itens_pedido (pedido_id, produto_id, quantidade, preco_unitario)
-                VALUES (:pedido_id, :produto_id, :quantidade, :preco_unitario)
+                INSERT INTO itens_pedido (pedido_id, produto_id, quantidade, preco_unitario, qtd_sob_encomenda)
+                VALUES (:pedido_id, :produto_id, :quantidade, :preco_unitario, :qtd_sob_encomenda)
             ");
-            $stmtEstoque = $pdo->prepare("UPDATE produtos SET estoque = estoque - :qty WHERE id = :id");
+            // Estoque relido DENTRO da transação (o de $item['produto'] é anterior a ela); piso em 0 —
+            // o que exceder o estoque fica registrado no item como sob encomenda.
+            $stmtLeEstoque = $pdo->prepare("SELECT estoque FROM produtos WHERE id = :id");
+            $stmtEstoque   = $pdo->prepare("UPDATE produtos SET estoque = MAX(0, estoque - :qty) WHERE id = :id");
 
             $itensEmail = [];
             foreach ($carrinhoResolvido as $item) {
                 $produto = $item['produto'];
+                $stmtLeEstoque->execute([':id' => $produto['id']]);
+                $estoqueAtual = max(0, (int) $stmtLeEstoque->fetchColumn());
                 $stmtItem->execute([
                     ':pedido_id' => $pedidoId, ':produto_id' => $produto['id'],
                     ':quantidade' => $item['quantidade'], ':preco_unitario' => $produto['preco'],
+                    ':qtd_sob_encomenda' => max(0, $item['quantidade'] - $estoqueAtual),
                 ]);
                 $stmtEstoque->execute([':qty' => $item['quantidade'], ':id' => $produto['id']]);
                 $itensEmail[] = [

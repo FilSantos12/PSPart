@@ -5,13 +5,15 @@
  */
 
 require_once __DIR__ . '/_core.php';
+require_once __DIR__ . '/../helpers/disponibilidade.php';
 
 exigir_metodo('GET');
 
 try {
     $pdo  = getDB();
     $stmt = $pdo->query("
-        SELECT id, nome, descricao, preco, categoria, imagem, estoque, codigo_interno, datasheet, especificacao_tecnica
+        SELECT id, nome, descricao, preco, categoria, imagem, estoque, codigo_interno, datasheet, especificacao_tecnica,
+               modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias
         FROM produtos
         WHERE ativo = 1
         ORDER BY id ASC
@@ -41,6 +43,9 @@ try {
         $p['preco']   = (float) $p['preco'];
         $p['estoque'] = (int)   $p['estoque'];
         $p['imagens'] = $imgsByProduct[$p['id']] ?? [];
+        // Disponibilidade já resolvida no servidor — o front só renderiza, nunca recompõe a matriz
+        $p['disponibilidade'] = disponibilidade_produto($p);
+        unset($p['modo_venda'], $p['permite_venda_sem_estoque'], $p['prazo_encomenda_dias']);
     }
 
     json_ok($produtos);

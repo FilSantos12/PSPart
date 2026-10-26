@@ -6,6 +6,20 @@
 // Número central do WhatsApp da loja — mesmo placeholder usado nos links estáticos do index.html
 const WHATSAPP_NUMBER = 'SEU_NUMERO';
 
+// Teto de quantidade por SKU no carrinho — acima disso o pedido vai para o comercial
+// (preço de volume/prazo). Fonte única: nunca repetir o número literal no código.
+const QTD_LIMITE_VOLUME = 10;
+
+// Contato comercial usado nos CTAs do aviso de volume — espelha a seção #contato do index.html
+const EMPRESA_EMAIL_VENDAS  = 'vendas@pentasis.com.br';
+const EMPRESA_TELEFONE      = '(15) 3263-9494';
+const EMPRESA_TELEFONE_E164 = '+551532639494';
+
+// Status de disponibilidade devolvidos pela API (disponibilidade_produto() no PHP). Aqui mora só
+// a ordem de exibição e o agrupamento "em estoque" — rótulo, cor e pode_comprar vêm prontos.
+const DISP_STATUS_ORDEM      = ['pronta_entrega', 'ultimas_unidades', 'sob_encomenda', 'esgotado', 'indisponivel'];
+const DISP_STATUS_EM_ESTOQUE = ['pronta_entrega', 'ultimas_unidades'];
+
 class App {
     constructor() {
         this._activeCategory = 'all';
@@ -297,6 +311,9 @@ class App {
         sortEl?.addEventListener('change', () => {
             this._applyProductSort(sortEl.value);
         });
+
+        // "Tentar novamente" do bloco de erro do catálogo — refaz o mesmo fetch do carregamento
+        document.getElementById('products-retry')?.addEventListener('click', () => this.renderProducts());
     }
 
     // Busca do hero não duplica lógica — só alimenta e aciona a busca já existente da toolbar
@@ -319,7 +336,7 @@ class App {
     // Critério único de visibilidade: categoria + busca + disponibilidade (AND lógico)
     _isProductVisible(col) {
         const matchesCategory = this._activeCategory === 'all' || col.dataset.category === this._activeCategory;
-        const matchesStock    = !this._onlyInStock || parseInt(col.dataset.estoque) > 0;
+        const matchesStock    = !this._onlyInStock || DISP_STATUS_EM_ESTOQUE.includes(col.dataset.status);
 
         const query = this._searchQuery;
         const matchesSearch = !query
@@ -352,11 +369,16 @@ class App {
         const grid = document.getElementById('products-grid');
         if (!grid || !sortValue) return;
 
+        // Status desconhecido vai para o fim (indexOf -1 → length)
+        const rank = (col) => {
+            const i = DISP_STATUS_ORDEM.indexOf(col.dataset.status);
+            return i === -1 ? DISP_STATUS_ORDEM.length : i;
+        };
         const comparators = {
-            'preco-asc':        (a, b) => parseFloat(a.dataset.preco) - parseFloat(b.dataset.preco),
+            'preco-asc':       (a, b) => parseFloat(a.dataset.preco) - parseFloat(b.dataset.preco),
             'preco-desc':       (a, b) => parseFloat(b.dataset.preco) - parseFloat(a.dataset.preco),
             'nome-asc':         (a, b) => (a.dataset.nome || '').localeCompare(b.dataset.nome || '', 'pt-BR'),
-            'disponibilidade':  (a, b) => (parseInt(b.dataset.estoque) > 0) - (parseInt(a.dataset.estoque) > 0),
+            'disponibilidade':  (a, b) => rank(a) - rank(b),
         };
         const cmp = comparators[sortValue];
         if (!cmp) return;
@@ -548,6 +570,7 @@ class App {
     setupCart() {
         this._cartFrete = null;          // { cep, selecionado } — nunca guarda preço fora de uma cotação em memória
         this._cartSubtotalAtual = 0;
+        this._cartNoTeto = new Set();    // produto_ids cuja última tentativa passou de QTD_LIMITE_VOLUME
         this._cartLoad();
         this._cartRenderBadge();
 
@@ -588,6 +611,8 @@ class App {
             const raw = JSON.parse(localStorage.getItem('psp_cart') || '[]');
             this._cart = Array.isArray(raw)
                 ? raw.filter(i => i && Number.isInteger(i.produto_id) && i.quantidade > 0)
+                     // carrinho salvo antes do teto de volume (era 99) não pode furar o limite
+                     .map(i => ({ produto_id: i.produto_id, quantidade: Math.min(QTD_LIMITE_VOLUME, i.quantidade) }))
                 : [];
         } catch {
             this._cart = [];
@@ -603,26 +628,40 @@ class App {
         this._cartRenderDrawer();
     }
 
+    // _cartAdd e _cartSetQty são os únicos pontos que aplicam QTD_LIMITE_VOLUME. Quando a
+    // tentativa ultrapassa o teto, a quantidade fica no limite e o SKU entra em
+    // _cartNoTeto — o drawer mostra o aviso de volume enquanto o item seguir no teto.
     _cartAdd(id, qty = 1) {
-        const item = this._cart.find(i => i.produto_id === id);
+        const item  = this._cart.find(i => i.produto_id === id);
+        const alvo  = (item ? item.quantidade : 0) + qty;
+        const final = Math.min(QTD_LIMITE_VOLUME, alvo);
         if (item) {
-            item.quantidade = Math.min(99, item.quantidade + qty);
+            item.quantidade = final;
         } else {
-            this._cart.push({ produto_id: id, quantidade: Math.min(99, qty) });
+            this._cart.push({ produto_id: id, quantidade: final });
         }
+        if (alvo > QTD_LIMITE_VOLUME) this._cartNoTeto.add(id);
         this._cartSave();
+        return alvo > QTD_LIMITE_VOLUME;
     }
 
     _cartSetQty(id, qty) {
-        qty = Math.max(0, Math.min(99, qty));
+        const alvo = Math.max(0, qty);
+        qty = Math.min(QTD_LIMITE_VOLUME, alvo);
         const item = this._cart.find(i => i.produto_id === id);
-        if (!item) return;
+        if (!item) return false;
+        if (alvo > QTD_LIMITE_VOLUME) {
+            this._cartNoTeto.add(id);
+        } else if (qty < QTD_LIMITE_VOLUME) {
+            this._cartNoTeto.delete(id);
+        }
         if (qty === 0) {
             this._cartRemove(id);
-            return;
+            return false;
         }
         item.quantidade = qty;
         this._cartSave();
+        return alvo > QTD_LIMITE_VOLUME;
     }
 
     _cartRemove(id) {
@@ -647,7 +686,51 @@ class App {
             preco: parseFloat(btn.dataset.productPrice) || parseFloat(col?.dataset.preco) || 0,
             codigo: col?.dataset.codigo || '',
             imagem: img?.getAttribute('src') || null,
+            // Disponibilidade já resolvida pela API (só informativa aqui — o servidor revalida no checkout)
+            status: col?.dataset.status || '',
+            estoque: parseInt(col?.dataset.estoque) || 0,
+            permiteExcedente: col?.dataset.permiteExcedente === '1',
+            prazoTexto: col?.dataset.prazoTexto || '',
         };
+    }
+
+    // Bloco do aviso de compra em volume de uma linha do drawer. Texto e CTAs montados das
+    // constantes do topo do arquivo — o limite nunca aparece como número literal.
+    _cartAvisoVolumeHtml(info) {
+        const peca    = info.codigo ? `${info.codigo} — ${info.nome}` : info.nome;
+        const assunto = encodeURIComponent(`Compra em volume: ${peca}`);
+        return `
+                <div class="cart-volume-aviso" role="status" style="display:none;">
+                    <p class="cart-volume-aviso-texto">
+                        <i class="fas fa-boxes-stacked me-1"></i>Precisa de mais de ${QTD_LIMITE_VOLUME} unidades?
+                        Fale com nosso time comercial para preço de volume e prazo de entrega.
+                    </p>
+                    <div class="cart-volume-aviso-ctas">
+                        <a href="mailto:${EMPRESA_EMAIL_VENDAS}?subject=${assunto}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-envelope me-1"></i>Falar com vendas
+                        </a>
+                        <a href="tel:${EMPRESA_TELEFONE_E164}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-phone me-1"></i>${EMPRESA_TELEFONE}
+                        </a>
+                    </div>
+                </div>`;
+    }
+
+    // Faixa informativa de estoque parcial — reaproveita a estrutura .cart-volume-aviso do Patch H.
+    // Só existe quando a quantidade passa do estoque e a venda acima dele é permitida; prazo vem
+    // pronto da API (prazo_texto), nunca é inventado aqui.
+    _cartAvisoParcialHtml(info, item) {
+        const parcial = info.permiteExcedente
+            && DISP_STATUS_EM_ESTOQUE.includes(info.status)
+            && item.quantidade > info.estoque;
+        if (!parcial) return '';
+        const sobEncomenda = item.quantidade - info.estoque;
+        return `
+                <div class="cart-volume-aviso cart-aviso-parcial" role="status" style="display:none;">
+                    <p class="cart-volume-aviso-texto mb-0">
+                        <i class="fas fa-clock me-1"></i>${info.estoque} un. pronta entrega + ${sobEncomenda} un. sob encomenda (${info.prazoTexto})
+                    </p>
+                </div>`;
     }
 
     _cartRenderBadge() {
@@ -719,7 +802,7 @@ class App {
                     ${codigoHtml}
                     <div class="cart-item-qty">
                         <button type="button" class="cart-qty-btn cart-qty-minus" data-id="${info.id}" aria-label="Diminuir quantidade">−</button>
-                        <input type="number" class="cart-qty-input" min="1" max="99" value="${item.quantidade}" data-id="${info.id}" aria-label="Quantidade">
+                        <input type="number" class="cart-qty-input" min="1" max="${QTD_LIMITE_VOLUME}" value="${item.quantidade}" data-id="${info.id}" aria-label="Quantidade">
                         <button type="button" class="cart-qty-btn cart-qty-plus" data-id="${info.id}" aria-label="Aumentar quantidade">+</button>
                     </div>
                 </div>
@@ -729,8 +812,22 @@ class App {
                         <i class="fas fa-trash-can"></i>
                     </button>
                 </div>
+                ${this._cartAvisoVolumeHtml(info)}
+                ${this._cartAvisoParcialHtml(info, item)}
             </div>`;
         }).join('');
+
+        // Aviso de volume nasce com display:none inline; só aparece para o SKU que tentou passar
+        // do teto e continua nele (some sozinho ao reduzir — _cartSetQty tira do _cartNoTeto).
+        this._cart.forEach(item => {
+            if (!this._cartNoTeto.has(item.produto_id) || item.quantidade < QTD_LIMITE_VOLUME) return;
+            const aviso = list.querySelector(`.cart-item[data-id="${item.produto_id}"] .cart-volume-aviso:not(.cart-aviso-parcial)`);
+            if (aviso) aviso.style.display = 'block';
+        });
+
+        // Estoque parcial: parte sai da pronta entrega, o restante é sob encomenda (só texto —
+        // não divide pedido nem mexe em frete/total). Mesma regra de display inline do aviso acima.
+        list.querySelectorAll('.cart-aviso-parcial').forEach(el => { el.style.display = 'block'; });
 
         const subtotalEl = document.getElementById('cartSubtotal');
         if (subtotalEl) {
@@ -1231,7 +1328,10 @@ class App {
         // mais este modal direto. O modal/fluxo abaixo (quantidade, CEP, Bricks) fica pronto,
         // dormente, para a Fase 2 plugar o checkout multi-item a partir do carrinho.
 
-        // Controles de quantidade
+        // Controles de quantidade — o teto vem de QTD_LIMITE_VOLUME (sem max fixo no HTML)
+        const checkoutQtyEl = document.getElementById('checkout-qty');
+        if (checkoutQtyEl) checkoutQtyEl.max = QTD_LIMITE_VOLUME;
+
         document.getElementById('checkout-qty-minus')?.addEventListener('click', () => {
             const qtyEl = document.getElementById('checkout-qty');
             const val   = Math.max(1, parseInt(qtyEl.value) - 1);
@@ -1241,7 +1341,7 @@ class App {
 
         document.getElementById('checkout-qty-plus')?.addEventListener('click', () => {
             const qtyEl = document.getElementById('checkout-qty');
-            const val   = Math.min(99, parseInt(qtyEl.value) + 1);
+            const val   = Math.min(QTD_LIMITE_VOLUME, parseInt(qtyEl.value) + 1);
             qtyEl.value = val;
             this._updateCheckoutTotal(this._checkoutPrice, val);
         });
@@ -1726,6 +1826,10 @@ class App {
     // ── PRODUTOS — renderiza cards, modais e filtros a partir da API ─────────
 
     async renderProducts() {
+        const errorEl  = document.getElementById('products-error');
+        const retryBtn = document.getElementById('products-retry');
+        if (retryBtn) retryBtn.disabled = true;
+
         try {
             const ctrl = new AbortController();
             const timer = setTimeout(() => ctrl.abort(), 10000);
@@ -1734,7 +1838,9 @@ class App {
                 fetch('backend/api/categorias.php', { signal: ctrl.signal }),
             ]);
             clearTimeout(timer);
+            if (!prodRes.ok) throw new Error(`produtos.php HTTP ${prodRes.status}`);
             const produtos   = await prodRes.json();
+            if (!Array.isArray(produtos)) throw new Error('produtos.php: payload inválido');
             const categorias = catRes.ok ? await catRes.json() : [];
 
             // Mapa slug → nome para lookup nos cards
@@ -1815,15 +1921,13 @@ class App {
                         </button>
                     </div>`;
 
-                // Indicador de disponibilidade — 3 estados a partir do estoque real (sem lógica de negócio nova)
-                let estoqueHtml;
-                if (p.estoque > 3) {
-                    estoqueHtml = `<span class="stock-badge stock-badge--ok"><span class="stock-dot"></span>Em estoque</span>`;
-                } else if (p.estoque > 0) {
-                    estoqueHtml = `<span class="stock-badge stock-badge--warn"><span class="stock-dot"></span>Últimas unidades</span>`;
-                } else {
-                    estoqueHtml = `<span class="stock-badge stock-badge--req"><span class="stock-dot"></span>Esgotado</span>`;
-                }
+                // Disponibilidade resolvida no servidor (disponibilidade_produto()) — o JS só renderiza
+                // label/classe prontos, nunca deriva a matriz. Sem o objeto, falha fechada: não comprável.
+                const disp = p.disponibilidade || { status: '', label: '—', badge_class: 'stock-badge--req', pode_comprar: false };
+                const estoqueHtml = `<span class="stock-badge ${disp.badge_class}"><span class="stock-dot"></span>${disp.label}</span>`;
+                // Mesmo .btn-buy nos dois estados: desabilitado, o clique é ignorado (setupCart) mas o
+                // carrinho ainda acha nome/preço da linha (_cartFindProdutoInfo) de um item salvo antes.
+                const buyData = `data-product-id="${p.id}" data-product-name="${p.nome}" data-product-price="${p.preco}"`;
 
                 // Link data sheet
                 const datasheetHtml = p.datasheet
@@ -1841,7 +1945,8 @@ class App {
 
                 cardsHtml += `
                 <div class="col-sm-6 col-md-4 col-lg-3 mb-4 product-col" data-category="${p.categoria}"
-                     data-nome="${p.nome}" data-preco="${p.preco}" data-estoque="${p.estoque}" data-codigo="${p.codigo_interno || ''}">
+                     data-nome="${p.nome}" data-preco="${p.preco}" data-estoque="${p.estoque}" data-codigo="${p.codigo_interno || ''}"
+                     data-status="${disp.status}" data-permite-excedente="${disp.permite_excedente ? 1 : 0}" data-prazo-texto="${disp.prazo_texto || ''}">
                     <div class="card product-card">
                         <div class="product-card-thumb">
                             ${estoqueHtml}
@@ -1850,6 +1955,7 @@ class App {
                         <div class="card-body">
                             <span class="product-eyebrow">${label}</span>
                             <h5 class="card-title">${p.nome}</h5>
+                            ${disp.pode_comprar ? '' : `<span class="product-buy-motivo product-buy-motivo--card" id="buy-motivo-card-${p.id}">${disp.label}</span>`}
                             <div class="product-card-footer">
                                 <span class="product-price">${preco}</span>
                                 <div class="d-flex gap-2">
@@ -1857,15 +1963,12 @@ class App {
                                             data-bs-toggle="modal" data-bs-target="#productModal${p.id}">
                                         Detalhes
                                     </button>
-                                    ${p.estoque > 0
-                                        ? `<button type="button" class="btn btn-success btn-sm btn-buy"
-                                                data-product-id="${p.id}"
-                                                data-product-name="${p.nome}"
-                                                data-product-price="${p.preco}"
-                                                title="Comprar">
+                                    ${disp.pode_comprar
+                                        ? `<button type="button" class="btn btn-success btn-sm btn-buy" ${buyData} title="Comprar">
                                             <i class="fas fa-cart-shopping"></i>
                                            </button>`
-                                        : `<button type="button" class="btn btn-secondary btn-sm" disabled title="Sem estoque">
+                                        : `<button type="button" class="btn btn-secondary btn-sm btn-buy" ${buyData} disabled
+                                                title="${disp.label}" aria-describedby="buy-motivo-card-${p.id}">
                                             <i class="fas fa-ban"></i>
                                            </button>`}
                                 </div>
@@ -1890,9 +1993,7 @@ class App {
                                         ${shareActionsHtml}
                                         <span class="product-badge badge-${p.categoria} mb-2 d-inline-block">${label}</span>
                                         <p>${p.descricao || ''}</p>
-                                        ${p.estoque > 0
-                                            ? `<span class="badge bg-success">Em estoque (${p.estoque} un.)</span>`
-                                            : `<span class="badge bg-danger">Fora de estoque</span>`}
+                                        <div>${estoqueHtml}</div>
                                         <div class="frete-calc" data-produto-id="${p.id}">
                                             <p class="fw-semibold small text-muted mb-2">
                                                 <i class="fas fa-truck me-1"></i>Calcular prazo de entrega
@@ -1923,15 +2024,14 @@ class App {
                                 <button type="button" class="btn btn-outline-primary solicitar-orcamento" data-product="${p.nome}">
                                     Solicitar Orçamento
                                 </button>
-                                ${p.estoque > 0
-                                    ? `<button type="button" class="btn btn-success btn-buy"
-                                            data-product-id="${p.id}"
-                                            data-product-name="${p.nome}"
-                                            data-product-price="${p.preco}">
+                                ${disp.pode_comprar
+                                    ? `<button type="button" class="btn btn-success btn-buy" ${buyData}>
                                         <i class="fas fa-cart-shopping me-1"></i> Comprar Agora
                                        </button>`
-                                    : `<button type="button" class="btn btn-secondary" disabled>
-                                        <i class="fas fa-ban me-1"></i> Fora de estoque
+                                    : `<span class="product-buy-motivo" id="buy-motivo-modal-${p.id}">${disp.label}</span>
+                                       <button type="button" class="btn btn-secondary btn-buy" ${buyData} disabled
+                                               aria-describedby="buy-motivo-modal-${p.id}">
+                                        <i class="fas fa-ban me-1"></i> Comprar Agora
                                        </button>`}
                             </div>
                         </div>
@@ -1942,12 +2042,21 @@ class App {
             grid.innerHTML   = cardsHtml   || '<p class="text-center text-muted col-12">Nenhum produto disponível.</p>';
             modals.innerHTML = modalsHtml;
 
+            if (errorEl) errorEl.style.display = 'none';
             if (typeof AOS !== 'undefined') AOS.refresh();
 
-        } catch (_) { /* mantém conteúdo estático do HTML se API falhar */ }
+        } catch (_) {
+            // Sem fallback estático: catálogo não carregou → bloco de erro, nada comprável na tela
+            const grid   = document.getElementById('products-grid');
+            const modals = document.getElementById('product-modals');
+            if (grid)   grid.innerHTML   = '';
+            if (modals) modals.innerHTML = '';
+            if (errorEl) errorEl.style.display = 'block';
+        }
         finally {
-            // Roda tanto no sucesso (produtos dinâmicos) quanto na falha (fallback estático já no DOM) —
-            // só neste ponto o grid/modais estão em seu estado final e é seguro ler/abrir por id.
+            if (retryBtn) retryBtn.disabled = false;
+            // Roda tanto no sucesso quanto na falha — só neste ponto o grid/modais estão em seu
+            // estado final e é seguro ler/abrir por id (na falha, o deep link só loga o warn).
             this._openDeepLinkProduct();
             this._applyCurrentToolbarState();
         }

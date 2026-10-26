@@ -2,6 +2,7 @@
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/_layout.php';
+require_once __DIR__ . '/../helpers/disponibilidade.php';
 
 $pdo = getDB();
 $id  = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
@@ -41,6 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!is_numeric($dados['largura']) || $dados['largura'] <= 0)         $erros[] = 'Largura inválida.';
     if (!is_numeric($dados['altura']) || $dados['altura'] <= 0)           $erros[] = 'Altura inválida.';
     if (!is_numeric($dados['comprimento']) || $dados['comprimento'] <= 0) $erros[] = 'Comprimento inválido.';
+
+    // Disponibilidade — modo_venda validado contra MODOS_VENDA no servidor
+    $dados = disponibilidade_dados_post($_POST, $erros) + $dados;
 
     // Validação do código interno
     if ($dados['codigo_interno'] !== '') {
@@ -108,7 +112,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 peso                  = :peso,
                 largura               = :largura,
                 altura                = :altura,
-                comprimento           = :comprimento
+                comprimento           = :comprimento,
+                modo_venda            = :modo_venda,
+                permite_venda_sem_estoque = :permite_venda_sem_estoque,
+                prazo_encomenda_dias  = :prazo_encomenda_dias
             WHERE id = :id
         ")->execute([
             ':nome'                  => $dados['nome'],
@@ -124,6 +131,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':largura'               => (float) $dados['largura'],
             ':altura'                => (float) $dados['altura'],
             ':comprimento'           => (float) $dados['comprimento'],
+            ':modo_venda'                => $dados['modo_venda'],
+            ':permite_venda_sem_estoque' => $dados['permite_venda_sem_estoque'],
+            ':prazo_encomenda_dias'      => $dados['prazo_encomenda_dias'],
             ':id'                    => $id,
         ]);
         header('Location: produto-editar.php?id=' . $id . '&msg=Produto+atualizado+com+sucesso.');
@@ -131,7 +141,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$easymde_css = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">';
+$easymde_css = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">'
+             . '<link rel="stylesheet" href="../../assets/css/disponibilidade.css">';
 layout_head('Editar Produto', $easymde_css);
 ?>
 
@@ -205,6 +216,8 @@ layout_head('Editar Produto', $easymde_css);
                         <?php endforeach; ?>
                     </select>
                 </div>
+
+                <?php require __DIR__ . '/_disponibilidade-campos.php'; ?>
 
                 <!-- Dimensões para cálculo de frete -->
                 <div class="col-12">

@@ -21,6 +21,7 @@ E-commerce da **PSPart - Partes e Peças Automação** (filipe@pentasis.com.br) 
 | `index.html` | Página única |
 | `acompanhar.html` | Página de acompanhamento de pedido (standalone, acesso só por token) |
 | `style.css` | Estilos com CSS variables |
+| `assets/css/disponibilidade.css` | Tokens `--ok/--warn/--req` + badge `.stock-badge` — único CSS compartilhado entre loja e admin (ver "Módulo Disponibilidade") |
 | `script.js` | Classe `App` com toda a lógica |
 | `manifest.json` | PWA básico |
 | `robots.txt` / `sitemap.xml` | SEO/indexação |
@@ -39,10 +40,10 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 
 1. **Header** (`<nav id="mainNavbar" class="custom-navbar">`) — `position: fixed` no topo (não mais `sticky-top`), sempre visível durante a rolagem; Início | Sobre | Produtos | Contato + toggle dark mode + **ícone de carrinho com badge** (`#cartToggle`, fora do `.collapse` — visível mesmo com o menu mobile fechado). Classe `.storefront` no `<body>` escopa a tipografia de heading e o `padding-top` compensatório só à home (não vaza para `acompanhar.html`/admin)
 2. `#inicio` — Hero: gradiente de marca original + overlay de malha "blueprint" sutil; headline de benefício (não "Bem-vindo à PSPart"); **busca proeminente** que alimenta a busca já existente da seção de produtos (sem lógica duplicada); chips de confiança estruturais e verdadeiros (frete no checkout, pagamento MP, pedido rastreável) — **sem métricas inventadas/não verificadas** (o antigo bloco 13+/10+/50+/100% foi removido)
-3. `#produtos` — cards dinâmicos (renderizados via API) + filtro de categorias dinâmico + toolbar de busca/ordenação/disponibilidade + modais de detalhe; ver "Módulo Cards de Produto" para o layout atual
+3. `#produtos` — cards dinâmicos (renderizados via API) + filtro de categorias dinâmico + toolbar de busca/ordenação/disponibilidade + modais de detalhe; ver "Módulo Cards de Produto" para o layout atual. **Sem fallback estático** (Patch I): `#products-grid` e `#product-modals` nascem vazios no HTML; se a API falhar, aparece `#products-error` ("Catálogo temporariamente indisponível" + "Tentar novamente" + link para `#contato`) — nenhum produto, preço ou botão de compra fica no HTML
 4. Diferenciais — 4 cards (sem animação AOS — só o cabeçalho da seção anima)
 5. `#sobre` — Sobre Nós (métricas 10+/50+/6+ ainda presentes, não removidas — não confundir com as do hero, que foram removidas)
-6. `#contato` — Formulário + info de contato
+6. `#contato` — Formulário + info de contato: **Telefone** `tel:+551532639494` "(15) 3263-9494" (linha fixa — nunca gerar `wa.me` dela), **E-mail** `mailto:vendas@pentasis.com.br`, Localização, Horário. Item de WhatsApp **removido** do markup (Patch H) até existir número real. O `action` do FormSubmit continua em `filipe@pentasis.com.br` (troca exige ativar o novo endereço no FormSubmit). JSON-LD (`<head>`) usa `email: vendas@` + `telephone: +551532639494`
 7. `#pagamentos-seguranca` — faixa de confiança (bandeiras, Pix/Boleto/MP, bloco de segurança) — posição fixa antes do footer, não reordenada
 8. Footer — marca + link "Acompanhar Pedido" (`acompanhar.html`) + back-to-top; **sem ícones de rede social** (removidos por não terem URL real); botão WhatsApp flutuante **comentado no HTML**, pendente de número real
 9. **Drawer do carrinho** (`#cartDrawer` + `#cartBackdrop`) — painel lateral direito, ver "Módulo Carrinho"
@@ -89,9 +90,9 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 - `updateActiveNavLink()` — decide o link ativo do menu lendo `--header-h` (+ ~20px de folga) via `getComputedStyle`, com fallback pro `offsetHeight` de `#mainNavbar`; **não usa mais o `100px` fixo antigo** (consolidado no Patch A/B para não dessincronizar da altura real do header)
 - `setupThemeToggle()` — dark/light, persiste em `localStorage('psp_theme')`
 - `setupHeroSearch()` — busca do hero (`#heroSearchForm`); no submit, popula `#product-search` (a busca já existente da toolbar), dispara um evento `input` real nela e rola até `#produtos` — **não duplica a lógica de filtro**, só aciona a que já existe
-- `setupCart()` / métodos `_cart*` — módulo do carrinho; ver "Módulo Carrinho" para a lista completa
+- `setupCart()` / métodos `_cart*` — módulo do carrinho; ver "Módulo Carrinho" para a lista completa (inclui teto de volume `QTD_LIMITE_VOLUME` e as faixas de aviso do drawer)
 - `setupProductFilter()` — registra listener com **event delegation** no `#product-filters`; consulta `.product-col` no momento do clique (sem NodeList stale); chamado uma vez em `init()`; atualiza `this._activeCategory` e delega a visibilidade para `_applyProductVisibility()`
-- `setupProductToolbar()` — listeners estáticos (não delegados, os controles já existem no HTML) para busca (`#product-search`), disponibilidade (`#product-instock`) e ordenação (`#product-sort`); ver seção "Módulo Produtos — Deep Link, Compartilhamento e Busca/Ordenação"
+- `setupProductToolbar()` — listeners estáticos (não delegados, os controles já existem no HTML) para busca (`#product-search`), disponibilidade (`#product-instock`), ordenação (`#product-sort`) e o botão "Tentar novamente" (`#products-retry`, rechama `renderProducts()`); ver seção "Módulo Produtos — Deep Link, Compartilhamento e Busca/Ordenação"
 - `setupProductSharing()` — event delegation para `.btn-whatsapp-share`, `.btn-share-product` e `.btn-copy-code`
 - `setupLGPD()` — banner de cookies, persiste em `localStorage('psp_lgpd_consent')`
 - `setupContactForm()` → `submitForm()` — fetch para FormSubmit.co
@@ -99,7 +100,7 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 - `setupModalButtons()` — botão "Solicitar Orçamento" preenche formulário de contato
 - `setupCheckout()` — **desde o Patch B, `.btn-buy` não abre mais este modal** (ver "Módulo Carrinho"); o método continua registrando os listeners internos do modal de item único (quantidade, CEP, submit por redirect) como código dormente — não reconectado. As funções de Brick que ele também registra (Bricks, `bricks-use-redirect`) foram generalizadas na Fase 2c e passaram a ser compartilhadas com `setupCartCheckout()`
 - `setupImageLightbox()` — lightbox customizado para `img.card-img-top`, `img.carousel-img`, `img.modal-product-image`; **padrão de visibilidade de referência do projeto**: overlay sempre `display:flex` no CSS, show/hide real via classe `.active` alternando `opacity`/`pointer-events` (nunca `display`) — reaproveitado pelo backdrop do carrinho
-- `renderProducts()` — busca categorias e produtos em paralelo (`Promise.all`); gera botões de filtro dinamicamente em `#product-filters`; gera cards e modais em `#products-grid` / `#product-modals`; card mostra `codigo_interno` em pílula mono (se preenchido, senão omitido — sem buraco no layout) e badge de disponibilidade de **3 estados** (`.stock-badge--ok/--warn/--req`, ponto colorido, sobreposto no topo do thumb — ver "Módulo Cards de Produto"); desabilita botão se `estoque = 0` (agora idêntico no caminho estático); sem `data-aos` (removido do template); em caso de falha na API, mantém o markup estático de fallback em `#products-grid` (6 produtos hardcoded, com os mesmos campos de código/estoque para consistência visual)
+- `renderProducts()` — busca categorias e produtos em paralelo (`Promise.all`); gera botões de filtro dinamicamente em `#product-filters`; gera cards e modais em `#products-grid` / `#product-modals`; card mostra `codigo_interno` em pílula mono (se preenchido, senão omitido — sem buraco no layout) e o badge de disponibilidade **renderizado do objeto `p.disponibilidade` da API** (`badge_class` + `label` prontos — o JS nunca deriva rótulo; ver "Módulo Disponibilidade"); `pode_comprar = false` → botão desabilitado (mantém a classe `.btn-buy`, ver "Módulo Carrinho") com o motivo visível ao lado (`.product-buy-motivo`); sem `data-aos` (removido do template); lança erro se `produtos.php` não responder `ok` com array; no `catch` esvazia grid/modais e mostra `#products-error` via `style.display` — **não existe mais fallback estático**
 - `handleRetornoMP()` — detecta `?pagamento=recusado|pendente` na URL após retorno do MP; limpa o param com `history.replaceState`; exibe modal apropriado
 - `_validateCheckoutForm()` — valida campos obrigatórios com `is-invalid`, foca no primeiro inválido
 - `_doCheckoutSubmit(mode)` — fluxo do item único: valida, grava pedido (`pedidos.php`), cria preference; bifurca por `mode`: `'redirect'` abre `paymentRedirectModal` e redireciona; `'bricks'` esconde form/footer e renderiza o Brick. **Dormente desde o Patch B** — não é mais alcançável a partir do botão "Comprar" (o carrinho usa `_cartCheckoutSubmit()` + `pedido-carrinho.php`, não este método)
@@ -111,9 +112,9 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 - `_buscarCep()` — consulta ViaCEP e preenche campos de endereço automaticamente
 
 ## Fluxo de compra (carrinho — estado atual, pós B2a/B2b/Fase 2c)
-1. Clicar em **"Comprar"** (ícone no card, dois caminhos) ou **"Comprar Agora"** (modal de detalhe) **adiciona o produto ao carrinho** — não abre checkout direto. Contador do header atualiza + toast de confirmação
+1. Clicar em **"Comprar"** (ícone no card, dois caminhos) ou **"Comprar Agora"** (modal de detalhe) **adiciona o produto ao carrinho** — não abre checkout direto. Contador do header atualiza e o drawer do carrinho abre em seguida (`_cartOpenDrawer()`) — não há toast (ver "Módulo Carrinho")
 2. Ícone de carrinho no header (`#cartToggle`) abre o **drawer lateral** com os itens, quantidade editável, CEP + frete agregado (B2a) — "Finalizar compra" só fica clicável com frete selecionado
-3. **"Finalizar compra"** fecha o drawer e abre `#cartCheckoutModal` — passo 1 (comprador + número/complemento; endereço já vem do CEP do drawer). Ao confirmar, `_cartCheckoutSubmit()` chama `pedido-carrinho.php`, que cria (ou reaproveita, via `checkout_hash`) o pedido com `total = subtotal + frete` e devolve `pedido_id` + `init_point` + `preference_id`
+3. **"Finalizar compra"** fecha o drawer e abre `#cartCheckoutModal` — passo 1 (comprador + número/complemento; endereço já vem do CEP do drawer). Ao confirmar, `_cartCheckoutSubmit()` chama `pedido-carrinho.php`, que cria (ou reaproveita, via `checkout_hash`) o pedido com `total = subtotal + frete` e devolve `pedido_id` + `init_point` + `preference_id`. Antes de criar, revalida cada item com `disponibilidade_validar_item()` (Patch I) — esgotado/indisponível ou excedente não permitido → HTTP 422 com a mensagem identificando a peça, exibida **em linha** em `#cart-checkout-error-msg` (nunca `showErrorModal()`). Na criação, estoque é relido dentro da transação e baixado com piso em 0; o excedente vai para `itens_pedido.qtd_sob_encomenda`
 4. **Passo 2 (Fase 2c)** — `_cartShowMetodoEscolha()` troca form pelo resumo de N itens e oferece os dois caminhos, sem criar um segundo pedido:
 
 **Opção A — Pagar no Mercado Pago (redirect)**
@@ -134,12 +135,14 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 > Patch B = estado do carrinho + UI (drawer, contador, adicionar/remover/quantidade) + persistência. B2a/B2b = frete agregado + `pedido-carrinho.php` (preference multi-item no servidor, checkout_hash). Fase 2c = reconecta o pagamento inline (Bricks) ao `#cartCheckoutModal`, ao lado do redirect — ver "Fluxo de compra" para o passo a passo completo.
 
 - **Estado:** `localStorage('psp_cart')` guarda **só** `[{produto_id, quantidade}]` — nunca preço, nome ou total. Regra reforçada porque a feature toca dinheiro: preço é sempre relido do DOM (client, para exibição no drawer) ou do banco (servidor, em `pedido-carrinho.php`/`processar-pagamento.php`) — nunca confiado do que já está salvo
-- **Lookup de exibição:** `_cartFindProdutoInfo(id)` relê nome/preço/código/imagem do card correspondente em `#products-grid` (funciona igual para catálogo estático ou dinâmico); se o produto não existir mais no DOM (ex.: removido do catálogo), a linha aparece como "Produto indisponível" com opção de remover — não quebra
-- **Adicionar:** qualquer `.btn-buy` habilitado (card estático, `renderProducts()` e "Comprar Agora" do modal de detalhe — os três reaproveitam a mesma classe) chama `_cartAdd(id)`; **esgotado é bloqueado nos dois caminhos de card** — corrigida a divergência antiga em que o card estático de "Motoredutor Porta" (id 1, `estoque=0`) tinha o botão habilitado mesmo com badge "Esgotado"
+- **Lookup de exibição:** `_cartFindProdutoInfo(id)` relê nome/preço/código/imagem e os dados de disponibilidade (`data-status`, `data-estoque`, `data-permite-excedente`, `data-prazo-texto`) do card correspondente em `#products-grid`; se o produto não existir mais no DOM (ou o catálogo não carregou) (ex.: removido do catálogo), a linha aparece como "Produto indisponível" com opção de remover — não quebra
+- **Adicionar:** qualquer `.btn-buy` habilitado (card e "Comprar Agora" do modal de detalhe, ambos gerados por `renderProducts()`) chama `_cartAdd(id)`. Produto com `pode_comprar = false` (esgotado/indisponível) renderiza o `.btn-buy` com `disabled` — o clique é ignorado em `setupCart()`, mas a classe/`data-product-*` ficam para `_cartFindProdutoInfo()` achar nome/preço de um item salvo antes de o produto esgotar
+- **Teto de volume (Patch H):** `const QTD_LIMITE_VOLUME = 10` no topo de `script.js` (fonte única no front — nunca repetir o literal). `_cartAdd` e `_cartSetQty` são os **únicos** pontos que aplicam o teto: fixam a quantidade no limite e, se a tentativa passou dele, guardam o SKU em `this._cartNoTeto` (retornam `true`). `_cartLoad` também limita carrinhos salvos antes do teto (era 99). O drawer mostra `.cart-volume-aviso` ("Precisa de mais de {QTD_LIMITE_VOLUME} unidades?…" + CTAs `mailto:` com subject código/nome e `tel:`) na linha do SKU enquanto ele seguir no teto; some ao reduzir. Constantes `EMPRESA_EMAIL_VENDAS` / `EMPRESA_TELEFONE` / `EMPRESA_TELEFONE_E164` no topo do `script.js` alimentam os CTAs. **O teto é só UX no cliente** — o servidor (`frete_carrinho.php`) ainda aceita até 99 por linha
+- **Estoque parcial (Patch I):** `_cartAvisoParcialHtml()` reaproveita a mesma estrutura `.cart-volume-aviso` (+ `.cart-aviso-parcial`) quando `quantidade > estoque` num item `pronta_entrega`/`ultimas_unidades` com `permite_excedente`: "2 un. pronta entrega + 3 un. sob encomenda (~N dias úteis)". O prazo vem pronto da API (`prazo_texto`, ou "consulte prazo"). Só texto — não divide pedido nem altera frete/total
 - **Ícone + badge:** `#cartToggle` no header, fora do `.collapse` (sempre visível, inclusive mobile); `#cartBadge` usa `style.display` inline para sumir quando o carrinho está vazio
 - **Drawer (`#cartDrawer` + `#cartBackdrop`):** painel desliza da direita via `transform: translateX()`; segue **o mesmo padrão de visibilidade do lightbox** — nunca no DOM como `display:none`, entra/sai via classe (`.open` no painel, `.active` no backdrop alternando `opacity`/`pointer-events`). Fecha com Esc, clique no backdrop ou botão X; foco visível em todos os controles
 - **Z-index:** backdrop `1060`, painel `1061` — acima do header (`1030`), banner LGPD (`1040`) e assistente PSPart (`1050`); abaixo do lightbox (`9999`+), que não deveria coexistir com o carrinho aberto
-- **Toast de feedback:** `.cart-toast`, mesma técnica opacity/pointer-events, sem lib nova
+- **Feedback:** **não há sistema de toast** (o antigo `.cart-toast` não existe mais no código). O retorno ao adicionar é o próprio drawer, que abre em seguida; avisos persistentes (volume, estoque parcial) são faixas `.cart-volume-aviso` na linha do item. Não criar toast novo
 - **`_cartFinalizar()`** — fecha o drawer e abre `#cartCheckoutModal` (`_cartOpenCheckoutModal()`), passo 1 do checkout do carrinho (ver "Fluxo de compra")
 
 ## Banner de consentimento LGPD (`#lgpdBanner`)
@@ -159,7 +162,7 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 - **Nunca usar `showErrorModal()` dentro do checkout** — modal de erro abre atrás do modal de checkout
 - Foco automático no primeiro campo inválido
 - Erros da API exibidos em `#checkout-error-msg` (alerta no topo do modal, some após 6s)
-- Produto com `estoque = 0` tem botão desabilitado ("Fora de estoque") — não abre checkout
+- Produto com `pode_comprar = false` (esgotado/indisponível, ver "Módulo Disponibilidade") tem botão desabilitado com o motivo visível — não entra no carrinho; o servidor revalida de qualquer forma no checkout
 
 ## Dark mode
 - Classe `body.dark-mode` (não media query)
@@ -167,6 +170,7 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 - Fallback: `prefers-color-scheme` se não houver preferência salva
 - **Cobertura de variáveis legadas: 6 de 10** (`--text-dark`, `--text-muted`, `--bg-light`, `--bg-white`, `--shadow-sm`, `--shadow-md`). `--primary` e `--accent` **não** têm override global — têm papel duplo (fundo de elementos "chrome" como navbar/footer/botão de filtro ativo, que devem continuar navy/azul escuro em qualquer tema, **e** cor de texto em alguns badges/ícones sobre fundo claro). Um override de variável global quebra o primeiro uso; correção exigiria overrides pontuais por seletor (padrão já usado em `body.dark-mode .product-price`, `.product-price-modal`) — não feito ainda, ~8 seletores identificados com contraste subótimo em dark mode mas não regredidos por essa decisão (comportamento pré-existente). `--radius` não precisa de versão dark (dimensional, não é cor)
 - **Tokens do refresh visual têm cobertura própria** (adicionada junto com os tokens, não é a mesma limitação acima): `--ink`, `--muted`, `--line`, `--bg`, `--card` e `--shadow-lg` **têm** override em `body.dark-mode` — cards, drawer do carrinho e superfícies do refresh usam só esses tokens e por isso já adaptam automaticamente ao tema escuro sem overrides pontuais por seletor
+- **`--ok` / `--warn` / `--req` não têm override dark** (decisão do Patch I): valem igual nos dois temas, preservando o comportamento anterior. Moram em `assets/css/disponibilidade.css`, não em `style.css`
 
 ## CSS variables principais
 ```css
@@ -189,7 +193,9 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 --line: #e4e9f2          /* bordas sutis */
 --bg: #f5f8fc            /* fundo de página/seção */
 --card: #ffffff          /* superfícies de card (produto, diferencial, contato, pagamentos) */
---ok / --warn / --req    /* estados do badge de disponibilidade — ver Módulo Cards de Produto */
+/* --ok #16a34a / --warn #d97706 / --req #64748b — estados do badge de disponibilidade:
+   definidos SÓ em assets/css/disponibilidade.css (carregado antes do style.css na loja,
+   sozinho no admin). Também usados por .cart-volume-aviso (Patch H) */
 --radius-sm: 8px
 --shadow-lg: 0 18px 44px rgba(16,32,74,.18)
 --font-display: 'Montserrat', system-ui, sans-serif   /* escopado a .storefront h1-h6 */
@@ -222,6 +228,11 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 | altura | REAL | cm — padrão 10 |
 | comprimento | REAL | cm — padrão 20 |
 | criado_em | TEXT | |
+| modo_venda | TEXT NOT NULL | `'automatico'` (padrão) \| `'sempre_sob_encomenda'` \| `'indisponivel'` — validado contra `MODOS_VENDA` no servidor |
+| prazo_encomenda_dias | INTEGER | dias úteis, NULL = "consulte prazo" (nunca inventar prazo) |
+| permite_venda_sem_estoque | INTEGER NOT NULL | 0/1, padrão 0 — só tem efeito em `automatico` |
+
+> `estoque` é `INTEGER NOT NULL DEFAULT 0` (não admite NULL; o helper trata NULL como 0 por segurança). Colunas de disponibilidade via `migrations/migrate_disponibilidade.php` (Patch I) — **rodar antes de publicar o código**, senão `produtos.php` falha e a loja cai no bloco de erro.
 
 ### Tabela `produto_imagens`
 | Coluna | Tipo | Observação |
@@ -283,7 +294,8 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 | criado_em | TEXT | Timestamp; TTL de 12 horas verificado em runtime |
 
 ### Tabela `itens_pedido`
-- id, pedido_id (CASCADE), produto_id (RESTRICT), quantidade, preco_unitario
+- id, pedido_id (CASCADE), produto_id (RESTRICT), quantidade, preco_unitario, criado_em, **qtd_sob_encomenda** (INTEGER NOT NULL DEFAULT 0, Patch I — `MAX(0, quantidade − estoque relido na transação)`)
+- Baixa de estoque acontece **na criação do pedido** (`pedido-carrinho.php` / `pedidos.php`), não na aprovação; `estoque = MAX(0, estoque − qtd)` — nunca fica negativo. Não há devolução automática de estoque em recusa/cancelamento
 
 ### Tabela `usuarios`
 - id, nome, email (UNIQUE), senha_hash, ativo
@@ -293,12 +305,14 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 ### Arquivos admin relevantes
 | Arquivo | Função |
 |---|---|
-| `backend/admin/produtos.php` | Listagem — usa subquery para pegar imagem principal de `produto_imagens` com fallback para `imagem` legado; cache busting via `?v=filemtime()` |
+| `backend/admin/produtos.php` | Listagem — usa subquery para pegar imagem principal de `produto_imagens` com fallback para `imagem` legado; cache busting via `?v=filemtime()`; coluna "Disponibilidade" com o badge do helper + número do estoque |
+| `backend/admin/_disponibilidade-campos.php` | Partial do bloco "Disponibilidade" (select Modo de venda, checkbox "Permitir venda sem estoque" só em `automatico`, prazo em dias úteis quando aplicável, preview ao vivo) — incluído por `produto-novo.php` e `produto-editar.php` |
+| `backend/admin/ajax-disponibilidade.php` | `POST` JSON `{estoque, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias}` → roda o helper e devolve `label`/`badge_class`; protegido por `_auth.php` (sem sessão → 302). Preview usa debounce de 300ms e mostra "—" em falha |
 | `backend/admin/produto-novo.php` | Criação em duas fases na mesma página — fase 1: formulário; fase 2 (após salvar): seção de imagens múltiplas com AJAX + SortableJS |
 | `backend/admin/produto-editar.php` | Edição — inclui EasyMDE + gerenciamento de imagens múltiplas via AJAX |
 | `backend/admin/ajax-imagens.php` | AJAX para imagens: `upload`, `set-principal`, `reorder`, `delete` |
 | `backend/admin/categorias.php` | CRUD de categorias — listar com contagem de produtos, criar (auto-slug), excluir (bloqueado se há produtos vinculados) |
-| `backend/admin/_layout.php` | Layout base — aceita `$extra_head` como segundo parâmetro para injetar CSS no `<head>` |
+| `backend/admin/_layout.php` | Layout base — aceita `$extra_head` como segundo parâmetro para injetar CSS no `<head>`. Admin usa só Bootstrap + `<style>` próprio; **nunca carregar `style.css` no admin** — só `../../assets/css/disponibilidade.css` (via `$extra_head`) nas páginas que mostram o badge |
 
 ### Fluxo de produto-novo.php
 Página em duas fases sem redirect entre elas:
@@ -337,7 +351,7 @@ Página em duas fases sem redirect entre elas:
 - Campo opcional (NULL permitido no banco)
 
 ### API de Produtos (`backend/api/produtos.php`)
-Retorna por produto: `id`, `nome`, `descricao`, `preco`, `categoria`, `imagem`, `estoque`, `codigo_interno`, `datasheet`, `especificacao_tecnica`, `imagens[]`
+Retorna por produto: `id`, `nome`, `descricao`, `preco`, `categoria`, `imagem`, `estoque`, `codigo_interno`, `datasheet`, `especificacao_tecnica`, `imagens[]`, **`disponibilidade`** (objeto resolvido por `disponibilidade_produto()`; as colunas cruas `modo_venda`/`permite_venda_sem_estoque`/`prazo_encomenda_dias` são removidas da resposta para o front não recompor a matriz)
 
 O array `imagens` contém objetos `{caminho, ordem, principal}` ordenados por `ordem ASC`.
 
@@ -367,39 +381,79 @@ const imgSrc = imgPrincipal ? imgPrincipal.caminho : (p.imagem || '');
 
 ### Deep link de produto (`?produto=ID`)
 - `_openDeepLinkProduct()` lê `URLSearchParams`, procura `#productModal{id}` e abre com `new bootstrap.Modal(el).show()` — ID inexistente só loga `console.warn`, não quebra a página
-- **Só é chamado num bloco `finally` ao final de `renderProducts()`** — roda tanto no sucesso (produtos dinâmicos recém-injetados) quanto na falha (fallback estático já presente desde o carregamento), nunca antes de os modais existirem no DOM
+- **Só é chamado num bloco `finally` ao final de `renderProducts()`** — roda tanto no sucesso (produtos recém-injetados) quanto na falha (sem modais no DOM → só o `console.warn`), nunca antes de os modais existirem
 - Gera a URL canônica de um produto via `_getProductShareUrl(id)`: `${origin}${pathname}?produto={id}`
 - **Fora de escopo deliberadamente**: não usa `history.pushState` ao abrir um modal manualmente — o deep link só funciona no sentido "chegar via link", a URL do navegador não se atualiza sozinha ao clicar em "Detalhes"
 
 ### Compartilhamento (WhatsApp + Web Share + copiar código)
-- `WHATSAPP_NUMBER` — constante central no topo de `script.js` (fora da classe), mesmo placeholder `SEU_NUMERO` já usado nos links estáticos do `index.html`; **não duplicar** o número em outro literal
+- `WHATSAPP_NUMBER` — constante central no topo de `script.js` (fora da classe), mesmo placeholder `SEU_NUMERO` do botão flutuante (comentado) do `index.html`; **não duplicar** o número em outro literal
 - `_shareViaWhatsApp(data)` — monta `Tenho interesse no {nome} (código {código}): {url}`, chama `window.open('https://wa.me/{numero}?text=' + encodeURIComponent(mensagem), '_blank', 'noopener')`
 - `_shareProduct(btnEl)` — tenta `navigator.share({ title, text, url })`; se a API não existir, ou falhar por qualquer motivo que não seja `AbortError` (cancelamento do usuário), cai para `_copyToClipboard()`
 - `_copyToClipboard(value, btnEl, feedbackText)` — usa `navigator.clipboard.writeText()` quando `window.isSecureContext`; senão, fallback via `<textarea>` temporário + `document.execCommand('copy')`; qualquer falha é engolida silenciosamente (sem exceção não tratada)
 - `_showCopyFeedback(btnEl, title)` — troca o `innerHTML` do botão só pelo ícone `fa-check` (nunca por texto) por 1,8s; texto estouraria os botões circulares de ação (`.product-share-actions .btn` é 34×34px, `padding:0`)
-- Botões: `.btn-whatsapp-share` e `.btn-share-product` no modal de detalhes (dinâmico e nos 6 modais estáticos de fallback); `.btn-copy-code` reaproveita o `codigoHtml` já usado no card e no modal — aparece nos dois lugares automaticamente
+- Botões: `.btn-whatsapp-share` e `.btn-share-product` no modal de detalhes (gerado por `renderProducts()`); `.btn-copy-code` reaproveita o `codigoHtml` já usado no card e no modal — aparece nos dois lugares automaticamente
 
 ### Busca, ordenação e filtro de disponibilidade
-- Critério único de visibilidade em `_isProductVisible(col)`: categoria (`this._activeCategory`) **AND** busca (`this._searchQuery` contra `data-nome`/`data-codigo`) **AND** disponibilidade (`this._onlyInStock` contra `data-estoque`) — evita 3 mecanismos de show/hide paralelos
+- Critério único de visibilidade em `_isProductVisible(col)`: categoria (`this._activeCategory`) **AND** busca (`this._searchQuery` contra `data-nome`/`data-codigo`) **AND** disponibilidade (`this._onlyInStock` contra `data-status` ∈ `DISP_STATUS_EM_ESTOQUE` = `pronta_entrega`/`ultimas_unidades`; sob encomenda, esgotado e indisponível ficam de fora) — evita 3 mecanismos de show/hide paralelos
 - `_applyProductVisibility()` aplica o critério a todo `.product-col` via **`style.display` inline** (nunca classe de stylesheet — segue a regra do projeto); mostra `#products-empty-msg` (fora do `.row#products-grid`, para sobreviver ao `innerHTML` dinâmico) quando nenhum produto passa no filtro
-- `_applyProductSort(sortValue)` reordena os `.product-col` já existentes via `appendChild` (não re-renderiza); comparadores: `preco-asc`, `preco-desc`, `nome-asc`, `disponibilidade`
+- `_applyProductSort(sortValue)` reordena os `.product-col` já existentes via `appendChild` (não re-renderiza); comparadores: `preco-asc`, `preco-desc`, `nome-asc`, `disponibilidade` (ordem de `DISP_STATUS_ORDEM`: pronta_entrega → ultimas_unidades → sob_encomenda → esgotado → indisponivel; status desconhecido vai para o fim)
 - `_applyCurrentToolbarState()` reaplica busca/ordenação/disponibilidade depois de qualquer (re)render do grid — chamado junto com `_openDeepLinkProduct()` no `finally` de `renderProducts()`
-- Cada `.product-col` (dinâmico e os 6 estáticos de fallback) carrega `data-nome`, `data-preco`, `data-estoque`, `data-codigo` — tudo client-side sobre o payload que a API já retorna, sem nova chamada de rede
+- Cada `.product-col` carrega `data-nome`, `data-preco`, `data-estoque`, `data-codigo`, `data-status`, `data-permite-excedente`, `data-prazo-texto` — tudo client-side sobre o payload que a API já retorna, sem nova chamada de rede
 - Controles (`#product-search`, `#product-sort`, `#product-instock`) são estáticos no HTML (não gerados dinamicamente como os botões de categoria) — por isso `setupProductToolbar()` usa listeners diretos, não event delegation
 
 ## Módulo Cards de Produto (Refresh visual + Patch 2)
-> Layout atual do card na grade (`#products-grid`) — aplicado **identicamente** no HTML estático de `index.html` e em `renderProducts()` (script.js). Qualquer mudança de card precisa ser feita nos dois lugares — regressão conhecida de uma correção anterior que só mexeu no estático.
+> Layout atual do card na grade (`#products-grid`) — gerado **só** por `renderProducts()` (script.js). Desde o Patch I não existe mais cópia estática no `index.html`; mudança de card é feita num lugar só.
 
 - **Thumb full-bleed** (`.product-card-thumb`): imagem/vídeo de ponta a ponta, fundo com malha "blueprint" sutil atrás da foto (`.card-img-top`), borda inferior `--line`
-- **Badge de disponibilidade — 3 estados**, sobreposto no canto superior esquerdo do thumb (`.stock-badge` + `.stock-dot`), mapeado do `estoque` real sem lógica de negócio nova: `estoque > 3` → `--ok` verde "Em estoque"; `1–3` → `--warn` âmbar "Últimas unidades"; `0` → `--req` cinza "Esgotado" (substituiu as antigas `.badge-disponivel`/`.badge-esgotado`, que não existem mais no markup)
+- **Badge de disponibilidade**, sobreposto no canto superior esquerdo do thumb (`.stock-badge` + `.stock-dot`; o posicionamento `.product-card-thumb .stock-badge` fica no `style.css`). Classe e texto vêm prontos do servidor — ver "Módulo Disponibilidade". O **mesmo** badge aparece no modal de detalhe (substituiu os antigos `badge bg-success`/`bg-danger` do Bootstrap)
+- **Não comprável** (`pode_comprar = false`): botão desabilitado (ícone de proibido), nunca escondido, com o motivo (`.product-buy-motivo--card`, o próprio `label`) logo acima do rodapé. O motivo assume o `margin-top: auto` do rodapé, então preço/botões continuam alinhados com os cards vizinhos. No modal, o motivo fica ao lado do "Comprar Agora" desabilitado
 - **Categoria como eyebrow mono** (`.product-eyebrow`, `--font-mono`, maiúscula, cor `--accent`) acima do nome — não é mais pílula colorida no corpo do card (a pílula colorida `.product-badge.badge-{categoria}` continua existindo só no modal de detalhe)
 - **Nome** em Montserrat, com `-webkit-line-clamp: 2` (altura reservada mesmo pra nomes curtos, garante linha uniforme entre cards)
 - **Código interno** em pílula mono (`.product-code-pill`, reaproveita o botão `.btn-copy-code`) — **omitida inteiramente** quando o produto não tem `codigo_interno` cadastrado (é dado ausente real no banco para alguns produtos, não bug de render; a ausência não deixa buraco no layout porque o elemento simplesmente não é renderizado)
 - **Descrição removida da grade** — só aparece no modal de detalhe
-- **Preço** grande (`--font-display`, 800), **CTA** (`.btn-buy` = comprar, ver "Módulo Carrinho"; `.btn-outline-primary` = Detalhes; desabilitado com ícone de proibido quando esgotado — **agora idêntico nos dois caminhos**, incluindo o card estático "Motoredutor Porta" que antes divergia)
+- **Preço** grande (`--font-display`, 800), **CTA** (`.btn-buy` = comprar, ver "Módulo Carrinho"; `.btn-outline-primary` = Detalhes)
 - **Altura uniforme:** `.product-card-footer` (preço + botões) fixado no rodapé via `margin-top: auto` dentro do `card-body` flex — junto com o clamp do título, garante que todos os cards da linha tenham a mesma altura independente do tamanho do nome
 - **Hover:** `translateY(-4px)` + `--shadow-lg` + borda de acento no topo via `::before` com `scaleX`
 - Grid responsivo: `col-sm-6 col-md-4` (3 colunas desktop → 2 tablet → 1 mobile)
+
+## Módulo Disponibilidade (Patch I)
+
+> Pronta entrega / últimas unidades / sob encomenda / esgotado / indisponível. Uma matriz só, no PHP; front, checkout e admin consomem o resultado.
+
+### Fonte única — `backend/helpers/disponibilidade.php`
+- `disponibilidade_produto(array $p): array` → `status`, `label`, `badge_class`, `prazo_dias`, `prazo_texto`, `pode_comprar`, `permite_excedente`, `estoque_disponivel`
+- `LIMIAR_ULTIMAS_UNIDADES = 3`; `MODOS_VENDA` = lista de valores aceitos + rótulos pt-BR do admin
+
+| estoque | modo_venda | permite | status | label | compra |
+|---|---|---|---|---|---|
+| > 3 | automatico | - | `pronta_entrega` | "Pronta entrega (X un.)" | sim |
+| 1..3 | automatico | - | `ultimas_unidades` | "Pronta entrega — últimas X un." | sim |
+| 0 | automatico | 1 | `sob_encomenda` | "Sob encomenda — prazo ~N dias úteis" | sim |
+| 0 | automatico | 0 | `esgotado` | "Esgotado" | não |
+| qualquer | sempre_sob_encomenda | - | `sob_encomenda` | "Sob encomenda — prazo ~N dias úteis" | sim |
+| qualquer | indisponivel | - | `indisponivel` | "Indisponível" | não |
+
+- Prazo NULL → "Sob encomenda — consulte prazo" (`prazo_texto` = "consulte prazo"); 1 dia → "~1 dia útil". **Nunca inventar prazo**
+- `modo_venda` fora da lista → `indisponivel` (falha fechada, nunca libera venda)
+- `badge_class`: `stock-badge--ok` (pronta entrega), `--warn` (últimas unidades, sob encomenda), `--req` (esgotado, indisponível). A cor nunca é o único indicador — o texto sempre acompanha
+- `permite_excedente`: `true` em `sempre_sob_encomenda` e em `automatico` + `permite = 1`
+- **Regra de ouro:** os rótulos "Esgotado", "Sob encomenda" etc. **só existem no helper**. O JS (loja e preview do admin) só renderiza `label`/`badge_class` prontos — nenhum rótulo da matriz é escrito no JS
+
+### Validação no checkout — `disponibilidade_validar_item($nome, $qtd, $disp): ?string`
+1. `!pode_comprar` → "\"{nome}\" está {label} e não pode ser comprado no momento."
+2. `!permite_excedente && qtd > estoque` → "Temos {N} un. de \"{nome}\" em pronta entrega. Ajuste a quantidade ou fale com o comercial para o restante: vendas@… · (15) 3263-9494." (contato em `DISPONIBILIDADE_CONTATO_*`, espelho PHP das constantes `EMPRESA_*` do JS — o PHP não enxerga as do JS)
+3. `permite_excedente` → passa; o excedente é gravado em `itens_pedido.qtd_sob_encomenda`
+- Usada em `pedido-carrinho.php` (com SELECT próprio das colunas de disponibilidade, porque o SELECT de `frete_carrinho.php` não as traz) e em `pedidos.php` (dormente)
+- **`frete_carrinho.php` não olha disponibilidade:** um item esgotado consegue cotação de frete, mas é barrado no checkout
+- `sempre_sob_encomenda` com estoque > 0 consome o estoque primeiro (`qtd_sob_encomenda = MAX(0, qtd − estoque)`) — revisar se "sempre" deve significar 100% sob encomenda
+
+### CSS — `assets/css/disponibilidade.css`
+- Contém **só**: os tokens `--ok/--warn/--req` (sem override dark), a base `.stock-badge`, `.stock-dot` e as 3 variantes — nada de fonte, spacing global ou reset
+- Loja: `<link>` **antes** do `style.css`. Admin: carregado sozinho via `$extra_head` (`produtos.php`, `produto-novo.php`, `produto-editar.php`)
+
+### Admin
+- `admin/_disponibilidade-campos.php` + `admin/ajax-disponibilidade.php` — ver "Módulo Admin de Produtos". Visibilidade condicional dos campos via `style.display`; o JS decide só **quais campos aparecem**, nunca o rótulo
+- `disponibilidade_dados_post($post, &$erros)` valida no servidor: `modo_venda` contra `MODOS_VENDA`, prazo inteiro 1–365 ou vazio; `permite` é zerado fora de `automatico` (não fica estado escondido gravado)
 
 ## Módulo Header Fixo + Reordenação de Seções (Patch A)
 - `.custom-navbar` é `position: fixed` (não mais `sticky-top` do Bootstrap), `z-index: 1030`
@@ -644,17 +698,22 @@ Retorna adicionalmente: `chosen_carrier`, `chosen_service`, `shipping_price`, `s
 - **Pagamentos sem frete bloqueados:** botões de pagamento iniciam `disabled`; habilitados apenas quando `_selectedFrete` está definido; aviso "Calcule o frete para continuar" exibido via `_updatePaymentBtns()`
 - **Bloco de resumo no checkout (`#checkout-resumo`):** aparece após frete selecionado; exibe subtotal + linha de frete + total; atualizado por `_updateCheckoutTotal()` a cada mudança de quantidade ou opção de frete
 - **Botão "Alterar CEP" no checkout:** renderizado dentro de `_renderFreteCheckout()` na label do CEP; chama `_alterarCepCheckout()` que limpa o frete, desabilita botões e foca o campo CEP para re-digitação
-- **Deep link só dispara em `finally`:** `_openDeepLinkProduct()` e `_applyCurrentToolbarState()` rodam depois do `try/catch` de `renderProducts()`, nunca dentro — garante que o DOM (dinâmico ou fallback estático) já está no estado final antes de procurar `#productModal{id}` ou reaplicar filtros
+- **Deep link só dispara em `finally`:** `_openDeepLinkProduct()` e `_applyCurrentToolbarState()` rodam depois do `try/catch` de `renderProducts()`, nunca dentro — garante que o DOM já está no estado final antes de procurar `#productModal{id}` ou reaplicar filtros
+- **Sem fallback estático de catálogo (Patch I):** os 6 cards/modais hardcoded do `index.html` foram removidos porque divergiam do banco (ids 5/6 eram outras peças com outros preços — "Comprar" no fallback colocava no carrinho um produto diferente do exibido). Falha da API → `#products-error`, nada comprável
+- **Disponibilidade resolvida só no servidor:** a matriz existe em um lugar (`disponibilidade_produto()`); o preview do admin chama um endpoint em vez de replicar a matriz em JS
 - **Ordenação de produtos via `appendChild`, não re-render:** evita perder o estado de busca/categoria/estoque já aplicado; o critério de visibilidade e a ordem do DOM são independentes um do outro
-- **`#products-empty-msg` fora de `#products-grid`:** fica como irmão do `.row`, não dentro dele — se estivesse dentro, o `grid.innerHTML = cardsHtml` do `renderProducts()` apagaria o elemento a cada re-render bem-sucedido
+- **`#products-empty-msg` e `#products-error` fora de `#products-grid`:** ficam como irmãos do `.row`, não dentro dele — se estivessem dentro, o `grid.innerHTML = cardsHtml` do `renderProducts()` os apagaria a cada re-render. A mensagem de "nenhum produto" só aparece com cards no DOM, então não colide com o bloco de erro
 
 ## Pendências conhecidas (não são placeholder de conteúdo, mas ficaram em aberto)
 - **Investigação do "fundo creme" (Patch 3):** o dono relatou ver um fundo bege/creme na página real, mas 3 varreduras exaustivas (hex, `rgb()/hsl()`, nomes de cor CSS, overrides do Bootstrap, gradientes, inline styles, JS, segundo stylesheet) não encontraram nenhuma cor creme em lugar nenhum do código — todos os fundos resolvem para `--bg`/`--bg-light` (cinza-frio). Ficou pendente o valor computado do DevTools pra continuar; **Estágios 2 e 3 do Patch 3 foram aplicados** (cards viraram `--card` branco, heading escopado a `.storefront`), mas o **Estágio 1 (troca do creme em si) nunca foi executado** por falta desse dado
 - **Checkout do carrinho (B2a/B2b/Fase 2c):** construído — preference multi-item no servidor (`pedido-carrinho.php`), frete agregado, CEP unificado (`psp_cep_entrega`) e os dois caminhos de pagamento (redirect + Bricks inline) já reconectados. Pendência real remanescente: guarda anti-dupla-cobrança do lado do redirect (`_cartGuardPedidoNaoPago()`) é uma checagem client-side best-effort via `tracking.php` — a guarda autoritativa fica em `processar-pagamento.php` (server-side, só protege o caminho Bricks); um MP preference já pago reaberto via redirect depende do próprio MP recusar novo pagamento na página deles
+- **Teto de volume só no cliente:** `QTD_LIMITE_VOLUME = 10` vale no front; `frete_carrinho.php:37` ainda aceita até 99 por linha (arquivo de frete, não alterado nos Patches H/I)
+- **Layout 768px:** nos cards compráveis, o botão do carrinho encosta na borda do card (preço + "Detalhes" + carrinho não cabem na coluna `col-md-4`) — pré-existente, não corrigido
 - `updateActiveNavLink()` observação menor: o offset de 100px foi consolidado em `--header-h`, mas isso é sobre *qual* link fica marcado ativo no scroll — não afeta onde as âncoras param (isso é `scroll-padding-top`, mecanismo separado e já correto)
 
 ## Placeholders pendentes (necessários antes do deploy)
-- `SEU_NUMERO` — WhatsApp (2 ocorrências: botão hero + botão flutuante)
+- `SEU_NUMERO` — WhatsApp: `WHATSAPP_NUMBER` em `script.js` (compartilhamento de produto) + botão flutuante **comentado** no `index.html`. O item de WhatsApp da seção Contato foi removido (Patch H) — reinserir quando houver número real; a linha fixa (15) 3263-9494 **não** é WhatsApp
+- Rodar `migrations/migrate_disponibilidade.php` no banco de produção antes do deploy do Patch I
 - Ícones PWA reais (192×192 e 512×512 PNG) para `manifest.json`
 - Texto da seção "Sobre Nós" com história real da empresa
 - Preços reais dos produtos (definidos via admin)

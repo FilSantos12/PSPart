@@ -23,9 +23,7 @@
   --line: #e4e9f2;
   --bg: #f5f8fc;
   --card: #ffffff;
-  --ok: #16a34a;
-  --warn: #d97706;
-  --req: #64748b;
+  /* --ok / --warn / --req: definidos em assets/css/disponibilidade.css (carregado antes deste) */
   --radius-sm: 8px;
   --shadow-lg: 0 18px 44px rgba(16,32,74,.18);
   --font-display: 'Montserrat', system-ui, sans-serif;
@@ -470,43 +468,27 @@ body.dark-mode .product-card-thumb .stock-badge {
     font-family: var(--font-mono);
 }
 
-/* Badge de disponibilidade com ponto de status (3 estados) */
-.stock-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.66rem;
+/* Badge de disponibilidade (.stock-badge / .stock-dot / variantes): ver assets/css/disponibilidade.css */
+
+/* Motivo exibido ao lado do botão de compra desabilitado (texto vem pronto da API) */
+.product-buy-motivo {
+    font-size: 0.75rem;
     font-weight: 600;
-    padding: 0.15rem 0.55rem 0.15rem 0.45rem;
-    border-radius: 20px;
-    letter-spacing: 0.3px;
-    margin-bottom: 0.5rem;
+    color: var(--muted);
+    line-height: 1.3;
 }
 
-.stock-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    flex-shrink: 0;
+/* No card, o motivo assume o margin-top:auto do rodapé — preço/botões continuam alinhados
+   na base com os cards vizinhos da mesma linha */
+.product-buy-motivo--card {
+    display: block;
+    text-align: right;
+    margin-top: auto;
 }
 
-.stock-badge--ok {
-    background-color: rgba(22, 163, 74, 0.1);
-    color: var(--ok);
+.product-buy-motivo--card + .product-card-footer {
+    margin-top: 0;
 }
-.stock-badge--ok .stock-dot { background-color: var(--ok); }
-
-.stock-badge--warn {
-    background-color: rgba(217, 119, 6, 0.12);
-    color: var(--warn);
-}
-.stock-badge--warn .stock-dot { background-color: var(--warn); }
-
-.stock-badge--req {
-    background-color: rgba(100, 116, 139, 0.12);
-    color: var(--req);
-}
-.stock-badge--req .stock-dot { background-color: var(--req); }
 
 /* Código interno em pílula monoespaçada */
 .product-code-pill {
@@ -1030,6 +1012,7 @@ footer {
 .contact-info-item div {
     display: flex;
     flex-direction: column;
+    min-width: 0;   /* permite quebrar o e-mail na coluna estreita do tablet (col-md-4 em 768px) */
 }
 
 .contact-info-item strong {
@@ -1046,6 +1029,7 @@ footer {
     font-size: 0.95rem;
     color: white;
     text-decoration: none;
+    overflow-wrap: anywhere;
 }
 
 .contact-info-item a:hover {
@@ -1773,13 +1757,16 @@ body.dark-mode .checkout-resumo {
 }
 
 /* Variante "soft" — Detalhes / produto sob consulta */
-.product-card .btn-outline-primary {
+.product-card .btn-outline-primary,
+.cart-volume-aviso .btn-outline-primary {
     border-color: rgba(var(--accent-rgb), .4);
     color: var(--accent);
 }
 
 .product-card .btn-outline-primary:hover,
-.product-card .btn-outline-primary:focus {
+.product-card .btn-outline-primary:focus,
+.cart-volume-aviso .btn-outline-primary:hover,
+.cart-volume-aviso .btn-outline-primary:focus {
     background-color: rgba(var(--accent-rgb), .1);
     border-color: var(--accent);
     color: var(--accent);
@@ -2130,9 +2117,37 @@ body.dark-mode .pagamentos-seguranca .ps-seguranca-lista li { color: #ccc; }
 
 .cart-item {
     display: flex;
+    flex-wrap: wrap;   /* deixa o .cart-volume-aviso descer para linha própria; .cart-item-info é flex:1 (base 0), então as colunas normais nunca quebram */
     gap: 1rem;
     padding: 1.1rem 0;
     border-bottom: 1px solid var(--line);
+}
+
+/* Aviso de compra em volume ocupa a largura toda da linha, abaixo de thumb/info/preço. */
+.cart-volume-aviso {
+    flex-basis: 100%;
+    padding: 0.75rem 0.9rem;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--warn);
+    border-radius: var(--radius-sm);
+}
+
+.cart-volume-aviso-texto {
+    margin: 0 0 0.6rem;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--ink);
+}
+
+.cart-volume-aviso-texto i {
+    color: var(--warn);
+}
+
+.cart-volume-aviso-ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 .cart-item:last-child {
