@@ -2,7 +2,7 @@
 /**
  * POST /backend/admin/ajax-disponibilidade.php — preview ao vivo do badge de disponibilidade
  * no formulário de produto. Roda o MESMO helper da loja (disponibilidade_produto()); o JS do
- * admin só exibe label/badge_class devolvidos, nunca compõe o rótulo.
+ * admin só exibe label_admin/badge_class devolvidos, nunca compõe o rótulo.
  *
  * Body JSON: { estoque, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias }
  */
@@ -35,4 +35,4 @@ if (!is_numeric($estoqueRaw) || $estoqueRaw < 0) $erros[] = 'Estoque inválido.'
 if ($erros) ajaxErro(implode(' ', $erros), 422);
 
 $r = disponibilidade_produto(['estoque' => (int) $estoqueRaw] + $disp);
-ajaxOk(['status' => $r['status'], 'label' => $r['label'], 'badge_class' => $r['badge_class'], 'pode_comprar' => $r['pode_comprar']]);
+ajaxOk(['status' => $r['status'], 'label_admin' => $r['label_admin'], 'badge_class' => $r['badge_class'], 'pode_comprar' => $r['pode_comprar']]);

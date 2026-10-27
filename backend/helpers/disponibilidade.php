@@ -9,6 +9,10 @@
 
 const LIMIAR_ULTIMAS_UNIDADES = 3;
 
+// Teto de quantidade por SKU no carrinho — espelha QTD_LIMITE_VOLUME do script.js
+// (o PHP não enxerga as do JS). Acima disso o pedido vai para o comercial.
+const QTD_LIMITE_VOLUME = 10;
+
 // Valores aceitos em produtos.modo_venda → rótulo exibido no admin
 const MODOS_VENDA = [
     'automatico'           => 'Automático (pelo estoque)',
@@ -25,8 +29,14 @@ const DISPONIBILIDADE_CONTATO_TELEFONE = '(15) 3263-9494';
  * Resolve a disponibilidade de um produto a partir das colunas do banco.
  *
  * @param array $p Linha de produtos (estoque, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias)
- * @return array{status:string,label:string,badge_class:string,prazo_dias:?int,prazo_texto:string,
- *               pode_comprar:bool,permite_excedente:bool,estoque_disponivel:int}
+ * 'label' é a versão do cliente (sem quantidade de estoque); 'label_admin' é a do admin (com a
+ * quantidade). 'qtd_exibivel' é o único número de estoque que pode chegar ao cliente — só em
+ * ultimas_unidades (urgência legítima), null nos demais. 'estoque_disponivel' é de uso interno
+ * (checkout, aviso parcial) e nunca vai ao front — a API remove o campo.
+ *
+ * @return array{status:string,label:string,label_admin:string,qtd_exibivel:?int,badge_class:string,
+ *               prazo_dias:?int,prazo_texto:string,pode_comprar:bool,permite_excedente:bool,
+ *               estoque_disponivel:int}
  */
 function disponibilidade_produto(array $p): array
 {
@@ -46,6 +56,7 @@ function disponibilidade_produto(array $p): array
         : 'Sob encomenda — prazo ' . $prazoTexto;
 
     $base = [
+        'qtd_exibivel'       => null,
         'prazo_dias'         => $prazo,
         'prazo_texto'        => $prazoTexto,
         'estoque_disponivel' => $estoque,
@@ -53,43 +64,44 @@ function disponibilidade_produto(array $p): array
 
     if ($modo === 'sempre_sob_encomenda') {
         return $base + [
-            'status' => 'sob_encomenda', 'label' => $labelEncomenda, 'badge_class' => 'stock-badge--warn',
-            'pode_comprar' => true, 'permite_excedente' => true,
+            'status' => 'sob_encomenda', 'label' => $labelEncomenda, 'label_admin' => $labelEncomenda,
+            'badge_class' => 'stock-badge--warn', 'pode_comprar' => true, 'permite_excedente' => true,
         ];
     }
 
     // 'indisponivel' — e qualquer valor fora da lista (falha fechada, nunca libera venda)
     if ($modo !== 'automatico') {
         return $base + [
-            'status' => 'indisponivel', 'label' => 'Indisponível', 'badge_class' => 'stock-badge--req',
-            'pode_comprar' => false, 'permite_excedente' => false,
+            'status' => 'indisponivel', 'label' => 'Indisponível', 'label_admin' => 'Indisponível',
+            'badge_class' => 'stock-badge--req', 'pode_comprar' => false, 'permite_excedente' => false,
         ];
     }
 
     if ($estoque > LIMIAR_ULTIMAS_UNIDADES) {
         return $base + [
-            'status' => 'pronta_entrega', 'label' => "Pronta entrega ($estoque un.)", 'badge_class' => 'stock-badge--ok',
-            'pode_comprar' => true, 'permite_excedente' => $permite,
+            'status' => 'pronta_entrega', 'label' => 'Pronta entrega', 'label_admin' => "Pronta entrega ($estoque un.)",
+            'badge_class' => 'stock-badge--ok', 'pode_comprar' => true, 'permite_excedente' => $permite,
         ];
     }
 
     if ($estoque > 0) {
-        return $base + [
-            'status' => 'ultimas_unidades', 'label' => "Pronta entrega — últimas $estoque un.", 'badge_class' => 'stock-badge--warn',
-            'pode_comprar' => true, 'permite_excedente' => $permite,
+        $labelUltimas = "Pronta entrega — últimas $estoque un.";
+        return ['qtd_exibivel' => $estoque] + $base + [
+            'status' => 'ultimas_unidades', 'label' => $labelUltimas, 'label_admin' => $labelUltimas,
+            'badge_class' => 'stock-badge--warn', 'pode_comprar' => true, 'permite_excedente' => $permite,
         ];
     }
 
     if ($permite) {
         return $base + [
-            'status' => 'sob_encomenda', 'label' => $labelEncomenda, 'badge_class' => 'stock-badge--warn',
-            'pode_comprar' => true, 'permite_excedente' => true,
+            'status' => 'sob_encomenda', 'label' => $labelEncomenda, 'label_admin' => $labelEncomenda,
+            'badge_class' => 'stock-badge--warn', 'pode_comprar' => true, 'permite_excedente' => true,
         ];
     }
 
     return $base + [
-        'status' => 'esgotado', 'label' => 'Esgotado', 'badge_class' => 'stock-badge--req',
-        'pode_comprar' => false, 'permite_excedente' => false,
+        'status' => 'esgotado', 'label' => 'Esgotado', 'label_admin' => 'Esgotado',
+        'badge_class' => 'stock-badge--req', 'pode_comprar' => false, 'permite_excedente' => false,
     ];
 }
 
@@ -105,12 +117,32 @@ function disponibilidade_validar_item(string $nome, int $quantidade, array $disp
     }
 
     if (!$disp['permite_excedente'] && $quantidade > $disp['estoque_disponivel']) {
-        return "Temos {$disp['estoque_disponivel']} un. de \"{$nome}\" em pronta entrega. "
-             . "Ajuste a quantidade ou fale com o comercial para o restante: "
+        // Sem quantidade de estoque: a mensagem chega ao cliente (HTTP 422 do checkout)
+        return "A quantidade pedida de \"{$nome}\" está acima do disponível em pronta entrega. "
+             . "Reduza a quantidade ou fale com o comercial: "
              . DISPONIBILIDADE_CONTATO_EMAIL . ' · ' . DISPONIBILIDADE_CONTATO_TELEFONE . '.';
     }
 
     return null;
+}
+
+/**
+ * Texto do aviso de estoque parcial do drawer: a quantidade pedida passa do estoque em pronta
+ * entrega e o excedente é permitido (vira sob encomenda). Nenhum número de estoque no texto.
+ * Null quando não há parcial (tudo em pronta entrega, tudo sob encomenda ou não comprável).
+ *
+ * @param array $p Linha de produtos (mesmas colunas de disponibilidade_produto())
+ */
+function disponibilidade_aviso_parcial(array $p, int $quantidade): ?string
+{
+    $disp = disponibilidade_produto($p);
+    $parcial = $disp['permite_excedente']
+        && in_array($disp['status'], ['pronta_entrega', 'ultimas_unidades'], true)
+        && $quantidade > $disp['estoque_disponivel'];
+    if (!$parcial) return null;
+
+    $prazo = $disp['prazo_dias'] === null ? 'consulte o prazo' : $disp['prazo_texto'];
+    return "Parte deste item é sob encomenda ({$prazo}). O restante tem pronta entrega.";
 }
 
 /**

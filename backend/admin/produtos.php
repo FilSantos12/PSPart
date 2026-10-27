@@ -74,7 +74,7 @@ layout_head('Produtos', '<link rel="stylesheet" href="../../assets/css/disponibi
                     <td>R$ <?= number_format($p['preco'], 2, ',', '.') ?></td>
                     <td>
                         <?php $disp = disponibilidade_produto($p); ?>
-                        <span class="stock-badge <?= htmlspecialchars($disp['badge_class']) ?> mb-0"><span class="stock-dot"></span><?= htmlspecialchars($disp['label']) ?></span>
+                        <span class="stock-badge <?= htmlspecialchars($disp['badge_class']) ?> mb-0"><span class="stock-dot"></span><?= htmlspecialchars($disp['label_admin']) ?></span>
                         <div class="text-muted small">Estoque: <?= (int) $p['estoque'] ?></div>
                     </td>
                     <td>

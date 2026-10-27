@@ -47,8 +47,8 @@ $dispMostraPrazo   = $dispModo === 'sempre_sob_encomenda' || ($dispModo === 'aut
         </div>
     </div>
     <div class="mt-2 small text-muted">
-        O cliente verá:
-        <span id="disp-preview" class="stock-badge <?= htmlspecialchars($dispInicial['badge_class']) ?> ms-1 mb-0"><span class="stock-dot"></span><span id="disp-preview-label"><?= htmlspecialchars($dispInicial['label']) ?></span></span>
+        Disponibilidade calculada:
+        <span id="disp-preview" class="stock-badge <?= htmlspecialchars($dispInicial['badge_class']) ?> ms-1 mb-0"><span class="stock-dot"></span><span id="disp-preview-label"><?= htmlspecialchars($dispInicial['label_admin']) ?></span></span>
     </div>
 </div>
 <script>
@@ -100,7 +100,7 @@ $dispMostraPrazo   = $dispModo === 'sempre_sob_encomenda' || ($dispModo === 'aut
                 if (!resp.ok || !json.ok) return mostrarFalha();
                 previewEl.classList.remove(...classes);
                 previewEl.classList.add(json.data.badge_class);
-                labelEl.textContent = json.data.label;
+                labelEl.textContent = json.data.label_admin;
             } catch (_) {
                 if (minha === seq) mostrarFalha();
             }

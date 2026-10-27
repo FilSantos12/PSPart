@@ -7,6 +7,7 @@
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../helpers/status.php';
+require_once __DIR__ . '/../helpers/disponibilidade.php';
 
 // MelhorEnvio e config são incluídos pelo endpoint agente.php antes deste arquivo.
 
@@ -97,7 +98,8 @@ function buscarProdutos(string $termo, int $limite = 5): array
 
     $pdo  = getDB();
     $stmt = $pdo->prepare("
-        SELECT id, nome, preco, estoque, categoria, codigo_interno
+        SELECT id, nome, preco, estoque, categoria, codigo_interno,
+               modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias
         FROM produtos
         WHERE ativo = 1
           AND (nome LIKE :t OR descricao LIKE :t OR categoria LIKE :t OR codigo_interno LIKE :t)
@@ -115,12 +117,16 @@ function buscarProdutos(string $termo, int $limite = 5): array
 
     $produtos = [];
     foreach ($rows as $row) {
+        // Mesma fonte da loja (disponibilidade_produto()). Nenhuma quantidade de estoque chega ao
+        // modelo — só o status, se pode comprar e o prazo de encomenda (Patch L)
+        $disp = disponibilidade_produto($row);
         $produtos[] = [
             'id'              => (int)   $row['id'],
             'nome'            => $row['nome'],
             'preco'           => (float) $row['preco'],
-            'estoque'         => (int)   $row['estoque'],
-            'disponivel'      => ((int) $row['estoque']) > 0,
+            'disponibilidade' => $disp['status'],
+            'pode_comprar'    => $disp['pode_comprar'],
+            'prazo_encomenda' => $disp['status'] === 'sob_encomenda' ? $disp['prazo_texto'] : null,
             'categoria'       => $row['categoria'],
             'codigo_interno'  => $row['codigo_interno'] ?? null,
         ];

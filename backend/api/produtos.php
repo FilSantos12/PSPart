@@ -41,11 +41,13 @@ try {
     foreach ($produtos as &$p) {
         $p['id']      = (int)   $p['id'];
         $p['preco']   = (float) $p['preco'];
-        $p['estoque'] = (int)   $p['estoque'];
         $p['imagens'] = $imgsByProduct[$p['id']] ?? [];
         // Disponibilidade já resolvida no servidor — o front só renderiza, nunca recompõe a matriz
         $p['disponibilidade'] = disponibilidade_produto($p);
-        unset($p['modo_venda'], $p['permite_venda_sem_estoque'], $p['prazo_encomenda_dias']);
+        // Estoque numérico nunca vai ao cliente (Patch L) — só o status/rótulo; o único número
+        // exposto é disponibilidade.qtd_exibivel (ultimas_unidades)
+        unset($p['estoque'], $p['disponibilidade']['estoque_disponivel'], $p['disponibilidade']['label_admin'],
+              $p['modo_venda'], $p['permite_venda_sem_estoque'], $p['prazo_encomenda_dias']);
     }
 
     json_ok($produtos);

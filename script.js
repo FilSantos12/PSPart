@@ -8,6 +8,7 @@ const WHATSAPP_NUMBER = 'SEU_NUMERO';
 
 // Teto de quantidade por SKU no carrinho — acima disso o pedido vai para o comercial
 // (preço de volume/prazo). Fonte única: nunca repetir o número literal no código.
+// Espelho PHP em backend/helpers/disponibilidade.php (o PHP não enxerga as do JS).
 const QTD_LIMITE_VOLUME = 10;
 
 // Contato comercial usado nos CTAs do aviso de volume — espelha a seção #contato do index.html
@@ -570,6 +571,8 @@ class App {
     setupCart() {
         this._cartFrete = null;          // { cep, selecionado } — nunca guarda preço fora de uma cotação em memória
         this._cartSubtotalAtual = 0;
+        this._cartAvisosSeq = 0;         // descarta respostas atrasadas de carrinho-avisos.php
+        this._cartAvisosTimer = null;    // debounce das chamadas a carrinho-avisos.php
         this._cartNoTeto = new Set();    // produto_ids cuja última tentativa passou de QTD_LIMITE_VOLUME
         this._cartLoad();
         this._cartRenderBadge();
@@ -686,11 +689,6 @@ class App {
             preco: parseFloat(btn.dataset.productPrice) || parseFloat(col?.dataset.preco) || 0,
             codigo: col?.dataset.codigo || '',
             imagem: img?.getAttribute('src') || null,
-            // Disponibilidade já resolvida pela API (só informativa aqui — o servidor revalida no checkout)
-            status: col?.dataset.status || '',
-            estoque: parseInt(col?.dataset.estoque) || 0,
-            permiteExcedente: col?.dataset.permiteExcedente === '1',
-            prazoTexto: col?.dataset.prazoTexto || '',
         };
     }
 
@@ -717,20 +715,50 @@ class App {
     }
 
     // Faixa informativa de estoque parcial — reaproveita a estrutura .cart-volume-aviso do Patch H.
-    // Só existe quando a quantidade passa do estoque e a venda acima dele é permitida; prazo vem
-    // pronto da API (prazo_texto), nunca é inventado aqui.
-    _cartAvisoParcialHtml(info, item) {
-        const parcial = info.permiteExcedente
-            && DISP_STATUS_EM_ESTOQUE.includes(info.status)
-            && item.quantidade > info.estoque;
-        if (!parcial) return '';
-        const sobEncomenda = item.quantidade - info.estoque;
+    // Nasce vazia e oculta em toda linha; o texto vem pronto do servidor (carrinho-avisos.php →
+    // disponibilidade_aviso_parcial()). O front não conhece o estoque nem monta esse texto.
+    _cartAvisoParcialHtml() {
         return `
                 <div class="cart-volume-aviso cart-aviso-parcial" role="status" style="display:none;">
                     <p class="cart-volume-aviso-texto mb-0">
-                        <i class="fas fa-clock me-1"></i>${info.estoque} un. pronta entrega + ${sobEncomenda} un. sob encomenda (${info.prazoTexto})
+                        <i class="fas fa-clock me-1"></i><span class="cart-aviso-parcial-texto"></span>
                     </p>
                 </div>`;
+    }
+
+    // Debounce de 300ms: cliques rápidos em +/− re-renderizam o drawer várias vezes, mas só a
+    // última renderização consulta o servidor. O ++seq aqui invalida na hora uma resposta já em
+    // voo de um render anterior (debounce e descarte por seq são complementares).
+    _cartAgendarAvisosParciais(list) {
+        clearTimeout(this._cartAvisosTimer);
+        ++this._cartAvisosSeq;
+        this._cartAvisosTimer = setTimeout(() => this._cartCarregarAvisosParciais(list), 300);
+    }
+
+    // Busca os avisos de estoque parcial do carrinho atual e preenche as linhas já renderizadas.
+    // Resposta atrasada de um render anterior é descartada (_cartAvisosSeq); falha de rede só
+    // deixa os avisos ocultos — o servidor revalida tudo no checkout de qualquer forma.
+    async _cartCarregarAvisosParciais(list) {
+        const minha = ++this._cartAvisosSeq;
+        const cart  = this._cart.map(i => ({ produto_id: i.produto_id, quantidade: i.quantidade }));
+        if (cart.length === 0) return;
+        try {
+            const resp = await fetch('backend/api/carrinho-avisos.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cart }),
+            });
+            if (!resp.ok || minha !== this._cartAvisosSeq) return;
+            const { avisos = {} } = await resp.json();
+            if (minha !== this._cartAvisosSeq) return;
+            list.querySelectorAll('.cart-item[data-id]').forEach(row => {
+                const aviso = row.querySelector('.cart-aviso-parcial');
+                const texto = avisos[row.dataset.id];
+                if (!aviso) return;
+                aviso.querySelector('.cart-aviso-parcial-texto').textContent = texto || '';
+                aviso.style.display = texto ? 'block' : 'none';
+            });
+        } catch (_) { /* avisos ficam ocultos */ }
     }
 
     _cartRenderBadge() {
@@ -813,7 +841,7 @@ class App {
                     </button>
                 </div>
                 ${this._cartAvisoVolumeHtml(info)}
-                ${this._cartAvisoParcialHtml(info, item)}
+                ${this._cartAvisoParcialHtml()}
             </div>`;
         }).join('');
 
@@ -826,8 +854,8 @@ class App {
         });
 
         // Estoque parcial: parte sai da pronta entrega, o restante é sob encomenda (só texto —
-        // não divide pedido nem mexe em frete/total). Mesma regra de display inline do aviso acima.
-        list.querySelectorAll('.cart-aviso-parcial').forEach(el => { el.style.display = 'block'; });
+        // não divide pedido nem mexe em frete/total). Texto e decisão vêm do servidor.
+        this._cartAgendarAvisosParciais(list);
 
         const subtotalEl = document.getElementById('cartSubtotal');
         if (subtotalEl) {
@@ -1825,8 +1853,29 @@ class App {
 
     // ── PRODUTOS — renderiza cards, modais e filtros a partir da API ─────────
 
+    // Faixa de compra em volume acima da grade (Patch L) — texto e CTAs das constantes do topo,
+    // o limite nunca aparece como número literal. Só existe junto com um catálogo carregado.
+    _renderVolumeOferta(el) {
+        if (!el) return;
+        el.innerHTML = `
+                <p class="cart-volume-aviso-texto">
+                    <i class="fas fa-handshake me-1"></i>Pedidos acima de ${QTD_LIMITE_VOLUME} unidades por item são
+                    atendidos pelo nosso comercial, com preço de volume e prazo sob consulta.
+                </p>
+                <div class="cart-volume-aviso-ctas">
+                    <a href="mailto:${EMPRESA_EMAIL_VENDAS}?subject=${encodeURIComponent('Compra em volume')}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-envelope me-1"></i>Falar com vendas
+                    </a>
+                    <a href="tel:${EMPRESA_TELEFONE_E164}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-phone me-1"></i>${EMPRESA_TELEFONE}
+                    </a>
+                </div>`;
+        el.style.display = 'block';
+    }
+
     async renderProducts() {
         const errorEl  = document.getElementById('products-error');
+        const ofertaEl = document.getElementById('products-volume-oferta');
         const retryBtn = document.getElementById('products-retry');
         if (retryBtn) retryBtn.disabled = true;
 
@@ -1945,8 +1994,8 @@ class App {
 
                 cardsHtml += `
                 <div class="col-sm-6 col-md-4 col-lg-3 mb-4 product-col" data-category="${p.categoria}"
-                     data-nome="${p.nome}" data-preco="${p.preco}" data-estoque="${p.estoque}" data-codigo="${p.codigo_interno || ''}"
-                     data-status="${disp.status}" data-permite-excedente="${disp.permite_excedente ? 1 : 0}" data-prazo-texto="${disp.prazo_texto || ''}">
+                     data-nome="${p.nome}" data-preco="${p.preco}" data-codigo="${p.codigo_interno || ''}"
+                     data-status="${disp.status}">
                     <div class="card product-card">
                         <div class="product-card-thumb">
                             ${estoqueHtml}
@@ -1973,6 +2022,9 @@ class App {
                                            </button>`}
                                 </div>
                             </div>
+                            ${disp.pode_comprar
+                                ? `<p class="product-volume-nota">Acima de ${QTD_LIMITE_VOLUME} un.: consulte</p>`
+                                : '<p class="product-volume-nota" aria-hidden="true"></p>'}
                         </div>
                     </div>
                 </div>`;
@@ -2043,6 +2095,7 @@ class App {
             modals.innerHTML = modalsHtml;
 
             if (errorEl) errorEl.style.display = 'none';
+            this._renderVolumeOferta(ofertaEl);
             if (typeof AOS !== 'undefined') AOS.refresh();
 
         } catch (_) {
@@ -2051,6 +2104,7 @@ class App {
             const modals = document.getElementById('product-modals');
             if (grid)   grid.innerHTML   = '';
             if (modals) modals.innerHTML = '';
+            if (ofertaEl) ofertaEl.style.display = 'none';
             if (errorEl) errorEl.style.display = 'block';
         }
         finally {
