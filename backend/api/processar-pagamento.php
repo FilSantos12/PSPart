@@ -12,6 +12,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../config/mercadopago.php';
 require_once __DIR__ . '/../helpers/email.php';
 require_once __DIR__ . '/../helpers/status.php';
+require_once __DIR__ . '/../helpers/estoque.php';
 
 use MercadoPago\MercadoPagoConfig;
 use MercadoPago\Client\Payment\PaymentClient;
@@ -97,6 +98,8 @@ try {
     // Atualiza status do pedido para qualquer resultado (aprovado, recusado, em_analise, etc.)
     $pdo->prepare("UPDATE pedidos SET status = :status, mp_preferencia_id = :mp_id WHERE id = :id")
         ->execute([':status' => $novoStatus, ':mp_id' => $payment->id, ':id' => $pedidoId]);
+
+    if ($novoStatus === 'cancelado') devolverEstoquePedido($pdo, $pedidoId, (string) $pedido['status']);
 
     if ($payment->status === 'approved') {
         // Auto-cria registro de rastreamento em "Em Preparação" (ignora se já existir)

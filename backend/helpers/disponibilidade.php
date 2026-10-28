@@ -117,13 +117,22 @@ function disponibilidade_validar_item(string $nome, int $quantidade, array $disp
     }
 
     if (!$disp['permite_excedente'] && $quantidade > $disp['estoque_disponivel']) {
-        // Sem quantidade de estoque: a mensagem chega ao cliente (HTTP 422 do checkout)
-        return "A quantidade pedida de \"{$nome}\" está acima do disponível em pronta entrega. "
-             . "Reduza a quantidade ou fale com o comercial: "
-             . DISPONIBILIDADE_CONTATO_EMAIL . ' · ' . DISPONIBILIDADE_CONTATO_TELEFONE . '.';
+        return disponibilidade_msg_excedente($nome);
     }
 
     return null;
+}
+
+/**
+ * Mensagem de excedente não permitido. Também usada pela baixa condicional do checkout
+ * (Patch K) quando outro pedido leva o estoque entre a validação e a transação.
+ * Sem quantidade de estoque: a mensagem chega ao cliente (HTTP 422 do checkout).
+ */
+function disponibilidade_msg_excedente(string $nome): string
+{
+    return "A quantidade pedida de \"{$nome}\" está acima do disponível em pronta entrega. "
+         . "Reduza a quantidade ou fale com o comercial: "
+         . DISPONIBILIDADE_CONTATO_EMAIL . ' · ' . DISPONIBILIDADE_CONTATO_TELEFONE . '.';
 }
 
 /**

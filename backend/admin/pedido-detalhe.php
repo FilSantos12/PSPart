@@ -4,6 +4,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/_layout.php';
 require_once __DIR__ . '/../helpers/email.php';
 require_once __DIR__ . '/../helpers/status.php';
+require_once __DIR__ . '/../helpers/estoque.php';
 require_once __DIR__ . '/../config/loja.php';
 
 $pdo = getDB();
@@ -60,6 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['status'])) {
     if (in_array($novoStatus, $statusValidos)) {
         $pdo->prepare("UPDATE pedidos SET status = :status WHERE id = :id")
             ->execute([':status' => $novoStatus, ':id' => $id]);
+
+        if ($novoStatus === 'cancelado') devolverEstoquePedido($pdo, $id, (string) $pedido['status']);
 
         $pedido['status'] = $novoStatus;
         $mensagemSucesso  = 'Status atualizado com sucesso.';

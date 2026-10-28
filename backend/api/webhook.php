@@ -9,6 +9,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../config/mercadopago.php';
 require_once __DIR__ . '/../helpers/email.php';
 require_once __DIR__ . '/../helpers/status.php';
+require_once __DIR__ . '/../helpers/estoque.php';
 
 use MercadoPago\MercadoPagoConfig;
 use MercadoPago\Client\Payment\PaymentClient;
@@ -75,6 +76,8 @@ try {
 
     $pdo->prepare("UPDATE pedidos SET status = :status WHERE id = :id")
         ->execute([':status' => $novoStatus, ':id' => $pedidoId]);
+
+    if ($novoStatus === 'cancelado') devolverEstoquePedido($pdo, $pedidoId, (string) $statusAnterior);
 
     // Envia e-mail de pagamento aprovado apenas na primeira transição
     if ($novoStatus === 'aprovado' && $statusAnterior !== 'aprovado') {

@@ -163,7 +163,11 @@ function criarPedidoCarrinho(
     $stmtDisp = $pdo->prepare("SELECT estoque, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias FROM produtos WHERE id = :id");
     foreach ($carrinhoResolvido as $item) {
         $stmtDisp->execute([':id' => $item['produto']['id']]);
-        $erroDisp = disponibilidade_validar_item($item['produto']['nome'], (int) $item['quantidade'], disponibilidade_produto($stmtDisp->fetch() ?: []));
+        $linhaDisp = $stmtDisp->fetch() ?: [];
+        // Cursor aberto segura um lock de leitura no SQLite: sob concorrência, a transação abaixo
+        // entraria em deadlock ("database is locked" → 500) em vez de esperar a vez (Patch K).
+        $stmtDisp->closeCursor();
+        $erroDisp = disponibilidade_validar_item($item['produto']['nome'], (int) $item['quantidade'], disponibilidade_produto($linhaDisp));
         if ($erroDisp !== null) {
             throw new FreteIndisponivelException($erroDisp);
         }
@@ -200,22 +204,33 @@ function criarPedidoCarrinho(
                 INSERT INTO itens_pedido (pedido_id, produto_id, quantidade, preco_unitario, qtd_sob_encomenda)
                 VALUES (:pedido_id, :produto_id, :quantidade, :preco_unitario, :qtd_sob_encomenda)
             ");
-            // Estoque relido DENTRO da transação (o de $item['produto'] é anterior a ela); piso em 0 —
-            // o que exceder o estoque fica registrado no item como sob encomenda.
-            $stmtLeEstoque = $pdo->prepare("SELECT estoque FROM produtos WHERE id = :id");
-            $stmtEstoque   = $pdo->prepare("UPDATE produtos SET estoque = MAX(0, estoque - :qty) WHERE id = :id");
+            // Estoque relido DENTRO da transação (o de $item['produto'] é anterior a ela).
+            // Sem excedente permitido: baixa condicional (Patch K) — se outro pedido levou o
+            // estoque depois da validação prévia, nada é gravado e o checkout recebe 422.
+            // Com excedente permitido: piso em 0 — o que exceder fica como sob encomenda.
+            $stmtLeEstoque   = $pdo->prepare("SELECT estoque, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias FROM produtos WHERE id = :id");
+            $stmtEstoque     = $pdo->prepare("UPDATE produtos SET estoque = MAX(0, estoque - :qty) WHERE id = :id");
+            $stmtEstoqueCond = $pdo->prepare("UPDATE produtos SET estoque = estoque - :qty WHERE id = :id AND estoque >= :qty");
 
             $itensEmail = [];
             foreach ($carrinhoResolvido as $item) {
                 $produto = $item['produto'];
                 $stmtLeEstoque->execute([':id' => $produto['id']]);
-                $estoqueAtual = max(0, (int) $stmtLeEstoque->fetchColumn());
+                $linhaEstoque = $stmtLeEstoque->fetch() ?: [];
+                $estoqueAtual = max(0, (int) ($linhaEstoque['estoque'] ?? 0));
                 $stmtItem->execute([
                     ':pedido_id' => $pedidoId, ':produto_id' => $produto['id'],
                     ':quantidade' => $item['quantidade'], ':preco_unitario' => $produto['preco'],
                     ':qtd_sob_encomenda' => max(0, $item['quantidade'] - $estoqueAtual),
                 ]);
-                $stmtEstoque->execute([':qty' => $item['quantidade'], ':id' => $produto['id']]);
+                if (disponibilidade_produto($linhaEstoque)['permite_excedente']) {
+                    $stmtEstoque->execute([':qty' => $item['quantidade'], ':id' => $produto['id']]);
+                } else {
+                    $stmtEstoqueCond->execute([':qty' => $item['quantidade'], ':id' => $produto['id']]);
+                    if ($stmtEstoqueCond->rowCount() === 0) {
+                        throw new FreteIndisponivelException(disponibilidade_msg_excedente($produto['nome']));
+                    }
+                }
                 $itensEmail[] = [
                     'produto_nome'   => $produto['nome'],
                     'quantidade'     => $item['quantidade'],

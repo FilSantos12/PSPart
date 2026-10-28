@@ -59,6 +59,7 @@ try {
     $stmt = $pdo->prepare("SELECT id, nome, preco, estoque, ativo, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias FROM produtos WHERE id = :id");
     $stmt->execute([':id' => $produtoId]);
     $produto = $stmt->fetch();
+    $stmt->closeCursor(); // cursor aberto segura lock de leitura do SQLite — deadlock sob concorrência (Patch K)
 
     if (!$produto) {
         json_erro('Produto não encontrado.', 404);
@@ -178,9 +179,10 @@ try {
         VALUES (:pedido_id, :produto_id, :quantidade, :preco_unitario, :qtd_sob_encomenda)
     ");
     // Estoque relido dentro da transação; excedente vira qtd_sob_encomenda
-    $stmtLeEstoque = $pdo->prepare("SELECT estoque FROM produtos WHERE id = :id");
+    $stmtLeEstoque = $pdo->prepare("SELECT estoque, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias FROM produtos WHERE id = :id");
     $stmtLeEstoque->execute([':id' => $produtoId]);
-    $estoqueAtual = max(0, (int) $stmtLeEstoque->fetchColumn());
+    $linhaEstoque = $stmtLeEstoque->fetch() ?: [];
+    $estoqueAtual = max(0, (int) ($linhaEstoque['estoque'] ?? 0));
     $stmt->execute([
         ':pedido_id'         => $pedidoId,
         ':produto_id'        => $produtoId,
@@ -189,9 +191,20 @@ try {
         ':qtd_sob_encomenda' => max(0, $quantidade - $estoqueAtual),
     ]);
 
-    // Decrementa o estoque — piso em 0
-    $pdo->prepare("UPDATE produtos SET estoque = MAX(0, estoque - :qty) WHERE id = :id")
-        ->execute([':qty' => $quantidade, ':id' => $produtoId]);
+    // Decrementa o estoque. Sem excedente permitido: baixa condicional (Patch K) — se outro
+    // pedido levou o estoque depois da validação prévia, desfaz tudo e responde 422.
+    // Com excedente permitido: piso em 0.
+    if (disponibilidade_produto($linhaEstoque)['permite_excedente']) {
+        $pdo->prepare("UPDATE produtos SET estoque = MAX(0, estoque - :qty) WHERE id = :id")
+            ->execute([':qty' => $quantidade, ':id' => $produtoId]);
+    } else {
+        $stmtEstoqueCond = $pdo->prepare("UPDATE produtos SET estoque = estoque - :qty WHERE id = :id AND estoque >= :qty");
+        $stmtEstoqueCond->execute([':qty' => $quantidade, ':id' => $produtoId]);
+        if ($stmtEstoqueCond->rowCount() === 0) {
+            $pdo->rollBack();
+            json_erro(disponibilidade_msg_excedente($produto['nome']), 422);
+        }
+    }
 
     $pdo->commit();
 

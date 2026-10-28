@@ -50,4 +50,4 @@ $saida[] = "Produtos fora de 'automatico' + permite=0: " . (int) $stmt->fetchCol
 header('Content-Type: text/plain; charset=utf-8');
 echo "=== migrate_disponibilidade.php ===\n\n";
 foreach ($saida as $linha) echo "$linha\n";
-echo "\nMigração concluída. Apague este arquivo após verificar.\n";
+echo "\nMigração concluída. Mantenha este arquivo em migrations/ como histórico.\n";

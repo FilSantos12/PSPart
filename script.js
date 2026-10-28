@@ -574,6 +574,7 @@ class App {
         this._cartAvisosSeq = 0;         // descarta respostas atrasadas de carrinho-avisos.php
         this._cartAvisosTimer = null;    // debounce das chamadas a carrinho-avisos.php
         this._cartNoTeto = new Set();    // produto_ids cuja última tentativa passou de QTD_LIMITE_VOLUME
+        this._cartBloqueados = new Set(); // produto_ids que carrinho-avisos.php marcou como bloqueados (Patch K)
         this._cartLoad();
         this._cartRenderBadge();
 
@@ -695,14 +696,21 @@ class App {
     // Bloco do aviso de compra em volume de uma linha do drawer. Texto e CTAs montados das
     // constantes do topo do arquivo — o limite nunca aparece como número literal.
     _cartAvisoVolumeHtml(info) {
-        const peca    = info.codigo ? `${info.codigo} — ${info.nome}` : info.nome;
-        const assunto = encodeURIComponent(`Compra em volume: ${peca}`);
         return `
-                <div class="cart-volume-aviso" role="status" style="display:none;">
+                <div class="cart-volume-aviso cart-aviso-volume" role="status" style="display:none;">
                     <p class="cart-volume-aviso-texto">
                         <i class="fas fa-boxes-stacked me-1"></i>Precisa de mais de ${QTD_LIMITE_VOLUME} unidades?
                         Fale com nosso time comercial para preço de volume e prazo de entrega.
                     </p>
+                    ${this._cartContatoCtasHtml(info, 'Compra em volume')}
+                </div>`;
+    }
+
+    // CTAs de contato comercial (Patch H) — compartilhados pelo aviso de volume e pelo de bloqueio.
+    _cartContatoCtasHtml(info, motivo) {
+        const peca    = info.codigo ? `${info.codigo} — ${info.nome}` : info.nome;
+        const assunto = encodeURIComponent(`${motivo}: ${peca}`);
+        return `
                     <div class="cart-volume-aviso-ctas">
                         <a href="mailto:${EMPRESA_EMAIL_VENDAS}?subject=${assunto}" class="btn btn-sm btn-outline-primary">
                             <i class="fas fa-envelope me-1"></i>Falar com vendas
@@ -710,7 +718,20 @@ class App {
                         <a href="tel:${EMPRESA_TELEFONE_E164}" class="btn btn-sm btn-outline-primary">
                             <i class="fas fa-phone me-1"></i>${EMPRESA_TELEFONE}
                         </a>
-                    </div>
+                    </div>`;
+    }
+
+    // Faixa de bloqueio (Patch K) — item esgotado/indisponível ou acima da pronta entrega sem
+    // excedente permitido. Mesma estrutura .cart-volume-aviso; nasce vazia e oculta. O texto vem
+    // pronto do servidor (carrinho-avisos.php → disponibilidade_validar_item(), a mesma regra do
+    // checkout). Enquanto houver linha bloqueada, "Finalizar compra" fica desabilitado.
+    _cartAvisoBloqueioHtml(info) {
+        return `
+                <div class="cart-volume-aviso cart-aviso-bloqueio" role="alert" style="display:none;">
+                    <p class="cart-volume-aviso-texto">
+                        <i class="fas fa-ban me-1"></i><span class="cart-aviso-bloqueio-texto"></span>
+                    </p>
+                    ${this._cartContatoCtasHtml(info, 'Disponibilidade')}
                 </div>`;
     }
 
@@ -735,9 +756,10 @@ class App {
         this._cartAvisosTimer = setTimeout(() => this._cartCarregarAvisosParciais(list), 300);
     }
 
-    // Busca os avisos de estoque parcial do carrinho atual e preenche as linhas já renderizadas.
-    // Resposta atrasada de um render anterior é descartada (_cartAvisosSeq); falha de rede só
-    // deixa os avisos ocultos — o servidor revalida tudo no checkout de qualquer forma.
+    // Busca os avisos de estoque parcial e os bloqueios do carrinho atual e preenche as linhas já
+    // renderizadas. Resposta atrasada de um render anterior é descartada (_cartAvisosSeq); falha
+    // de rede só deixa os avisos ocultos e mantém os bloqueios já conhecidos — o servidor
+    // revalida tudo no checkout de qualquer forma.
     async _cartCarregarAvisosParciais(list) {
         const minha = ++this._cartAvisosSeq;
         const cart  = this._cart.map(i => ({ produto_id: i.produto_id, quantidade: i.quantidade }));
@@ -749,15 +771,24 @@ class App {
                 body: JSON.stringify({ cart }),
             });
             if (!resp.ok || minha !== this._cartAvisosSeq) return;
-            const { avisos = {} } = await resp.json();
+            const { avisos = {}, bloqueios = {} } = await resp.json();
             if (minha !== this._cartAvisosSeq) return;
+            this._cartBloqueados = new Set(Object.keys(bloqueios).map(Number));
             list.querySelectorAll('.cart-item[data-id]').forEach(row => {
                 const aviso = row.querySelector('.cart-aviso-parcial');
                 const texto = avisos[row.dataset.id];
-                if (!aviso) return;
-                aviso.querySelector('.cart-aviso-parcial-texto').textContent = texto || '';
-                aviso.style.display = texto ? 'block' : 'none';
+                if (aviso) {
+                    aviso.querySelector('.cart-aviso-parcial-texto').textContent = texto || '';
+                    aviso.style.display = texto ? 'block' : 'none';
+                }
+                const bloqueio = row.querySelector('.cart-aviso-bloqueio');
+                const motivo   = bloqueios[row.dataset.id];
+                if (bloqueio) {
+                    bloqueio.querySelector('.cart-aviso-bloqueio-texto').textContent = motivo || '';
+                    bloqueio.style.display = motivo ? 'block' : 'none';
+                }
             });
+            this._cartUpdateFinalizarState();
         } catch (_) { /* avisos ficam ocultos */ }
     }
 
@@ -842,6 +873,7 @@ class App {
                 </div>
                 ${this._cartAvisoVolumeHtml(info)}
                 ${this._cartAvisoParcialHtml()}
+                ${this._cartAvisoBloqueioHtml(info)}
             </div>`;
         }).join('');
 
@@ -849,7 +881,7 @@ class App {
         // do teto e continua nele (some sozinho ao reduzir — _cartSetQty tira do _cartNoTeto).
         this._cart.forEach(item => {
             if (!this._cartNoTeto.has(item.produto_id) || item.quantidade < QTD_LIMITE_VOLUME) return;
-            const aviso = list.querySelector(`.cart-item[data-id="${item.produto_id}"] .cart-volume-aviso:not(.cart-aviso-parcial)`);
+            const aviso = list.querySelector(`.cart-item[data-id="${item.produto_id}"] .cart-aviso-volume`);
             if (aviso) aviso.style.display = 'block';
         });
 
@@ -887,7 +919,7 @@ class App {
     // Botão só é clicável com CEP+frete selecionados (_cartUpdateFinalizarState). Abre o modal
     // de checkout do carrinho (B2b) — coleta comprador/endereço; CEP e frete já vêm do drawer.
     _cartFinalizar() {
-        if (this._cart.length === 0 || !this._cartFrete?.selecionado) return;
+        if (this._cart.length === 0 || !this._cartFrete?.selecionado || this._cartTemBloqueio()) return;
         this._cartCloseDrawer();
         this._cartOpenCheckoutModal();
     }
@@ -1082,10 +1114,16 @@ class App {
     }
 
     // Gate do B2a: "Finalizar compra" só fica clicável com CEP válido + opção de frete selecionada.
+    // Patch K: e sem nenhum item bloqueado no carrinho atual (_cartTemBloqueio).
     _cartUpdateFinalizarState() {
         const btn = document.getElementById('cartFinalizar');
         if (!btn) return;
-        btn.disabled = this._cart.length === 0 || !this._cartFrete?.selecionado;
+        btn.disabled = this._cart.length === 0 || !this._cartFrete?.selecionado || this._cartTemBloqueio();
+    }
+
+    // Só conta bloqueio de item que ainda está no carrinho (um item removido não trava o avanço).
+    _cartTemBloqueio() {
+        return this._cart.some(i => this._cartBloqueados.has(i.produto_id));
     }
 
     // ── CHECKOUT DO CARRINHO (B2b + Fase 2c) ─────────────────────────────────
