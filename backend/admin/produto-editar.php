@@ -3,6 +3,7 @@ require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/_layout.php';
 require_once __DIR__ . '/../helpers/disponibilidade.php';
+require_once __DIR__ . '/../helpers/admin-produtos-log.php';
 
 $pdo = getDB();
 $id  = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
@@ -120,7 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 permite_venda_sem_estoque = :permite_venda_sem_estoque,
                 prazo_encomenda_dias  = :prazo_encomenda_dias,
                 qtd_consulta          = :qtd_consulta,
-                preco_export_usd      = :preco_export_usd
+                preco_export_usd      = :preco_export_usd,
+                atualizado_em         = :atualizado_em
             WHERE id = :id
         ")->execute([
             ':nome'                  => $dados['nome'],
@@ -141,8 +143,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':prazo_encomenda_dias'      => $dados['prazo_encomenda_dias'],
             ':qtd_consulta'              => $dados['qtd_consulta'],
             ':preco_export_usd'          => $dados['preco_export_usd'],
+            ':atualizado_em'             => date('Y-m-d H:i:s'),
             ':id'                    => $id,
         ]);
+        // Mudança de "Produto ativo" pelo formulário fica explícita no rastro (Patch P)
+        $ativoAntes = (int) $produto['ativo'];
+        logAdminProduto($id, 'editar', $dados['nome'],
+            $ativoAntes !== (int) $dados['ativo'] ? ($dados['ativo'] ? 'ativo: 0 → 1 (reativado pelo formulário)' : 'ativo: 1 → 0 (inativado pelo formulário)') : '');
         header('Location: produto-editar.php?id=' . $id . '&msg=Produto+atualizado+com+sucesso.');
         exit;
     }
@@ -293,6 +300,7 @@ layout_head('Editar Produto', $easymde_css);
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="ativo" id="ativo" <?= $dados['ativo'] ? 'checked' : '' ?>>
                         <label class="form-check-label" for="ativo">Produto ativo (visível no site)</label>
+                        <div class="form-text">Desmarcado, o produto deixa de aparecer na loja. Ele continua aqui no admin e pode ser reativado depois.</div>
                     </div>
                 </div>
 

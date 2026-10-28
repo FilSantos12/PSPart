@@ -71,7 +71,7 @@ PSP-Website/
     │   ├── produtos.php        # Listagem de produtos
     │   ├── produto-novo.php    # Criação de produto (2 fases)
     │   ├── produto-editar.php  # Edição de produto
-    │   ├── produto-excluir.php # Exclusão de produto
+    │   ├── produto-estado.php  # Inativar / reativar / excluir produto
     │   ├── ajax-imagens.php    # AJAX — upload, reorder, set-principal, delete
     │   ├── pedidos.php         # Listagem de pedidos
     │   ├── categorias.php      # CRUD de categorias
