@@ -482,8 +482,8 @@ body.dark-mode .product-card-thumb .stock-badge {
     color: var(--muted);
 }
 
-/* Preço de exportação (Patch J) — texto do helper ("US$ 45,90 · EXW Cerquilho" / "Sob consulta ·
-   EXW Cerquilho"), mais longo que o preço em reais: fonte menor e quebra permitida no card */
+/* Preço de exportação (Patch J) — texto do helper ("US$ 45,90 · EXW Boituva" / "Sob consulta ·
+   EXW Boituva"), mais longo que o preço em reais: fonte menor e quebra permitida no card */
 .product-price.product-price--export {
     font-size: 0.8rem;
     font-weight: 700;

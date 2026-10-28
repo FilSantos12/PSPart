@@ -28,7 +28,7 @@ const MODOS_VENDA = [
 // Condição de entrega do preço de exportação (Patch J) — constante do SISTEMA, não campo por
 // produto. Os preços em preco_export_usd são cadastrados nesta condição: trocar o Incoterm exige
 // revisar todos eles. Espelha INCOTERM_PADRAO do script.js (o PHP não enxerga as do JS).
-const INCOTERM_PADRAO = 'EXW Cerquilho';
+const INCOTERM_PADRAO = 'EXW Boituva';
 
 // Contato comercial citado na mensagem de excedente — espelha a seção #contato do
 // index.html e as constantes EMPRESA_* do script.js (o PHP não enxerga as do JS).

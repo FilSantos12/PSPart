@@ -15,7 +15,7 @@ const QTD_MAX_SANIDADE = 99;
 // Condição de entrega do preço de exportação (Patch J) — espelha INCOTERM_PADRAO de
 // backend/helpers/disponibilidade.php. Aqui só entra no assunto do orçamento; os textos de preço
 // de exportação vêm prontos do helper (preco_export_label).
-const INCOTERM_PADRAO = 'EXW Cerquilho';
+const INCOTERM_PADRAO = 'EXW Boituva';
 
 // Contato comercial usado nos CTAs (bloqueio do drawer, faixa da grade) — espelha a seção #contato do index.html
 const EMPRESA_EMAIL_VENDAS  = 'vendas@pentasis.com.br';
