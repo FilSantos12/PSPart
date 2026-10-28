@@ -257,7 +257,7 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 > Migration inicial: `migrations/migrate-categorias.php` — já executada, arquivo mantido em `migrations/` para histórico.
 
 ### Tabela `pedidos`
-- id, nome/email/telefone_comprador, endereço completo, total, status, mp_preferencia_id, token_acompanhamento, criado_em
+- id, nome/email/telefone_comprador, endereço completo, total, status, mp_preferencia_id, token_acompanhamento, criado_em, **estoque_devolvido** (INTEGER NOT NULL DEFAULT 0, Patch K — `migrations/migrate_estoque_devolvido.php`, rodar antes de publicar o código)
 - Status válidos: `pendente`, `aprovado`, `em_analise`, `recusado`, `cancelado`, `reembolsado`, `contestado`, `em_processamento` — **`enviado` foi removido** (rastreamento físico é gerenciado exclusivamente em `tracking-admin.php`)
 
 ### Tabela `order_tracking`
@@ -296,7 +296,9 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 
 ### Tabela `itens_pedido`
 - id, pedido_id (CASCADE), produto_id (RESTRICT), quantidade, preco_unitario, criado_em, **qtd_sob_encomenda** (INTEGER NOT NULL DEFAULT 0, Patch I — `MAX(0, quantidade − estoque relido na transação)`)
-- Baixa de estoque acontece **na criação do pedido** (`pedido-carrinho.php` / `pedidos.php`), não na aprovação; `estoque = MAX(0, estoque − qtd)` — nunca fica negativo. Não há devolução automática de estoque em recusa/cancelamento
+- Baixa de estoque acontece **na criação do pedido** (`pedido-carrinho.php` / `pedidos.php`), não na aprovação, com o estoque relido dentro da transação. Produto **sem** excedente permitido (`permite_excedente = false`): `UPDATE … SET estoque = estoque − :qty WHERE id = :id AND estoque >= :qty`; `rowCount() = 0` (outro pedido levou o estoque depois da validação prévia) → rollback + HTTP 422 com `disponibilidade_msg_excedente()`. Produto **com** excedente: `MAX(0, estoque − qtd)`. Nunca fica negativo
+- O `SELECT` da validação prévia fecha o cursor (`closeCursor()`) antes da transação: cursor aberto segura lock de leitura no SQLite e, sob concorrência, a transação morria com "database is locked" (500) em vez de esperar
+- **Devolução (Patch K):** só na transição para `cancelado` — ver "Devolução de estoque"
 
 ### Tabela `usuarios`
 - id, nome, email (UNIQUE), senha_hash, ativo
@@ -449,6 +451,18 @@ const imgSrc = imgPrincipal ? imgPrincipal.caminho : (p.imagem || '');
 - Usada em `pedido-carrinho.php` (com SELECT próprio das colunas de disponibilidade, porque o SELECT de `frete_carrinho.php` não as traz) e em `pedidos.php` (dormente)
 - **`frete_carrinho.php` não olha disponibilidade:** um item esgotado consegue cotação de frete, mas é barrado no checkout
 - `sempre_sob_encomenda` com estoque > 0 consome o estoque primeiro (`qtd_sob_encomenda = MAX(0, qtd − estoque)`) — revisar se "sempre" deve significar 100% sob encomenda
+
+### Devolução de estoque — `backend/helpers/estoque.php` (Patch K)
+- `devolverEstoquePedido(PDO $pdo, int $pedidoId, string $statusAnterior): bool` — **único** caminho que devolve estoque
+- Chamada só quando o novo status é `cancelado`, logo após a gravação do status, em `webhook.php`, `processar-pagamento.php` e `admin/pedido-detalhe.php`
+- Não faz nada se o status anterior era `aprovado`/`em_processamento` (devolução de pedido pago é decisão humana) ou se `pedidos.estoque_devolvido` já é 1 (webhook duplicado/retry). A marcação é `UPDATE … WHERE estoque_devolvido = 0` com `rowCount()`, então chamadas concorrentes devolvem uma vez só
+- Devolve `quantidade − qtd_sob_encomenda` por item (o sob encomenda nunca esteve no estoque)
+- Nunca lança: falha vai para `logs/estoque.log` (todas as devoluções e recusas de devolução também são logadas)
+- Recusado/abandonado **não** devolvem; não há re-baixa se um cancelado voltar a aprovado (ver Pendências)
+
+### Bloqueio no drawer (Patch K)
+- `carrinho-avisos.php` devolve `{avisos, bloqueios}`; `bloqueios[id]` = texto de `disponibilidade_validar_item()` (mesma regra do checkout: esgotado, indisponível ou acima da pronta entrega sem excedente). Sem número de estoque; continua somente leitura. Produto inativo/inexistente segue fora do mapa (o drawer já mostra "Produto indisponível")
+- Drawer: faixa `.cart-volume-aviso.cart-aviso-bloqueio` (sem CSS novo) com o texto do servidor + CTAs de contato (`_cartContatoCtasHtml()`, compartilhado com o aviso de volume `.cart-aviso-volume`). `this._cartBloqueados` guarda os ids da última resposta; `_cartTemBloqueio()` (só conta itens ainda no carrinho) entra no gate de `_cartUpdateFinalizarState()` e em `_cartFinalizar()`. Mesmo debounce/descarte por seq dos avisos parciais
 
 ### Estoque numérico só no admin (Patch L)
 - O cliente nunca vê a quantidade em estoque, em nenhum canal. A única exceção é `ultimas_unidades` ("últimas X un.", urgência legítima, exposto também como `qtd_exibivel`)
@@ -712,6 +726,8 @@ Retorna adicionalmente: `chosen_carrier`, `chosen_service`, `shipping_price`, `s
 - **Botão "Alterar CEP" no checkout:** renderizado dentro de `_renderFreteCheckout()` na label do CEP; chama `_alterarCepCheckout()` que limpa o frete, desabilita botões e foca o campo CEP para re-digitação
 - **Deep link só dispara em `finally`:** `_openDeepLinkProduct()` e `_applyCurrentToolbarState()` rodam depois do `try/catch` de `renderProducts()`, nunca dentro — garante que o DOM já está no estado final antes de procurar `#productModal{id}` ou reaplicar filtros
 - **Sem fallback estático de catálogo (Patch I):** os 6 cards/modais hardcoded do `index.html` foram removidos porque divergiam do banco (ids 5/6 eram outras peças com outros preços — "Comprar" no fallback colocava no carrinho um produto diferente do exibido). Falha da API → `#products-error`, nada comprável
+- **SQLite: `closeCursor()` antes da transação (Patch K):** um `SELECT` de validação prévia com cursor aberto (`fetch()` de uma linha não finaliza o statement) segura lock de leitura; sob concorrência o SQLite detecta deadlock e devolve "database is locked", que vira HTTP 500 em vez do 422 esperado. Fechar o cursor faz a transação esperar a vez normalmente
+- **Permissão de venda sempre pelo helper (Patch K):** decisões de excedente usam `disponibilidade_produto()['permite_excedente']`, nunca a coluna crua `permite_venda_sem_estoque` — `sempre_sob_encomenda` tem a coluna em 0 e ainda assim aceita excedente
 - **Disponibilidade resolvida só no servidor:** a matriz existe em um lugar (`disponibilidade_produto()`); o preview do admin chama um endpoint em vez de replicar a matriz em JS
 - **Ordenação de produtos via `appendChild`, não re-render:** evita perder o estado de busca/categoria/estoque já aplicado; o critério de visibilidade e a ordem do DOM são independentes um do outro
 - **`#products-empty-msg` e `#products-error` fora de `#products-grid`:** ficam como irmãos do `.row`, não dentro dele — se estivessem dentro, o `grid.innerHTML = cardsHtml` do `renderProducts()` os apagaria a cada re-render. A mensagem de "nenhum produto" só aparece com cards no DOM, então não colide com o bloco de erro
@@ -722,10 +738,15 @@ Retorna adicionalmente: `chosen_carrier`, `chosen_service`, `shipping_price`, `s
 - **Teto de volume só no cliente:** `QTD_LIMITE_VOLUME = 10` vale no front; `frete_carrinho.php:37` ainda aceita até 99 por linha (arquivo de frete, não alterado nos Patches H/I)
 - **Layout 768px:** nos cards compráveis, o botão do carrinho encosta na borda do card (preço + "Detalhes" + carrinho não cabem na coluna `col-md-4`) — pré-existente, não corrigido
 - `updateActiveNavLink()` observação menor: o offset de 100px foi consolidado em `--header-h`, mas isso é sobre *qual* link fica marcado ativo no scroll — não afeta onde as âncoras param (isso é `scroll-padding-top`, mecanismo separado e já correto)
-- **Corrida no último item (Patch K):** a validação de disponibilidade em `pedido-carrinho.php` roda antes da transação. Duas compras simultâneas do último item com `permite_venda_sem_estoque = 0` passam as duas; o estoque para em 0, mas a segunda grava `qtd_sob_encomenda` indevido. Correção prevista: UPDATE condicional dentro da transação
-- **Item esgotado salvo no carrinho (Patch K):** não avisa no drawer, só é barrado no checkout (HTTP 422)
-- **`.badge-esgotado` sem uso (Patch K):** `style.css:970`, vindo de `bd54ea4` — remover
-- **Mensagem da migração (Patch K):** `migrate_disponibilidade.php` imprime "Apague este arquivo", contrariando a convenção de manter migrações no repositório — corrigir a mensagem
+- **Recusados e abandonados não devolvem estoque (→ Patch M):** só a transição para `cancelado` devolve (Patch K). Previsto: expiração por tempo (sem movimento há N horas)
+- **Webhook sem guarda de ordem (→ Patch M):** `webhook.php` grava o status sem checar o anterior — um `rejected` atrasado pode rebaixar um pedido aprovado. Status desconhecidos do MP caem em `pendente` (`mpStatusParaInterno()`), com o mesmo efeito
+- **Novo pagamento de pedido recusado (→ Patch M):** `processar-pagamento.php` só barra `aprovado`/`em_processamento` (guarda dos 409); um pedido `recusado` aceita nova cobrança
+- **Status manual livre no admin (→ Patch M):** `admin/pedido-detalhe.php` permite qualquer transição, sem confirmação, inclusive `cancelado` → `aprovado`. Nesse caso o estoque já devolvido **não** é baixado de novo — ajuste manual necessário
+- **Status `enviado` legado:** aparece no filtro de `admin/pedidos.php:48` e em um pedido do banco, mas não consta da lista válida (`pedido-detalhe.php:37`)
+- **"Apague este arquivo"** ainda em `migrate_numero_pedido.php:59` e `migrate_shipping_choice.php:51` (higiene, baixa prioridade)
+- **Pedidos de teste no banco local:** 49 pedidos não pagos (12 pendentes, 5 recusados, 32 cancelados), 56 unidades de estoque presas — não tratados no Patch K. Os anteriores ao Patch I têm `qtd_sob_encomenda = 0` por default (não medido), então `quantidade − qtd_sob_encomenda` pode superestimar o que saiu do estoque
+- **`qtd_sob_encomenda` maior que o informado (→ Patch M, pendente de decisão):** se outro pedido consome estoque entre a exibição do drawer e o fechamento, `qtd_sob_encomenda` é gravado com o estoque relido na transação e fica maior do que o cliente viu — o cliente espera menos sob encomenda do que receberá. Nenhum canal avisa: a resposta de `pedido-carrinho.php`, o e-mail de pedido criado e `acompanhar.html` não expõem `qtd_sob_encomenda`; se o drawer não mostrava aviso parcial, o cliente nem sabe que há parte sob encomenda. O admin (`pedido-detalhe.php`, ficha de separação) também não exibe a coluna
+- **`pedidos.php` (dormente):** o `SELECT` de `cache_cotacoes` deixa o cursor aberto quando há hit — mesmo tipo de lock de leitura corrigido no Patch K; inofensivo enquanto o arquivo estiver dormente
 - **Checkout do carrinho sem teste HTTP ponta a ponta:** `pedido-carrinho.php` não foi testado via HTTP no Patch I — o token do Melhor Envio estava vencido e o fluxo para no frete. A função `criarPedidoCarrinho()` foi validada em harness CLI. Refazer o teste HTTP (após reconectar o Melhor Envio) antes do deploy em produção
 - **`carrinho-avisos.php` é sondável (Patch L):** variando a quantidade e observando quando o aviso de estoque parcial aparece, é possível inferir o estoque de um produto, uma requisição por tentativa. Limitação conhecida e aceita; mitigação (rate limit ou faixas em vez de limiar exato) não priorizada
 - **Agente sem teste real com o modelo (Patch L):** `AGENTE_MODO_MOCK = false` em `loja.php`, mas `buscar_produtos` foi validada só por chamada direta à ferramenta, sem chamada real ao modelo
@@ -734,6 +755,7 @@ Retorna adicionalmente: `chosen_carrier`, `chosen_service`, `shipping_price`, `s
 ## Placeholders pendentes (necessários antes do deploy)
 - `SEU_NUMERO` — WhatsApp: `WHATSAPP_NUMBER` em `script.js` (compartilhamento de produto) + botão flutuante **comentado** no `index.html`. O item de WhatsApp da seção Contato foi removido (Patch H) — reinserir quando houver número real; a linha fixa (15) 3263-9494 **não** é WhatsApp
 - Rodar `migrations/migrate_disponibilidade.php` no banco de produção antes do deploy do Patch I
+- Rodar `migrations/migrate_estoque_devolvido.php` no banco de produção antes do deploy do Patch K
 - Ícones PWA reais (192×192 e 512×512 PNG) para `manifest.json`
 - Texto da seção "Sobre Nós" com história real da empresa
 - Preços reais dos produtos (definidos via admin)
