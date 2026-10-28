@@ -237,6 +237,7 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 | modo_venda | TEXT NOT NULL | `'automatico'` (padrão) \| `'sempre_sob_encomenda'` \| `'indisponivel'` — validado contra `MODOS_VENDA` no servidor |
 | prazo_encomenda_dias | INTEGER | dias úteis, NULL = "consulte prazo" (nunca inventar prazo) |
 | permite_venda_sem_estoque | INTEGER NOT NULL | 0/1, padrão 0 — só tem efeito em `automatico` |
+| atualizado_em | TEXT | última alteração **pelo admin** (editar, inativar, reativar), `date('Y-m-d H:i:s')`; NULL = nunca alterado desde o Patch P. Baixa/devolução de estoque por pedido não mexe nela (`migrations/migrate_produto_atualizado_em.php`) |
 
 > `estoque` é `INTEGER NOT NULL DEFAULT 0` (não admite NULL; o helper trata NULL como 0 por segurança). Colunas de disponibilidade via `migrations/migrate_disponibilidade.php` (Patch I) — **rodar antes de publicar o código**, senão `produtos.php` falha e a loja cai no bloco de erro.
 
@@ -313,7 +314,8 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 ### Arquivos admin relevantes
 | Arquivo | Função |
 |---|---|
-| `backend/admin/produtos.php` | Listagem — usa subquery para pegar imagem principal de `produto_imagens` com fallback para `imagem` legado; cache busting via `?v=filemtime()`; coluna "Disponibilidade" com o badge do helper + número do estoque |
+| `backend/admin/produtos.php` | Listagem — usa subquery para pegar imagem principal de `produto_imagens` com fallback para `imagem` legado; cache busting via `?v=filemtime()`; coluna "Disponibilidade" com o badge do helper + número do estoque; filtro Todos/Ativos/Inativos, badge de estado e ações Inativar/Reativar + Excluir definitivamente (ver "Inativar × excluir") |
+| `backend/admin/produto-estado.php` | `POST {id, acao}` — `inativar` \| `reativar` \| `excluir` (substituiu `produto-excluir.php`, Patch P) |
 | `backend/admin/_disponibilidade-campos.php` | Partial do bloco "Disponibilidade" (select Modo de venda, checkbox "Permitir venda sem estoque" só em `automatico`, prazo em dias úteis quando aplicável, preview ao vivo) — incluído por `produto-novo.php` e `produto-editar.php` |
 | `backend/admin/ajax-disponibilidade.php` | `POST` JSON `{estoque, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias}` → roda o helper e devolve `label_admin`/`badge_class`; protegido por `_auth.php` (sem sessão → 302). Preview usa debounce de 300ms e mostra "—" em falha |
 | `backend/admin/produto-novo.php` | Criação em duas fases na mesma página — fase 1: formulário; fase 2 (após salvar): seção de imagens múltiplas com AJAX + SortableJS |
@@ -321,6 +323,16 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 | `backend/admin/ajax-imagens.php` | AJAX para imagens: `upload`, `set-principal`, `reorder`, `delete` |
 | `backend/admin/categorias.php` | CRUD de categorias — listar com contagem de produtos, criar (auto-slug), excluir (bloqueado se há produtos vinculados) |
 | `backend/admin/_layout.php` | Layout base — aceita `$extra_head` como segundo parâmetro para injetar CSS no `<head>`. Admin usa só Bootstrap + `<style>` próprio; **nunca carregar `style.css` no admin** — só `../../assets/css/disponibilidade.css` (via `$extra_head`) nas páginas que mostram o badge |
+
+### Inativar × excluir (Patch P)
+- **São ações distintas e explícitas.** `produto-estado.php` recebe `acao` e valida contra `ACOES_ESTADO_PRODUTO` no servidor; ação desconhecida ou ausente é rejeitada sem alterar nada. Inativar/reativar é `UPDATE ativo` + `atualizado_em`; repetir o estado atual é recusado
+- **Produto com pedidos vinculados NUNCA é excluído, só inativado.** `COUNT(DISTINCT pedido_id)` em consulta preparada dá a mensagem de recusa; a garantia no banco é a FK `itens_pedido.produto_id ON DELETE RESTRICT` (`PRAGMA foreign_keys = ON` em `getDB()`). Excluir recusado **nunca** vira inativação silenciosa. Pedidos de teste também bloqueiam
+- **Toda ação destrutiva tem confirmação, e a confirmação descreve o efeito real.** Um modal só (`#modalExcluir`), com título/texto/botão trocados por ação: inativar (aviso, "deixa de aparecer na loja e pode ser reativado depois"), reativar (simples), excluir (perigo, nome + código + "Esta ação é irreversível."). O "Excluir definitivamente" fica **desabilitado, não escondido**, com o motivo "N pedidos vinculados — só pode ser inativado"
+- **Recusa nunca aparece como sucesso:** `?msg=` vem com `tipo=erro` → `alert-danger`; sucesso → `alert-success`
+- **Listagem:** filtro Todos (padrão — um inativo nunca some da vista) / Ativos / Inativos; badge de estado com os tokens de `disponibilidade.css` (`stock-badge--ok` Ativo, `--req` Inativo)
+- **Formulário de edição:** o checkbox "Produto ativo" continua, com texto explicando o efeito; grava `atualizado_em`
+- **Rastro:** `logs/admin-produtos.log` (`helpers/admin-produtos-log.php`, mesmo padrão de `_logEstoque()`): `data | admin_id=N | produto_id=N | ação | nome [| detalhe]`, ações `editar | inativar | reativar | excluir`. Quando o "Produto ativo" muda pelo formulário, a linha `editar` leva o detalhe `ativo: 1 → 0 (inativado pelo formulário)` — senão a inativação por esse caminho ficaria indistinguível de uma edição comum
+- **Incidente de 28/10/2026 (motivo do patch):** 7 produtos (ids 5, 6, 9, 10, 11, 12, 13) foram inativados pelo antigo botão "Excluir" da listagem. O modal de confirmação dizia "Excluir {nome}?"; o servidor, ao ver pedidos vinculados, **inativava** em silêncio e reportava em alerta verde de sucesso. Não havia data de alteração nem log; a origem foi confirmada depois com o responsável. Os 7 continuam inativos (decisão do dono, não do patch)
 
 ### Fluxo de produto-novo.php
 Página em duas fases sem redirect entre elas:
@@ -350,7 +362,7 @@ Página em duas fases sem redirect entre elas:
 - Ao deletar a principal, a próxima na ordem assume automaticamente
 - Validação MIME real (`finfo`) + limite 5 MB por imagem
 - Imagens armazenadas em `img/prod_{produto_id}_{uniqid}.{ext}`
-- **Importante**: ao deletar um produto via `produto-excluir.php`, os registros em `produto_imagens` são removidos por CASCADE, mas os arquivos físicos em `img/` ficam órfãos (não são deletados automaticamente)
+- **Importante**: ao excluir definitivamente um produto via `produto-estado.php`, os registros em `produto_imagens` são removidos por CASCADE, mas os arquivos físicos em `img/` ficam órfãos (não são deletados automaticamente)
 
 ### Especificação Técnica
 - Campo Markdown editado com **EasyMDE** (CDN) no admin
@@ -770,6 +782,7 @@ Retorna adicionalmente: `chosen_carrier`, `chosen_service`, `shipping_price`, `s
 - **Recusados e abandonados não devolvem estoque (→ Patch M):** só a transição para `cancelado` devolve (Patch K). Previsto: expiração por tempo (sem movimento há N horas)
 - **Webhook sem guarda de ordem (→ Patch M):** `webhook.php` grava o status sem checar o anterior — um `rejected` atrasado pode rebaixar um pedido aprovado. Status desconhecidos do MP caem em `pendente` (`mpStatusParaInterno()`), com o mesmo efeito
 - **Novo pagamento de pedido recusado (→ Patch M):** `processar-pagamento.php` só barra `aprovado`/`em_processamento` (guarda dos 409); um pedido `recusado` aceita nova cobrança
+- **Admin sem token CSRF:** nenhum formulário do admin tem token. Um POST forjado por outro site, com o admin logado, pode inativar ou excluir produto (`produto-estado.php`), entre outras ações. Patch próprio
 - **Status manual livre no admin (→ Patch M):** `admin/pedido-detalhe.php` permite qualquer transição, sem confirmação, inclusive `cancelado` → `aprovado`. Nesse caso o estoque já devolvido **não** é baixado de novo — ajuste manual necessário
 - **Status `enviado` legado:** aparece no filtro de `admin/pedidos.php:48` e em um pedido do banco, mas não consta da lista válida (`pedido-detalhe.php:37`)
 - **"Apague este arquivo"** ainda em `migrate_numero_pedido.php:59` e `migrate_shipping_choice.php:51` (higiene, baixa prioridade)
@@ -791,6 +804,7 @@ Retorna adicionalmente: `chosen_carrier`, `chosen_service`, `shipping_price`, `s
 - Rodar `migrations/migrate_estoque_devolvido.php` no banco de produção antes do deploy do Patch K
 - Rodar `migrations/migrate_qtd_consulta.php` no banco de produção antes do deploy do Patch N (sem a coluna, `produtos.php` falha e a loja cai no bloco de erro)
 - Rodar `migrations/migrate_preco_export.php` no banco de produção antes do deploy do Patch J (mesmo motivo)
+- Rodar `migrations/migrate_produto_atualizado_em.php` no banco de produção antes do deploy do Patch P (sem a coluna, salvar produto e inativar/reativar falham)
 - Ícones PWA reais (192×192 e 512×512 PNG) para `manifest.json`
 - Texto da seção "Sobre Nós" com história real da empresa
 - Preços reais dos produtos (definidos via admin)
