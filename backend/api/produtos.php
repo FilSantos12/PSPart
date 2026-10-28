@@ -13,7 +13,7 @@ try {
     $pdo  = getDB();
     $stmt = $pdo->query("
         SELECT id, nome, descricao, preco, categoria, imagem, estoque, codigo_interno, datasheet, especificacao_tecnica,
-               modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias, qtd_consulta
+               modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias, qtd_consulta, preco_export_usd
         FROM produtos
         WHERE ativo = 1
         ORDER BY id ASC
@@ -47,7 +47,7 @@ try {
         // Estoque numérico nunca vai ao cliente (Patch L) — só o status/rótulo; o único número
         // exposto é disponibilidade.qtd_exibivel (ultimas_unidades)
         unset($p['estoque'], $p['disponibilidade']['estoque_disponivel'], $p['disponibilidade']['label_admin'],
-              $p['modo_venda'], $p['permite_venda_sem_estoque'], $p['prazo_encomenda_dias'], $p['qtd_consulta']);
+              $p['modo_venda'], $p['permite_venda_sem_estoque'], $p['prazo_encomenda_dias'], $p['qtd_consulta'], $p['preco_export_usd']);
     }
 
     json_ok($produtos);

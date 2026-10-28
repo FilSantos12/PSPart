@@ -6,7 +6,7 @@ require_once __DIR__ . '/../helpers/disponibilidade.php';
 
 $erros        = [];
 $produtoCriado = null;
-$dados = ['nome' => '', 'descricao' => '', 'preco' => '', 'categoria' => '', 'estoque' => '', 'ativo' => 1, 'codigo_interno' => '', 'especificacao_tecnica' => '', 'peso' => '0.5', 'largura' => '15', 'altura' => '10', 'comprimento' => '20', 'modo_venda' => 'automatico', 'permite_venda_sem_estoque' => 0, 'prazo_encomenda_dias' => null, 'qtd_consulta' => null];
+$dados = ['nome' => '', 'descricao' => '', 'preco' => '', 'categoria' => '', 'estoque' => '', 'ativo' => 1, 'codigo_interno' => '', 'especificacao_tecnica' => '', 'peso' => '0.5', 'largura' => '15', 'altura' => '10', 'comprimento' => '20', 'modo_venda' => 'automatico', 'permite_venda_sem_estoque' => 0, 'prazo_encomenda_dias' => null, 'qtd_consulta' => null, 'preco_export_usd' => null];
 
 $pdo = getDB();
 $categoriasDb = $pdo->query("SELECT slug, nome FROM categorias ORDER BY ordem ASC, nome ASC")->fetchAll();
@@ -36,6 +36,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Disponibilidade — modo_venda validado contra MODOS_VENDA no servidor
     $dados = disponibilidade_dados_post($_POST, $erros) + $dados;
+    // Preço de exportação (Patch J) — vazio grava NULL ("Sob consulta"); com erro, o formulário
+    // reexibe o que foi digitado
+    $dados['preco_export_usd'] = preco_export_dados_post($_POST, $erros) ?? (trim((string) ($_POST['preco_export_usd'] ?? '')) ?: null);
 
     if ($dados['codigo_interno'] !== '') {
         if (!preg_match('/^[A-Z]{2}\.\d{2}\.\d{5}$/', $dados['codigo_interno'])) {
@@ -92,8 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($erros)) {
         $pdo->prepare("
-            INSERT INTO produtos (nome, descricao, preco, categoria, imagem, estoque, ativo, codigo_interno, datasheet, especificacao_tecnica, peso, largura, altura, comprimento, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias, qtd_consulta)
-            VALUES (:nome, :descricao, :preco, :categoria, :imagem, :estoque, :ativo, :codigo_interno, :datasheet, :especificacao_tecnica, :peso, :largura, :altura, :comprimento, :modo_venda, :permite_venda_sem_estoque, :prazo_encomenda_dias, :qtd_consulta)
+            INSERT INTO produtos (nome, descricao, preco, categoria, imagem, estoque, ativo, codigo_interno, datasheet, especificacao_tecnica, peso, largura, altura, comprimento, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias, qtd_consulta, preco_export_usd)
+            VALUES (:nome, :descricao, :preco, :categoria, :imagem, :estoque, :ativo, :codigo_interno, :datasheet, :especificacao_tecnica, :peso, :largura, :altura, :comprimento, :modo_venda, :permite_venda_sem_estoque, :prazo_encomenda_dias, :qtd_consulta, :preco_export_usd)
         ")->execute([
             ':nome'                  => $dados['nome'],
             ':descricao'             => $dados['descricao'],
@@ -113,6 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':permite_venda_sem_estoque' => $dados['permite_venda_sem_estoque'],
             ':prazo_encomenda_dias'      => $dados['prazo_encomenda_dias'],
             ':qtd_consulta'              => $dados['qtd_consulta'],
+            ':preco_export_usd'          => $dados['preco_export_usd'],
         ]);
         $produtoCriado = (int) $pdo->lastInsertId();
 
@@ -351,6 +355,16 @@ layout_head('Novo Produto', $easymde_css);
                 <div class="col-md-4">
                     <label class="form-label">Preço (R$) <span class="text-danger">*</span></label>
                     <input type="number" name="preco" class="form-control" step="0.01" min="0" required value="<?= htmlspecialchars($dados['preco']) ?>">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label" for="preco-export-usd">Preço de exportação (USD)</label>
+                    <div class="input-group">
+                        <input type="number" name="preco_export_usd" id="preco-export-usd" class="form-control" step="0.01" min="0"
+                               placeholder="vazio = Sob consulta" value="<?= htmlspecialchars((string) ($dados['preco_export_usd'] ?? '')) ?>">
+                        <span class="input-group-text small" title="Incoterm vigente (constante do sistema)"><?= htmlspecialchars(INCOTERM_PADRAO) ?></span>
+                    </div>
+                    <div class="form-text">Segunda lista de preço — não é conversão do preço em reais.</div>
                 </div>
 
                 <div class="col-md-4">

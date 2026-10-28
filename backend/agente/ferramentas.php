@@ -18,7 +18,7 @@ function getDefinicoesFerramentas(): array
     return [
         [
             'name'         => 'buscar_produtos',
-            'description'  => 'Busca produtos ativos no catálogo por termo (nome, descrição, categoria ou código). Use para dúvidas sobre o que a loja vende, preço e disponibilidade.',
+            'description'  => 'Busca produtos ativos no catálogo por termo (nome, descrição, categoria ou código). Use para dúvidas sobre o que a loja vende, preço e disponibilidade. Retorna "preco" (mercado Brasil, em reais) e "preco_exportacao" (mercado exportação, em USD com Incoterm, ou "Sob consulta").',
             'input_schema' => [
                 'type'       => 'object',
                 'properties' => [
@@ -99,7 +99,7 @@ function buscarProdutos(string $termo, int $limite = 5): array
     $pdo  = getDB();
     $stmt = $pdo->prepare("
         SELECT id, nome, preco, estoque, categoria, codigo_interno,
-               modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias
+               modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias, preco_export_usd
         FROM produtos
         WHERE ativo = 1
           AND (nome LIKE :t OR descricao LIKE :t OR categoria LIKE :t OR codigo_interno LIKE :t)
@@ -124,6 +124,8 @@ function buscarProdutos(string $termo, int $limite = 5): array
             'id'              => (int)   $row['id'],
             'nome'            => $row['nome'],
             'preco'           => (float) $row['preco'],
+            // Segunda lista de preço (Patch J) — texto pronto do helper, "Sob consulta" quando não há
+            'preco_exportacao' => $disp['preco_export_label'],
             'disponibilidade' => $disp['status'],
             'pode_comprar'    => $disp['pode_comprar'],
             'prazo_encomenda' => $disp['status'] === 'sob_encomenda' ? $disp['prazo_texto'] : null,

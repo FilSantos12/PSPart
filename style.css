@@ -482,6 +482,37 @@ body.dark-mode .product-card-thumb .stock-badge {
     color: var(--muted);
 }
 
+/* Preço de exportação (Patch J) — texto do helper ("US$ 45,90 · EXW Cerquilho" / "Sob consulta ·
+   EXW Cerquilho"), mais longo que o preço em reais: fonte menor e quebra permitida no card */
+.product-price.product-price--export {
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: 0;
+    min-width: 0;
+}
+
+/* Em exportação o rótulo ocupa linha própria acima dos botões, com 2 linhas reservadas — ao lado
+   dos botões ele quebrava em até 5 linhas em col-md-4 (~768px) e desalinhava a fileira.
+   body[data-mercado] é só layout (setado por _aplicarMercado); a visibilidade segue em style.display */
+body[data-mercado="export"] .product-card-footer {
+    flex-wrap: wrap;
+    row-gap: 0.4rem;
+}
+
+body[data-mercado="export"] .product-card-footer .product-price--export {
+    flex: 1 1 100%;
+    min-height: 2.5em;
+}
+
+body[data-mercado="export"] .product-card-footer > .d-flex {
+    margin-left: auto;
+}
+
+.product-price-modal.product-price--export {
+    font-size: 1rem;
+}
+
 /* Tabela de faixas de quantidade no modal de detalhe (Patch N) — só com qtd_consulta.
    Tokens do refresh (--line/--ink/--muted já têm override dark) */
 .product-faixas {
@@ -1466,6 +1497,52 @@ body.dark-mode .lgpd-banner {
 
 .theme-toggle:active i {
     transform: rotate(30deg);
+}
+
+/* ===== SELETOR DE MERCADO (Patch J) — Brasil (BRL) × Exportação (USD) =====
+   Mesmo tratamento visual do .theme-toggle (contorno branco sobre o navy do header); em mobile
+   fica dentro do menu recolhível, como o tema */
+.mercado-toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+    border: 1.5px solid rgba(255,255,255,0.4);
+    border-radius: 999px;
+    padding: 2px;
+    margin-left: 0.75rem;
+}
+
+.mercado-opcao {
+    background: none;
+    border: 0;
+    border-radius: 999px;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    padding: 0.45rem 0.7rem;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.mercado-opcao:hover {
+    background-color: rgba(255,255,255,0.15);
+}
+
+.mercado-opcao.active {
+    background-color: white;
+    color: var(--primary);
+}
+
+.mercado-opcao:focus-visible {
+    outline: 2px solid white;
+    outline-offset: 2px;
+}
+
+@media (max-width: 991.98px) {
+    .mercado-toggle {
+        margin: 0.75rem 0 0.25rem;
+    }
 }
 
 /* ===== CARRINHO — ícone do header ===== */

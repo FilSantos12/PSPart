@@ -12,6 +12,11 @@ const WHATSAPP_NUMBER = 'SEU_NUMERO';
 // O limiar COMERCIAL é por produto (produtos.qtd_consulta) e só informa — não limita a compra.
 const QTD_MAX_SANIDADE = 99;
 
+// Condição de entrega do preço de exportação (Patch J) — espelha INCOTERM_PADRAO de
+// backend/helpers/disponibilidade.php. Aqui só entra no assunto do orçamento; os textos de preço
+// de exportação vêm prontos do helper (preco_export_label).
+const INCOTERM_PADRAO = 'EXW Cerquilho';
+
 // Contato comercial usado nos CTAs (bloqueio do drawer, faixa da grade) — espelha a seção #contato do index.html
 const EMPRESA_EMAIL_VENDAS  = 'vendas@pentasis.com.br';
 const EMPRESA_TELEFONE      = '(15) 3263-9494';
@@ -38,6 +43,7 @@ class App {
         this.setupLGPD();
         this.setupThemeToggle();
         this.setupCart();
+        this.setupMercado();   // depois do carrinho (_aplicarMercado re-renderiza o drawer), antes do catálogo
         this.setupCartCheckout();
         this.setupCheckout();
         this.setupImageLightbox();
@@ -143,8 +149,9 @@ class App {
 
     setupModalButtons() {
         document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('solicitar-orcamento')) {
-                this.handleQuoteRequest(e.target);
+            const orcamento = e.target.closest('.solicitar-orcamento');
+            if (orcamento) {
+                this.handleQuoteRequest(orcamento);
             }
             // "Consulte o comercial" da tabela de faixas (Patch N) encaminha para o
             // "Solicitar Orçamento" do rodapé do mesmo modal — mesmo caminho de cotação
@@ -160,7 +167,7 @@ class App {
         const productName = button.dataset.product || this.extractProductName(modalElement);
         
         this.closeModal(modalElement);
-        this.fillContactForm(productName);
+        this.fillContactForm(productName, button.dataset.codigo || '');
         this.scrollToContactForm();
     }
 
@@ -176,10 +183,16 @@ class App {
         modal?.hide();
     }
 
-    fillContactForm(productName) {
+    // Em exportação, assunto com mercado, Incoterm e código da peça (Patch J); Brasil inalterado
+    fillContactForm(productName, codigo = '') {
         const assuntoField = document.getElementById('assunto');
         if (assuntoField) {
-            assuntoField.value = `Orçamento: ${productName}`;
+            if (this._ehExport()) {
+                const peca = codigo ? `${codigo} — ${productName}` : productName;
+                assuntoField.value = `Orçamento exportação (${INCOTERM_PADRAO}): ${peca}`;
+            } else {
+                assuntoField.value = `Orçamento: ${productName}`;
+            }
         }
     }
 
@@ -281,6 +294,69 @@ class App {
             updateIcon(isDark);
             localStorage.setItem('psp_theme', isDark ? 'dark' : 'light');
         });
+    }
+
+    // ── MERCADO: BRASIL (BRL) × EXPORTAÇÃO (USD) — Patch J ──────────────────
+    // Exportação é modo de COTAÇÃO, nunca de checkout: preços viram preco_export_label (segunda
+    // lista de preço do helper, sem câmbio), compra/frete/carrinho somem e o CTA é "Solicitar
+    // Orçamento". psp_mercado é a única chave com try/catch próprio: se o storage falhar, vale
+    // Brasil e a página segue normal. Elementos com data-so-mercado="br|export" só aparecem no
+    // mercado indicado (style.display, aplicado por _aplicarMercado()).
+
+    setupMercado() {
+        this._mercado = this._mercadoLer();
+        document.querySelectorAll('[data-mercado-opcao]').forEach(btn => {
+            btn.addEventListener('click', () => this._setMercado(btn.dataset.mercadoOpcao));
+        });
+        document.getElementById('cartVoltarBrasil')?.addEventListener('click', () => this._setMercado('br'));
+        this._aplicarMercado();
+    }
+
+    _mercadoLer() {
+        try {
+            return localStorage.getItem('psp_mercado') === 'export' ? 'export' : 'br';
+        } catch {
+            return 'br';
+        }
+    }
+
+    _ehExport() {
+        return this._mercado === 'export';
+    }
+
+    _setMercado(mercado) {
+        this._mercado = mercado === 'export' ? 'export' : 'br';
+        try {
+            localStorage.setItem('psp_mercado', this._mercado);
+        } catch { /* sem persistência: a escolha vale só nesta página */ }
+        this._aplicarMercado();
+    }
+
+    // Aplica o mercado a tudo que já está no DOM — chamado na troca e depois de cada render do
+    // catálogo, então todos os preços mudam juntos (nunca um card em USD e outro em BRL).
+    _aplicarMercado() {
+        const exp = this._ehExport();
+        document.body.dataset.mercado = this._mercado; // só layout (rodapé do card), nunca visibilidade
+        document.querySelectorAll('[data-mercado-opcao]').forEach(btn => {
+            const ativo = btn.dataset.mercadoOpcao === this._mercado;
+            btn.classList.toggle('active', ativo);
+            btn.setAttribute('aria-pressed', String(ativo));
+        });
+        document.querySelectorAll('[data-so-mercado]').forEach(el => {
+            el.style.display = el.dataset.soMercado === this._mercado ? '' : 'none';
+        });
+
+        // Ordenação por preço usa o preço em reais — some em exportação
+        const sortEl = document.getElementById('product-sort');
+        sortEl?.querySelectorAll('option[value^="preco-"]').forEach(opt => {
+            opt.hidden   = exp;
+            opt.disabled = exp;
+        });
+        if (exp && sortEl?.value.startsWith('preco-')) sortEl.value = '';
+
+        // Drawer só é redesenhado se estiver aberto (ex.: "Voltar para Brasil" de dentro dele);
+        // fechado, ele se redesenha ao abrir (_cartOpenDrawer) já no mercado atual
+        if (document.getElementById('cartDrawer')?.classList.contains('open')) this._cartRenderDrawer();
     }
 
     setupProductFilter() {
@@ -606,7 +682,7 @@ class App {
         // já que os três reaproveitam a mesma classe/estrutura de dados.
         document.addEventListener('click', (e) => {
             const btn = e.target.closest('.btn-buy');
-            if (!btn || btn.disabled) return;
+            if (!btn || btn.disabled || this._ehExport()) return;
             const id = parseInt(btn.dataset.productId) || 0;
             if (!id) return;
             this._cartAdd(id);
@@ -801,7 +877,21 @@ class App {
         const empty   = document.getElementById('cartEmpty');
         const footer  = document.getElementById('cartFooter');
         const actions = document.getElementById('cartActions');
+        const avisoExport = document.getElementById('cartExportAviso');
         if (!list) return;
+
+        // Exportação (Patch J): o carrinho vale só para o mercado Brasil — nada de itens nem valores
+        // em reais, só o aviso com "Voltar para Brasil". O carrinho em si (psp_cart) fica intacto.
+        if (this._ehExport()) {
+            list.style.display = 'none';
+            if (empty)       empty.style.display       = 'none';
+            if (footer)      footer.style.display      = 'none';
+            if (actions)     actions.style.display     = 'none';
+            if (avisoExport) avisoExport.style.display = 'block';
+            return;
+        }
+        list.style.display = '';
+        if (avisoExport) avisoExport.style.display = 'none';
 
         if (this._cart.length === 0) {
             list.innerHTML = '';
@@ -893,6 +983,7 @@ class App {
     // Botão só é clicável com CEP+frete selecionados (_cartUpdateFinalizarState). Abre o modal
     // de checkout do carrinho (B2b) — coleta comprador/endereço; CEP e frete já vêm do drawer.
     _cartFinalizar() {
+        if (this._ehExport()) return; // exportação é cotação, nunca checkout (Patch J)
         if (this._cart.length === 0 || !this._cartFrete?.selecionado || this._cartTemBloqueio()) return;
         this._cartCloseDrawer();
         this._cartOpenCheckoutModal();
@@ -1211,6 +1302,7 @@ class App {
     }
 
     _cartOpenCheckoutModal() {
+        if (this._ehExport()) return; // exportação é cotação, nunca checkout (Patch J)
         const cep = this._cartFrete?.cep;
         if (!cep) return;
 
@@ -2004,7 +2096,12 @@ class App {
                                         <table class="product-faixas">
                                             <thead><tr><th scope="col">Quantidade</th><th scope="col">Preço</th></tr></thead>
                                             <tbody>
-                                                <tr><td>${faixas.ate}</td><td class="product-faixas-preco">${preco}</td></tr>
+                                                <tr><td>${faixas.ate}</td><td class="product-faixas-preco">
+                                                    <span data-so-mercado="br">${preco}</span>
+                                                    <span data-so-mercado="export">${disp.preco_export
+                                                        ? disp.preco_export
+                                                        : `<button type="button" class="btn btn-link p-0 product-faixas-cta">${faixas.acima_acao}<i class="fas fa-arrow-down ms-1" aria-hidden="true"></i></button>`}</span>
+                                                </td></tr>
                                                 <tr><td>${faixas.acima}</td><td>
                                                     <button type="button" class="btn btn-link p-0 product-faixas-cta">
                                                         ${faixas.acima_acao}<i class="fas fa-arrow-down ms-1" aria-hidden="true"></i>
@@ -2041,20 +2138,26 @@ class App {
                             <h5 class="card-title">${p.nome}</h5>
                             ${disp.pode_comprar ? '' : `<span class="product-buy-motivo product-buy-motivo--card" id="buy-motivo-card-${p.id}">${disp.label}</span>`}
                             <div class="product-card-footer">
-                                <span class="product-price">${preco}</span>
+                                <span class="product-price" data-so-mercado="br">${preco}</span>
+                                <span class="product-price product-price--export" data-so-mercado="export">${disp.preco_export_label || ''}</span>
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-outline-primary btn-sm"
                                             data-bs-toggle="modal" data-bs-target="#productModal${p.id}">
                                         Detalhes
                                     </button>
                                     ${disp.pode_comprar
-                                        ? `<button type="button" class="btn btn-success btn-sm btn-buy" ${buyData} title="Comprar">
+                                        ? `<button type="button" class="btn btn-success btn-sm btn-buy" ${buyData} title="Comprar" data-so-mercado="br">
                                             <i class="fas fa-cart-shopping"></i>
                                            </button>`
                                         : `<button type="button" class="btn btn-secondary btn-sm btn-buy" ${buyData} disabled
-                                                title="${disp.label}" aria-describedby="buy-motivo-card-${p.id}">
+                                                title="${disp.label}" aria-describedby="buy-motivo-card-${p.id}" data-so-mercado="br">
                                             <i class="fas fa-ban"></i>
                                            </button>`}
+                                    <button type="button" class="btn btn-primary btn-sm solicitar-orcamento" data-so-mercado="export"
+                                            data-product="${p.nome}" data-codigo="${p.codigo_interno || ''}"
+                                            title="Solicitar orçamento" aria-label="Solicitar orçamento de ${p.nome}">
+                                        <i class="fas fa-file-invoice-dollar"></i>
+                                    </button>
                                 </div>
                             </div>
                             ${disp.pode_comprar && disp.texto_consulta
@@ -2082,7 +2185,7 @@ class App {
                                         <p>${p.descricao || ''}</p>
                                         <div>${estoqueHtml}</div>
                                         ${faixasHtml}
-                                        <div class="frete-calc" data-produto-id="${p.id}">
+                                        <div class="frete-calc" data-produto-id="${p.id}" data-so-mercado="br">
                                             <p class="fw-semibold small text-muted mb-2">
                                                 <i class="fas fa-truck me-1"></i>Calcular prazo de entrega
                                             </p>
@@ -2106,19 +2209,20 @@ class App {
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <span class="me-auto product-price-modal">${preco}</span>
+                                <span class="me-auto product-price-modal" data-so-mercado="br">${preco}</span>
+                                <span class="me-auto product-price-modal product-price--export" data-so-mercado="export">${disp.preco_export_label || ''}</span>
                                 ${datasheetHtml}
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                                <button type="button" class="btn btn-outline-primary solicitar-orcamento" data-product="${p.nome}">
+                                <button type="button" class="btn btn-outline-primary solicitar-orcamento" data-product="${p.nome}" data-codigo="${p.codigo_interno || ''}">
                                     Solicitar Orçamento
                                 </button>
                                 ${disp.pode_comprar
-                                    ? `<button type="button" class="btn btn-success btn-buy" ${buyData}>
+                                    ? `<button type="button" class="btn btn-success btn-buy" ${buyData} data-so-mercado="br">
                                         <i class="fas fa-cart-shopping me-1"></i> Comprar Agora
                                        </button>`
-                                    : `<span class="product-buy-motivo" id="buy-motivo-modal-${p.id}">${disp.label}</span>
+                                    : `<span class="product-buy-motivo" id="buy-motivo-modal-${p.id}" data-so-mercado="br">${disp.label}</span>
                                        <button type="button" class="btn btn-secondary btn-buy" ${buyData} disabled
-                                               aria-describedby="buy-motivo-modal-${p.id}">
+                                               aria-describedby="buy-motivo-modal-${p.id}" data-so-mercado="br">
                                         <i class="fas fa-ban me-1"></i> Comprar Agora
                                        </button>`}
                             </div>
@@ -2147,6 +2251,8 @@ class App {
             if (retryBtn) retryBtn.disabled = false;
             // Roda tanto no sucesso quanto na falha — só neste ponto o grid/modais estão em seu
             // estado final e é seguro ler/abrir por id (na falha, o deep link só loga o warn).
+            // O mercado é aplicado antes do deep link: ?produto=ID já abre no modo certo (Patch J).
+            this._aplicarMercado();
             this._openDeepLinkProduct();
             this._applyCurrentToolbarState();
         }

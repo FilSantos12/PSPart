@@ -25,6 +25,11 @@ const MODOS_VENDA = [
     'indisponivel'         => 'Indisponível',
 ];
 
+// Condição de entrega do preço de exportação (Patch J) — constante do SISTEMA, não campo por
+// produto. Os preços em preco_export_usd são cadastrados nesta condição: trocar o Incoterm exige
+// revisar todos eles. Espelha INCOTERM_PADRAO do script.js (o PHP não enxerga as do JS).
+const INCOTERM_PADRAO = 'EXW Cerquilho';
+
 // Contato comercial citado na mensagem de excedente — espelha a seção #contato do
 // index.html e as constantes EMPRESA_* do script.js (o PHP não enxerga as do JS).
 const DISPONIBILIDADE_CONTATO_EMAIL    = 'vendas@pentasis.com.br';
@@ -42,10 +47,14 @@ const DISPONIBILIDADE_CONTATO_TELEFONE = '(15) 3263-9494';
  * 'qtd_consulta' / 'texto_consulta' / 'faixas_consulta' (Patch N): limiar COMERCIAL por produto,
  * só informativo — não bloqueia a compra. Todos null quando produtos.qtd_consulta é NULL.
  *
+ * 'preco_export' / 'preco_export_label' (Patch J): segunda lista de preço (USD, INCOTERM_PADRAO).
+ * Nunca conversão de câmbio — sem preco_export_usd cadastrado, o produto é "Sob consulta".
+ *
  * @return array{status:string,label:string,label_admin:string,qtd_exibivel:?int,badge_class:string,
  *               prazo_dias:?int,prazo_texto:string,pode_comprar:bool,permite_excedente:bool,
  *               estoque_disponivel:int,qtd_consulta:?int,texto_consulta:?string,
- *               faixas_consulta:?array{ate:string,acima:string,acima_acao:string}}
+ *               faixas_consulta:?array{ate:string,acima:string,acima_acao:string},
+ *               preco_export:?string,preco_export_label:string}
  */
 function disponibilidade_produto(array $p): array
 {
@@ -69,7 +78,7 @@ function disponibilidade_produto(array $p): array
         'prazo_dias'         => $prazo,
         'prazo_texto'        => $prazoTexto,
         'estoque_disponivel' => $estoque,
-    ] + disponibilidade_consulta($p);
+    ] + disponibilidade_consulta($p) + disponibilidade_preco_export($p);
 
     if ($modo === 'sempre_sob_encomenda') {
         return $base + [
@@ -182,6 +191,40 @@ function disponibilidade_consulta(array $p): array
             'acima_acao' => 'Consulte o comercial',
         ],
     ];
+}
+
+/**
+ * Preço de exportação (Patch J) — SEGUNDA LISTA DE PREÇO em USD, cadastrada pelo admin na condição
+ * INCOTERM_PADRAO. Nunca é derivada do preço em reais (sem câmbio). Fonte única destes textos.
+ *
+ * @return array{preco_export:?string,preco_export_label:string}
+ */
+function disponibilidade_preco_export(array $p): array
+{
+    $usd = (isset($p['preco_export_usd']) && is_numeric($p['preco_export_usd']))
+        ? (float) $p['preco_export_usd']
+        : null;
+    $valor = $usd === null ? null : 'US$ ' . number_format($usd, 2, ',', '.');
+    return [
+        'preco_export'       => $valor,
+        'preco_export_label' => ($valor ?? 'Sob consulta') . ' · ' . INCOTERM_PADRAO,
+    ];
+}
+
+/**
+ * Lê e valida o preço de exportação vindo do formulário do admin (Patch J). Devolve o valor a
+ * gravar (null = vazio, "Sob consulta") e acrescenta erro se não for numérico ≥ 0.
+ * Validado aqui no servidor, não só no <input>.
+ */
+function preco_export_dados_post(array $post, array &$erros): ?float
+{
+    $raw = trim((string) ($post['preco_export_usd'] ?? ''));
+    if ($raw === '') return null;
+    if (!is_numeric($raw) || (float) $raw < 0) {
+        $erros[] = 'Preço de exportação (USD) inválido (número maior ou igual a zero, ou vazio para "Sob consulta").';
+        return null;
+    }
+    return round((float) $raw, 2);
 }
 
 /**

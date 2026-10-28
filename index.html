@@ -127,6 +127,13 @@
                         <button id="themeToggle" class="theme-toggle ms-lg-3" title="Alternar tema" aria-label="Alternar entre modo claro e escuro">
                             <i class="fas fa-moon"></i>
                         </button>
+
+                        <!-- Mercado dos preços (Patch J) — Brasil = compra no site; Exportação = só cotação.
+                             Estado aplicado por setupMercado()/_aplicarMercado() (script.js), persistido em psp_mercado -->
+                        <div id="mercadoToggle" class="mercado-toggle ms-lg-3" role="group" aria-label="Mercado e moeda dos preços">
+                            <button type="button" class="mercado-opcao active" data-mercado-opcao="br" aria-pressed="true">Brasil (BRL)</button>
+                            <button type="button" class="mercado-opcao" data-mercado-opcao="export" aria-pressed="false">Exportação (USD)</button>
+                        </div>
                     </div>
 
                     <button id="cartToggle" class="cart-toggle" title="Ver carrinho" aria-label="Abrir carrinho de compras" aria-haspopup="dialog">
@@ -379,7 +386,7 @@
                             <input type="hidden" name="_captcha" value="false">
                             <input type="hidden" name="_template" value="table">
                             <input type="hidden" name="_next" value="#">
-                            <input type="hidden" name="_subject" value="Novo contato do site ATMParts">
+                            <input type="hidden" name="_subject" value="Novo contato do site PSPart">
 
                             <!-- Campos do formulário -->
                             <div class="row">
@@ -910,6 +917,20 @@
             </p>
 
             <div id="cartItems" class="cart-items"></div>
+
+            <!-- Mercado Exportação (Patch J): o carrinho vale só para o Brasil — aviso no lugar dos itens,
+                 carrinho preservado. Exibido por _cartRenderDrawer() via style.display -->
+            <div id="cartExportAviso" class="cart-volume-aviso" role="status" style="display:none;">
+                <p class="cart-volume-aviso-texto">
+                    <i class="fas fa-globe me-1"></i>Seu carrinho vale apenas para o mercado Brasil (BRL).
+                    Em exportação, peça a cotação pelo botão "Solicitar Orçamento" de cada produto. Seus itens continuam salvos.
+                </p>
+                <div class="cart-volume-aviso-ctas">
+                    <button type="button" id="cartVoltarBrasil" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-arrow-left me-1"></i>Voltar para Brasil
+                    </button>
+                </div>
+            </div>
 
             <div id="cartFooter" class="cart-drawer-footer" style="display:none;">
                 <div class="cart-frete-block">

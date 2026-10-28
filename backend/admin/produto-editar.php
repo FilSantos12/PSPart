@@ -45,6 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Disponibilidade — modo_venda validado contra MODOS_VENDA no servidor
     $dados = disponibilidade_dados_post($_POST, $erros) + $dados;
+    // Preço de exportação (Patch J) — vazio grava NULL ("Sob consulta"); com erro, o formulário
+    // reexibe o que foi digitado
+    $dados['preco_export_usd'] = preco_export_dados_post($_POST, $erros) ?? (trim((string) ($_POST['preco_export_usd'] ?? '')) ?: null);
 
     // Validação do código interno
     if ($dados['codigo_interno'] !== '') {
@@ -116,7 +119,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 modo_venda            = :modo_venda,
                 permite_venda_sem_estoque = :permite_venda_sem_estoque,
                 prazo_encomenda_dias  = :prazo_encomenda_dias,
-                qtd_consulta          = :qtd_consulta
+                qtd_consulta          = :qtd_consulta,
+                preco_export_usd      = :preco_export_usd
             WHERE id = :id
         ")->execute([
             ':nome'                  => $dados['nome'],
@@ -136,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':permite_venda_sem_estoque' => $dados['permite_venda_sem_estoque'],
             ':prazo_encomenda_dias'      => $dados['prazo_encomenda_dias'],
             ':qtd_consulta'              => $dados['qtd_consulta'],
+            ':preco_export_usd'          => $dados['preco_export_usd'],
             ':id'                    => $id,
         ]);
         header('Location: produto-editar.php?id=' . $id . '&msg=Produto+atualizado+com+sucesso.');
@@ -200,6 +205,16 @@ layout_head('Editar Produto', $easymde_css);
                 <div class="col-md-4">
                     <label class="form-label">Preço (R$) <span class="text-danger">*</span></label>
                     <input type="number" name="preco" class="form-control" step="0.01" min="0" required value="<?= htmlspecialchars($dados['preco']) ?>">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label" for="preco-export-usd">Preço de exportação (USD)</label>
+                    <div class="input-group">
+                        <input type="number" name="preco_export_usd" id="preco-export-usd" class="form-control" step="0.01" min="0"
+                               placeholder="vazio = Sob consulta" value="<?= htmlspecialchars((string) ($dados['preco_export_usd'] ?? '')) ?>">
+                        <span class="input-group-text small" title="Incoterm vigente (constante do sistema)"><?= htmlspecialchars(INCOTERM_PADRAO) ?></span>
+                    </div>
+                    <div class="form-text">Segunda lista de preço — não é conversão do preço em reais.</div>
                 </div>
 
                 <div class="col-md-4">
