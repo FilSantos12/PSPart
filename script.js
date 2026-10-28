@@ -6,12 +6,13 @@
 // Número central do WhatsApp da loja — mesmo placeholder usado nos links estáticos do index.html
 const WHATSAPP_NUMBER = 'SEU_NUMERO';
 
-// Teto de quantidade por SKU no carrinho — acima disso o pedido vai para o comercial
-// (preço de volume/prazo). Fonte única: nunca repetir o número literal no código.
-// Espelho PHP em backend/helpers/disponibilidade.php (o PHP não enxerga as do JS).
-const QTD_LIMITE_VOLUME = 10;
+// Teto TÉCNICO de quantidade por SKU no carrinho (sanidade, não regra comercial — Patch N).
+// O servidor trava o mesmo valor sobre a quantidade agregada. Fonte única no front: nunca
+// repetir o número literal. Espelho PHP em backend/helpers/disponibilidade.php.
+// O limiar COMERCIAL é por produto (produtos.qtd_consulta) e só informa — não limita a compra.
+const QTD_MAX_SANIDADE = 99;
 
-// Contato comercial usado nos CTAs do aviso de volume — espelha a seção #contato do index.html
+// Contato comercial usado nos CTAs (bloqueio do drawer, faixa da grade) — espelha a seção #contato do index.html
 const EMPRESA_EMAIL_VENDAS  = 'vendas@pentasis.com.br';
 const EMPRESA_TELEFONE      = '(15) 3263-9494';
 const EMPRESA_TELEFONE_E164 = '+551532639494';
@@ -144,6 +145,12 @@ class App {
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('solicitar-orcamento')) {
                 this.handleQuoteRequest(e.target);
+            }
+            // "Consulte o comercial" da tabela de faixas (Patch N) encaminha para o
+            // "Solicitar Orçamento" do rodapé do mesmo modal — mesmo caminho de cotação
+            const faixaCta = e.target.closest('.product-faixas-cta');
+            if (faixaCta) {
+                faixaCta.closest('.modal')?.querySelector('.solicitar-orcamento')?.click();
             }
         });
     }
@@ -573,7 +580,6 @@ class App {
         this._cartSubtotalAtual = 0;
         this._cartAvisosSeq = 0;         // descarta respostas atrasadas de carrinho-avisos.php
         this._cartAvisosTimer = null;    // debounce das chamadas a carrinho-avisos.php
-        this._cartNoTeto = new Set();    // produto_ids cuja última tentativa passou de QTD_LIMITE_VOLUME
         this._cartBloqueados = new Set(); // produto_ids que carrinho-avisos.php marcou como bloqueados (Patch K)
         this._cartLoad();
         this._cartRenderBadge();
@@ -615,8 +621,8 @@ class App {
             const raw = JSON.parse(localStorage.getItem('psp_cart') || '[]');
             this._cart = Array.isArray(raw)
                 ? raw.filter(i => i && Number.isInteger(i.produto_id) && i.quantidade > 0)
-                     // carrinho salvo antes do teto de volume (era 99) não pode furar o limite
-                     .map(i => ({ produto_id: i.produto_id, quantidade: Math.min(QTD_LIMITE_VOLUME, i.quantidade) }))
+                     // carrinho salvo (ou editado à mão) não pode furar o teto técnico
+                     .map(i => ({ produto_id: i.produto_id, quantidade: Math.min(QTD_MAX_SANIDADE, i.quantidade) }))
                 : [];
         } catch {
             this._cart = [];
@@ -632,40 +638,30 @@ class App {
         this._cartRenderDrawer();
     }
 
-    // _cartAdd e _cartSetQty são os únicos pontos que aplicam QTD_LIMITE_VOLUME. Quando a
-    // tentativa ultrapassa o teto, a quantidade fica no limite e o SKU entra em
-    // _cartNoTeto — o drawer mostra o aviso de volume enquanto o item seguir no teto.
+    // _cartAdd e _cartSetQty aplicam só o teto técnico QTD_MAX_SANIDADE (o servidor trava o
+    // mesmo valor). Não há limite comercial no carrinho: o limiar de consulta de cada produto
+    // (qtd_consulta) é apenas informativo, exibido no card e no modal (Patch N).
     _cartAdd(id, qty = 1) {
         const item  = this._cart.find(i => i.produto_id === id);
-        const alvo  = (item ? item.quantidade : 0) + qty;
-        const final = Math.min(QTD_LIMITE_VOLUME, alvo);
+        const final = Math.min(QTD_MAX_SANIDADE, (item ? item.quantidade : 0) + qty);
         if (item) {
             item.quantidade = final;
         } else {
             this._cart.push({ produto_id: id, quantidade: final });
         }
-        if (alvo > QTD_LIMITE_VOLUME) this._cartNoTeto.add(id);
         this._cartSave();
-        return alvo > QTD_LIMITE_VOLUME;
     }
 
     _cartSetQty(id, qty) {
-        const alvo = Math.max(0, qty);
-        qty = Math.min(QTD_LIMITE_VOLUME, alvo);
+        qty = Math.min(QTD_MAX_SANIDADE, Math.max(0, qty));
         const item = this._cart.find(i => i.produto_id === id);
-        if (!item) return false;
-        if (alvo > QTD_LIMITE_VOLUME) {
-            this._cartNoTeto.add(id);
-        } else if (qty < QTD_LIMITE_VOLUME) {
-            this._cartNoTeto.delete(id);
-        }
+        if (!item) return;
         if (qty === 0) {
             this._cartRemove(id);
-            return false;
+            return;
         }
         item.quantidade = qty;
         this._cartSave();
-        return alvo > QTD_LIMITE_VOLUME;
     }
 
     _cartRemove(id) {
@@ -693,20 +689,7 @@ class App {
         };
     }
 
-    // Bloco do aviso de compra em volume de uma linha do drawer. Texto e CTAs montados das
-    // constantes do topo do arquivo — o limite nunca aparece como número literal.
-    _cartAvisoVolumeHtml(info) {
-        return `
-                <div class="cart-volume-aviso cart-aviso-volume" role="status" style="display:none;">
-                    <p class="cart-volume-aviso-texto">
-                        <i class="fas fa-boxes-stacked me-1"></i>Precisa de mais de ${QTD_LIMITE_VOLUME} unidades?
-                        Fale com nosso time comercial para preço de volume e prazo de entrega.
-                    </p>
-                    ${this._cartContatoCtasHtml(info, 'Compra em volume')}
-                </div>`;
-    }
-
-    // CTAs de contato comercial (Patch H) — compartilhados pelo aviso de volume e pelo de bloqueio.
+    // CTAs de contato comercial (Patch H) — usados pelo aviso de bloqueio do drawer (Patch K).
     _cartContatoCtasHtml(info, motivo) {
         const peca    = info.codigo ? `${info.codigo} — ${info.nome}` : info.nome;
         const assunto = encodeURIComponent(`${motivo}: ${peca}`);
@@ -861,7 +844,7 @@ class App {
                     ${codigoHtml}
                     <div class="cart-item-qty">
                         <button type="button" class="cart-qty-btn cart-qty-minus" data-id="${info.id}" aria-label="Diminuir quantidade">−</button>
-                        <input type="number" class="cart-qty-input" min="1" max="${QTD_LIMITE_VOLUME}" value="${item.quantidade}" data-id="${info.id}" aria-label="Quantidade">
+                        <input type="number" class="cart-qty-input" min="1" max="${QTD_MAX_SANIDADE}" value="${item.quantidade}" data-id="${info.id}" aria-label="Quantidade">
                         <button type="button" class="cart-qty-btn cart-qty-plus" data-id="${info.id}" aria-label="Aumentar quantidade">+</button>
                     </div>
                 </div>
@@ -871,19 +854,10 @@ class App {
                         <i class="fas fa-trash-can"></i>
                     </button>
                 </div>
-                ${this._cartAvisoVolumeHtml(info)}
                 ${this._cartAvisoParcialHtml()}
                 ${this._cartAvisoBloqueioHtml(info)}
             </div>`;
         }).join('');
-
-        // Aviso de volume nasce com display:none inline; só aparece para o SKU que tentou passar
-        // do teto e continua nele (some sozinho ao reduzir — _cartSetQty tira do _cartNoTeto).
-        this._cart.forEach(item => {
-            if (!this._cartNoTeto.has(item.produto_id) || item.quantidade < QTD_LIMITE_VOLUME) return;
-            const aviso = list.querySelector(`.cart-item[data-id="${item.produto_id}"] .cart-aviso-volume`);
-            if (aviso) aviso.style.display = 'block';
-        });
 
         // Estoque parcial: parte sai da pronta entrega, o restante é sob encomenda (só texto —
         // não divide pedido nem mexe em frete/total). Texto e decisão vêm do servidor.
@@ -1394,9 +1368,9 @@ class App {
         // mais este modal direto. O modal/fluxo abaixo (quantidade, CEP, Bricks) fica pronto,
         // dormente, para a Fase 2 plugar o checkout multi-item a partir do carrinho.
 
-        // Controles de quantidade — o teto vem de QTD_LIMITE_VOLUME (sem max fixo no HTML)
+        // Controles de quantidade — o teto técnico vem de QTD_MAX_SANIDADE (sem max fixo no HTML)
         const checkoutQtyEl = document.getElementById('checkout-qty');
-        if (checkoutQtyEl) checkoutQtyEl.max = QTD_LIMITE_VOLUME;
+        if (checkoutQtyEl) checkoutQtyEl.max = QTD_MAX_SANIDADE;
 
         document.getElementById('checkout-qty-minus')?.addEventListener('click', () => {
             const qtyEl = document.getElementById('checkout-qty');
@@ -1407,7 +1381,7 @@ class App {
 
         document.getElementById('checkout-qty-plus')?.addEventListener('click', () => {
             const qtyEl = document.getElementById('checkout-qty');
-            const val   = Math.min(QTD_LIMITE_VOLUME, parseInt(qtyEl.value) + 1);
+            const val   = Math.min(QTD_MAX_SANIDADE, parseInt(qtyEl.value) + 1);
             qtyEl.value = val;
             this._updateCheckoutTotal(this._checkoutPrice, val);
         });
@@ -1891,14 +1865,20 @@ class App {
 
     // ── PRODUTOS — renderiza cards, modais e filtros a partir da API ─────────
 
-    // Faixa de compra em volume acima da grade (Patch L) — texto e CTAs das constantes do topo,
-    // o limite nunca aparece como número literal. Só existe junto com um catálogo carregado.
-    _renderVolumeOferta(el) {
+    // Faixa de compra em volume acima da grade (Patch L → N) — sem número: o limiar agora é por
+    // produto (qtd_consulta) e aparece no card/modal de cada um. Só existe junto com um catálogo
+    // carregado E com ao menos um produto com limiar — sem isso a frase seria falsa.
+    _renderVolumeOferta(el, temLimiar) {
         if (!el) return;
+        if (!temLimiar) {
+            el.innerHTML = '';
+            el.style.display = 'none';
+            return;
+        }
         el.innerHTML = `
                 <p class="cart-volume-aviso-texto">
-                    <i class="fas fa-handshake me-1"></i>Pedidos acima de ${QTD_LIMITE_VOLUME} unidades por item são
-                    atendidos pelo nosso comercial, com preço de volume e prazo sob consulta.
+                    <i class="fas fa-handshake me-1"></i>Alguns itens têm condição especial acima de determinada
+                    quantidade — a informação aparece no detalhe de cada produto.
                 </p>
                 <div class="cart-volume-aviso-ctas">
                     <a href="mailto:${EMPRESA_EMAIL_VENDAS}?subject=${encodeURIComponent('Compra em volume')}" class="btn btn-sm btn-outline-primary">
@@ -2016,6 +1996,23 @@ class App {
                 // carrinho ainda acha nome/preço da linha (_cartFindProdutoInfo) de um item salvo antes.
                 const buyData = `data-product-id="${p.id}" data-product-name="${p.nome}" data-product-price="${p.preco}"`;
 
+                // Faixas de quantidade (Patch N) — só com limiar comercial configurado; textos prontos
+                // do helper (faixas_consulta). "Consulte o comercial" encaminha para o botão
+                // "Solicitar Orçamento" do rodapé (um único caminho de cotação, sem CTA duplicado).
+                const faixas = disp.faixas_consulta;
+                const faixasHtml = faixas ? `
+                                        <table class="product-faixas">
+                                            <thead><tr><th scope="col">Quantidade</th><th scope="col">Preço</th></tr></thead>
+                                            <tbody>
+                                                <tr><td>${faixas.ate}</td><td class="product-faixas-preco">${preco}</td></tr>
+                                                <tr><td>${faixas.acima}</td><td>
+                                                    <button type="button" class="btn btn-link p-0 product-faixas-cta">
+                                                        ${faixas.acima_acao}<i class="fas fa-arrow-down ms-1" aria-hidden="true"></i>
+                                                    </button>
+                                                </td></tr>
+                                            </tbody>
+                                        </table>` : '';
+
                 // Link data sheet
                 const datasheetHtml = p.datasheet
                     ? `<a href="${p.datasheet}" target="_blank" class="btn btn-sm btn-outline-secondary me-1">
@@ -2060,8 +2057,8 @@ class App {
                                            </button>`}
                                 </div>
                             </div>
-                            ${disp.pode_comprar
-                                ? `<p class="product-volume-nota">Acima de ${QTD_LIMITE_VOLUME} un.: consulte</p>`
+                            ${disp.pode_comprar && disp.texto_consulta
+                                ? `<p class="product-volume-nota">${disp.texto_consulta}</p>`
                                 : '<p class="product-volume-nota" aria-hidden="true"></p>'}
                         </div>
                     </div>
@@ -2084,6 +2081,7 @@ class App {
                                         <span class="product-badge badge-${p.categoria} mb-2 d-inline-block">${label}</span>
                                         <p>${p.descricao || ''}</p>
                                         <div>${estoqueHtml}</div>
+                                        ${faixasHtml}
                                         <div class="frete-calc" data-produto-id="${p.id}">
                                             <p class="fw-semibold small text-muted mb-2">
                                                 <i class="fas fa-truck me-1"></i>Calcular prazo de entrega
@@ -2133,7 +2131,7 @@ class App {
             modals.innerHTML = modalsHtml;
 
             if (errorEl) errorEl.style.display = 'none';
-            this._renderVolumeOferta(ofertaEl);
+            this._renderVolumeOferta(ofertaEl, produtos.some(p => p.disponibilidade?.qtd_consulta));
             if (typeof AOS !== 'undefined') AOS.refresh();
 
         } catch (_) {

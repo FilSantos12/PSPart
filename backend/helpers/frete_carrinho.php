@@ -8,6 +8,7 @@
  */
 
 require_once __DIR__ . '/MelhorEnvio.php';
+require_once __DIR__ . '/disponibilidade.php'; // QTD_MAX_SANIDADE
 
 define('FRETE_CARRINHO_CACHE_TTL', 30 * 60); // 30 min — carrinho muda mais que item único (12h)
 
@@ -34,10 +35,17 @@ function resolverCarrinho(PDO $pdo, array $cart): array
     foreach ($cart as $item) {
         $id  = (int) ($item['produto_id'] ?? 0);
         $qty = (int) ($item['quantidade'] ?? 0);
-        if ($id <= 0 || $qty <= 0 || $qty > 99) {
+        if ($id <= 0 || $qty <= 0) {
             throw new InvalidArgumentException('Item de carrinho inválido.');
         }
         $itensCarrinho[$id] = ($itensCarrinho[$id] ?? 0) + $qty;
+    }
+    // Teto de sanidade sobre a quantidade AGREGADA por produto (Patch N) — antes era checado
+    // por linha, e duas linhas de 60 do mesmo SKU passavam como 120.
+    foreach ($itensCarrinho as $qty) {
+        if ($qty > QTD_MAX_SANIDADE) {
+            throw new InvalidArgumentException('Item de carrinho inválido.');
+        }
     }
     ksort($itensCarrinho);
 

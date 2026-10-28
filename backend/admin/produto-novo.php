@@ -6,7 +6,7 @@ require_once __DIR__ . '/../helpers/disponibilidade.php';
 
 $erros        = [];
 $produtoCriado = null;
-$dados = ['nome' => '', 'descricao' => '', 'preco' => '', 'categoria' => '', 'estoque' => '', 'ativo' => 1, 'codigo_interno' => '', 'especificacao_tecnica' => '', 'peso' => '0.5', 'largura' => '15', 'altura' => '10', 'comprimento' => '20', 'modo_venda' => 'automatico', 'permite_venda_sem_estoque' => 0, 'prazo_encomenda_dias' => null];
+$dados = ['nome' => '', 'descricao' => '', 'preco' => '', 'categoria' => '', 'estoque' => '', 'ativo' => 1, 'codigo_interno' => '', 'especificacao_tecnica' => '', 'peso' => '0.5', 'largura' => '15', 'altura' => '10', 'comprimento' => '20', 'modo_venda' => 'automatico', 'permite_venda_sem_estoque' => 0, 'prazo_encomenda_dias' => null, 'qtd_consulta' => null];
 
 $pdo = getDB();
 $categoriasDb = $pdo->query("SELECT slug, nome FROM categorias ORDER BY ordem ASC, nome ASC")->fetchAll();
@@ -92,8 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($erros)) {
         $pdo->prepare("
-            INSERT INTO produtos (nome, descricao, preco, categoria, imagem, estoque, ativo, codigo_interno, datasheet, especificacao_tecnica, peso, largura, altura, comprimento, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias)
-            VALUES (:nome, :descricao, :preco, :categoria, :imagem, :estoque, :ativo, :codigo_interno, :datasheet, :especificacao_tecnica, :peso, :largura, :altura, :comprimento, :modo_venda, :permite_venda_sem_estoque, :prazo_encomenda_dias)
+            INSERT INTO produtos (nome, descricao, preco, categoria, imagem, estoque, ativo, codigo_interno, datasheet, especificacao_tecnica, peso, largura, altura, comprimento, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias, qtd_consulta)
+            VALUES (:nome, :descricao, :preco, :categoria, :imagem, :estoque, :ativo, :codigo_interno, :datasheet, :especificacao_tecnica, :peso, :largura, :altura, :comprimento, :modo_venda, :permite_venda_sem_estoque, :prazo_encomenda_dias, :qtd_consulta)
         ")->execute([
             ':nome'                  => $dados['nome'],
             ':descricao'             => $dados['descricao'],
@@ -112,6 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':modo_venda'                => $dados['modo_venda'],
             ':permite_venda_sem_estoque' => $dados['permite_venda_sem_estoque'],
             ':prazo_encomenda_dias'      => $dados['prazo_encomenda_dias'],
+            ':qtd_consulta'              => $dados['qtd_consulta'],
         ]);
         $produtoCriado = (int) $pdo->lastInsertId();
 

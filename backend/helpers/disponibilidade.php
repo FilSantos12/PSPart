@@ -9,9 +9,14 @@
 
 const LIMIAR_ULTIMAS_UNIDADES = 3;
 
-// Teto de quantidade por SKU no carrinho — espelha QTD_LIMITE_VOLUME do script.js
-// (o PHP não enxerga as do JS). Acima disso o pedido vai para o comercial.
-const QTD_LIMITE_VOLUME = 10;
+// Teto TÉCNICO de quantidade por SKU (Patch N) — sanidade, não regra comercial. Travado no
+// servidor (frete_carrinho.php sobre a quantidade agregada, pedidos.php, carrinho-avisos.php).
+// Espelha QTD_MAX_SANIDADE do script.js (o PHP não enxerga as do JS).
+const QTD_MAX_SANIDADE = 99;
+
+// Valor sugerido no admin para produtos.qtd_consulta (limiar COMERCIAL, só informativo —
+// não limita a compra). Usado somente pelo partial _disponibilidade-campos.php.
+const QTD_CONSULTA_SUGERIDA = 10;
 
 // Valores aceitos em produtos.modo_venda → rótulo exibido no admin
 const MODOS_VENDA = [
@@ -34,9 +39,13 @@ const DISPONIBILIDADE_CONTATO_TELEFONE = '(15) 3263-9494';
  * ultimas_unidades (urgência legítima), null nos demais. 'estoque_disponivel' é de uso interno
  * (checkout, aviso parcial) e nunca vai ao front — a API remove o campo.
  *
+ * 'qtd_consulta' / 'texto_consulta' / 'faixas_consulta' (Patch N): limiar COMERCIAL por produto,
+ * só informativo — não bloqueia a compra. Todos null quando produtos.qtd_consulta é NULL.
+ *
  * @return array{status:string,label:string,label_admin:string,qtd_exibivel:?int,badge_class:string,
  *               prazo_dias:?int,prazo_texto:string,pode_comprar:bool,permite_excedente:bool,
- *               estoque_disponivel:int}
+ *               estoque_disponivel:int,qtd_consulta:?int,texto_consulta:?string,
+ *               faixas_consulta:?array{ate:string,acima:string,acima_acao:string}}
  */
 function disponibilidade_produto(array $p): array
 {
@@ -60,7 +69,7 @@ function disponibilidade_produto(array $p): array
         'prazo_dias'         => $prazo,
         'prazo_texto'        => $prazoTexto,
         'estoque_disponivel' => $estoque,
-    ];
+    ] + disponibilidade_consulta($p);
 
     if ($modo === 'sempre_sob_encomenda') {
         return $base + [
@@ -155,10 +164,31 @@ function disponibilidade_aviso_parcial(array $p, int $quantidade): ?string
 }
 
 /**
+ * Limiar de consulta comercial (Patch N) — textos do card ('texto_consulta') e das linhas da
+ * tabela de faixas do modal ('faixas_consulta'). Fonte única desses textos; o JS só renderiza.
+ */
+function disponibilidade_consulta(array $p): array
+{
+    $n = (isset($p['qtd_consulta']) && (int) $p['qtd_consulta'] >= 1) ? (int) $p['qtd_consulta'] : null;
+    if ($n === null) {
+        return ['qtd_consulta' => null, 'texto_consulta' => null, 'faixas_consulta' => null];
+    }
+    return [
+        'qtd_consulta'    => $n,
+        'texto_consulta'  => "Acima de {$n} un.: consulte o comercial",
+        'faixas_consulta' => [
+            'ate'        => $n === 1 ? '1 un.' : "1 a {$n} un.",
+            'acima'      => "Acima de {$n} un.",
+            'acima_acao' => 'Consulte o comercial',
+        ],
+    ];
+}
+
+/**
  * Lê e valida os campos de disponibilidade vindos do formulário do admin.
  * modo_venda é conferido contra MODOS_VENDA aqui no servidor, não só no <select>.
  *
- * @return array{modo_venda:string,permite_venda_sem_estoque:int,prazo_encomenda_dias:?int}
+ * @return array{modo_venda:string,permite_venda_sem_estoque:int,prazo_encomenda_dias:?int,qtd_consulta:?int}
  */
 function disponibilidade_dados_post(array $post, array &$erros): array
 {
@@ -181,9 +211,21 @@ function disponibilidade_dados_post(array $post, array &$erros): array
         }
     }
 
+    // Limiar de consulta (Patch N): checkbox desmarcado grava NULL — o número escondido é ignorado
+    $consulta = null;
+    if (!empty($post['exige_consulta'])) {
+        $consultaRaw = trim((string) ($post['qtd_consulta'] ?? ''));
+        if (!ctype_digit($consultaRaw) || (int) $consultaRaw < 1 || (int) $consultaRaw > QTD_MAX_SANIDADE) {
+            $erros[] = 'Quantidade para consulta inválida (inteiro entre 1 e ' . QTD_MAX_SANIDADE . ').';
+        } else {
+            $consulta = (int) $consultaRaw;
+        }
+    }
+
     return [
         'modo_venda'                => $modo,
         'permite_venda_sem_estoque' => $permite,
         'prazo_encomenda_dias'      => $prazo,
+        'qtd_consulta'              => $consulta,
     ];
 }

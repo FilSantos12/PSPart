@@ -115,7 +115,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 comprimento           = :comprimento,
                 modo_venda            = :modo_venda,
                 permite_venda_sem_estoque = :permite_venda_sem_estoque,
-                prazo_encomenda_dias  = :prazo_encomenda_dias
+                prazo_encomenda_dias  = :prazo_encomenda_dias,
+                qtd_consulta          = :qtd_consulta
             WHERE id = :id
         ")->execute([
             ':nome'                  => $dados['nome'],
@@ -134,6 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':modo_venda'                => $dados['modo_venda'],
             ':permite_venda_sem_estoque' => $dados['permite_venda_sem_estoque'],
             ':prazo_encomenda_dias'      => $dados['prazo_encomenda_dias'],
+            ':qtd_consulta'              => $dados['qtd_consulta'],
             ':id'                    => $id,
         ]);
         header('Location: produto-editar.php?id=' . $id . '&msg=Produto+atualizado+com+sucesso.');

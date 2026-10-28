@@ -76,6 +76,11 @@ layout_head('Produtos', '<link rel="stylesheet" href="../../assets/css/disponibi
                         <?php $disp = disponibilidade_produto($p); ?>
                         <span class="stock-badge <?= htmlspecialchars($disp['badge_class']) ?> mb-0"><span class="stock-dot"></span><?= htmlspecialchars($disp['label_admin']) ?></span>
                         <div class="text-muted small">Estoque: <?= (int) $p['estoque'] ?></div>
+                        <?php if ($disp['texto_consulta']): ?>
+                            <div class="small text-primary" title="Limiar de consulta comercial (informativo)">
+                                <i class="fas fa-handshake me-1"></i><?= htmlspecialchars($disp['texto_consulta']) ?>
+                            </div>
+                        <?php endif; ?>
                     </td>
                     <td>
                         <span class="badge bg-<?= $p['ativo'] ? 'success' : 'secondary' ?>">

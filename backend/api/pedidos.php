@@ -46,6 +46,7 @@ $freteEscolhido = $body['frete_escolhido'] ?? null; // opcional
 
 if ($produtoId <= 0)  json_erro('produto_id inválido.', 422);
 if ($quantidade <= 0) json_erro('quantidade deve ser maior que zero.', 422);
+if ($quantidade > QTD_MAX_SANIDADE) json_erro('Quantidade inválida.', 422); // teto técnico (Patch N)
 
 // Valida formato de e-mail
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {

@@ -470,14 +470,49 @@ body.dark-mode .product-card-thumb .stock-badge {
 
 /* Badge de disponibilidade (.stock-badge / .stock-dot / variantes): ver assets/css/disponibilidade.css */
 
-/* Linha de compra em volume abaixo do rodapé do card (Patch L). Em card não comprável vai vazia,
-   só reservando a altura — preço/botões seguem alinhados com os vizinhos da linha */
+/* Linha de limiar de consulta abaixo do rodapé do card (Patch L → N: texto_consulta do helper,
+   só em produto com qtd_consulta). Sem limiar ou não comprável, vai vazia, só reservando a
+   altura — preço/botões seguem alinhados com os vizinhos da linha. Reserva 2 linhas: em colunas
+   estreitas (col-md-4, ~768px) o texto quebra, e 1 linha só desalinhava a fileira */
 .product-volume-nota {
     margin: 0.35rem 0 0;
-    min-height: 1.3em;
+    min-height: 2.6em;
     font-size: 0.72rem;
     line-height: 1.3;
     color: var(--muted);
+}
+
+/* Tabela de faixas de quantidade no modal de detalhe (Patch N) — só com qtd_consulta.
+   Tokens do refresh (--line/--ink/--muted já têm override dark) */
+.product-faixas {
+    width: 100%;
+    margin: 0.75rem 0 1rem;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    color: var(--ink);
+}
+
+.product-faixas th,
+.product-faixas td {
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+}
+
+.product-faixas th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.product-faixas-preco {
+    font-weight: 700;
+}
+
+.product-faixas-cta {
+    font-size: inherit;
+    vertical-align: baseline;
 }
 
 /* Motivo exibido ao lado do botão de compra desabilitado (texto vem pronto da API) */

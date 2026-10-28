@@ -24,11 +24,11 @@ $body = body_json();
 $cart = $body['cart'] ?? [];
 if (!is_array($cart) || count($cart) > 50) json_erro('Carrinho inválido.', 422);
 
-// Só id/quantidade inteiros e positivos; quantidade limitada ao teto de volume do carrinho
+// Só id/quantidade inteiros e positivos; quantidade limitada ao teto de sanidade (QTD_MAX_SANIDADE)
 $itens = [];
 foreach ($cart as $item) {
     $id  = filter_var($item['produto_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-    $qtd = filter_var($item['quantidade'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => QTD_LIMITE_VOLUME]]);
+    $qtd = filter_var($item['quantidade'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => QTD_MAX_SANIDADE]]);
     if ($id === false || $qtd === false) json_erro('Item do carrinho inválido.', 422);
     $itens[$id] = $qtd;
 }

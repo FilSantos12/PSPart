@@ -17,7 +17,16 @@ $dispInicial = disponibilidade_produto([
     'modo_venda'                => $dispModo,
     'permite_venda_sem_estoque' => $dispPermite ? 1 : 0,
     'prazo_encomenda_dias'      => $dispPrazo,
+    'qtd_consulta'              => $dados['qtd_consulta'] ?? null,
 ]);
+// Limiar de consulta (Patch N). Num POST com erro, reexibe o que o admin marcou/digitou em vez
+// do valor salvo; sem limiar, o campo nasce com a sugestão QTD_CONSULTA_SUGERIDA.
+$dispEhPost   = ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST';
+$dispExige    = $dispEhPost ? !empty($_POST['exige_consulta']) : ($dados['qtd_consulta'] ?? null) !== null;
+$dispConsulta = $dispEhPost
+    ? (string) ($_POST['qtd_consulta'] ?? '')
+    : (string) ($dados['qtd_consulta'] ?? QTD_CONSULTA_SUGERIDA);
+
 $dispMostraPermite = $dispModo === 'automatico';
 $dispMostraPrazo   = $dispModo === 'sempre_sob_encomenda' || ($dispModo === 'automatico' && $dispPermite);
 ?>
@@ -45,10 +54,22 @@ $dispMostraPrazo   = $dispModo === 'sempre_sob_encomenda' || ($dispModo === 'aut
             <input type="number" name="prazo_encomenda_dias" id="disp-prazo" class="form-control form-control-sm"
                    min="1" max="365" placeholder="vazio = consulte prazo" value="<?= htmlspecialchars((string) $dispPrazo) ?>">
         </div>
+        <div class="col-md-4">
+            <div class="form-check mb-1">
+                <input type="checkbox" name="exige_consulta" value="1" id="disp-exige-consulta" class="form-check-input" <?= $dispExige ? 'checked' : '' ?>>
+                <label class="form-check-label small" for="disp-exige-consulta">Exige consulta acima de uma quantidade</label>
+            </div>
+        </div>
+        <div class="col-md-4" id="disp-consulta-wrap" style="<?= $dispExige ? '' : 'display:none;' ?>">
+            <label class="form-label form-label-sm text-muted" for="disp-qtd-consulta">Quantidade a partir da qual exige consulta</label>
+            <input type="number" name="qtd_consulta" id="disp-qtd-consulta" class="form-control form-control-sm"
+                   min="1" max="<?= QTD_MAX_SANIDADE ?>" step="1" value="<?= htmlspecialchars($dispConsulta) ?>">
+        </div>
     </div>
     <div class="mt-2 small text-muted">
         Disponibilidade calculada:
         <span id="disp-preview" class="stock-badge <?= htmlspecialchars($dispInicial['badge_class']) ?> ms-1 mb-0"><span class="stock-dot"></span><span id="disp-preview-label"><?= htmlspecialchars($dispInicial['label_admin']) ?></span></span>
+        <span id="disp-preview-consulta" class="ms-2 fst-italic" style="<?= $dispInicial['texto_consulta'] ? '' : 'display:none;' ?>"><?= htmlspecialchars((string) $dispInicial['texto_consulta']) ?></span>
     </div>
 </div>
 <script>
@@ -61,8 +82,11 @@ $dispMostraPrazo   = $dispModo === 'sempre_sob_encomenda' || ($dispModo === 'aut
     const permiteEl = document.getElementById('disp-permite');
     const prazoEl   = document.getElementById('disp-prazo');
     const estoqueEl = form.querySelector('[name="estoque"]');
+    const exigeEl   = document.getElementById('disp-exige-consulta');
+    const consultaEl = document.getElementById('disp-qtd-consulta');
     const previewEl = document.getElementById('disp-preview');
     const labelEl   = document.getElementById('disp-preview-label');
+    const consultaPreviewEl = document.getElementById('disp-preview-consulta');
     const classes   = ['stock-badge--ok', 'stock-badge--warn', 'stock-badge--req'];
 
     // Só decide QUAIS campos aparecem — o rótulo do preview vem sempre do servidor
@@ -71,11 +95,14 @@ $dispMostraPrazo   = $dispModo === 'sempre_sob_encomenda' || ($dispModo === 'aut
         document.getElementById('disp-permite-wrap').style.display = auto ? '' : 'none';
         document.getElementById('disp-prazo-wrap').style.display =
             (modoEl.value === 'sempre_sob_encomenda' || (auto && permiteEl.checked)) ? '' : 'none';
+        document.getElementById('disp-consulta-wrap').style.display = exigeEl.checked ? '' : 'none';
     }
 
     function mostrarFalha() {
         previewEl.classList.remove(...classes);
         labelEl.textContent = '—';
+        consultaPreviewEl.textContent = '';
+        consultaPreviewEl.style.display = 'none';
     }
 
     let timer = null;
@@ -93,6 +120,8 @@ $dispMostraPrazo   = $dispModo === 'sempre_sob_encomenda' || ($dispModo === 'aut
                         modo_venda:                modoEl.value,
                         permite_venda_sem_estoque: permiteEl.checked ? 1 : 0,
                         prazo_encomenda_dias:      prazoEl.value,
+                        exige_consulta:            exigeEl.checked ? 1 : 0,
+                        qtd_consulta:              consultaEl.value,
                     }),
                 });
                 const json = await resp.json();
@@ -101,13 +130,16 @@ $dispMostraPrazo   = $dispModo === 'sempre_sob_encomenda' || ($dispModo === 'aut
                 previewEl.classList.remove(...classes);
                 previewEl.classList.add(json.data.badge_class);
                 labelEl.textContent = json.data.label_admin;
+                // Texto de consulta vem pronto do helper (texto_consulta) — o JS não monta
+                consultaPreviewEl.textContent = json.data.texto_consulta || '';
+                consultaPreviewEl.style.display = json.data.texto_consulta ? '' : 'none';
             } catch (_) {
                 if (minha === seq) mostrarFalha();
             }
         }, 300);
     }
 
-    [modoEl, permiteEl, prazoEl, estoqueEl].forEach(el => {
+    [modoEl, permiteEl, prazoEl, estoqueEl, exigeEl, consultaEl].forEach(el => {
         el?.addEventListener('input', () => { atualizarCampos(); agendarPreview(); });
         el?.addEventListener('change', () => { atualizarCampos(); agendarPreview(); });
     });
