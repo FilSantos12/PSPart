@@ -263,7 +263,7 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 > Migration inicial: `migrations/migrate-categorias.php` — já executada, arquivo mantido em `migrations/` para histórico.
 
 ### Tabela `pedidos`
-- id, nome/email/telefone_comprador, endereço completo, total, status, mp_preferencia_id, token_acompanhamento, criado_em, **estoque_devolvido** (INTEGER NOT NULL DEFAULT 0, Patch K — `migrations/migrate_estoque_devolvido.php`, rodar antes de publicar o código)
+- id, nome/email/telefone_comprador, endereço completo, total, status, mp_preferencia_id, token_acompanhamento, criado_em, **estoque_devolvido** (INTEGER NOT NULL DEFAULT 0, Patch K — `migrations/migrate_estoque_devolvido.php`, rodar antes de publicar o código). Três estados (Patch R): `0` não devolvido (elegível), `1` devolvido, `2` devolução negada (pedido estava pago) — ver "Devolução de estoque"
 - Status válidos: `pendente`, `aprovado`, `em_analise`, `recusado`, `cancelado`, `reembolsado`, `contestado`, `em_processamento` — **`enviado` foi removido** (rastreamento físico é gerenciado exclusivamente em `tracking-admin.php`)
 
 ### Tabela `order_tracking`
@@ -472,7 +472,10 @@ const imgSrc = imgPrincipal ? imgPrincipal.caminho : (p.imagem || '');
 ### Devolução de estoque — `backend/helpers/estoque.php` (Patch K)
 - `devolverEstoquePedido(PDO $pdo, int $pedidoId, string $statusAnterior): bool` — **único** caminho que devolve estoque
 - Chamada só quando o novo status é `cancelado`, logo após a gravação do status, em `webhook.php`, `processar-pagamento.php` e `admin/pedido-detalhe.php`
-- Não faz nada se o status anterior era `aprovado`/`em_processamento` (devolução de pedido pago é decisão humana) ou se `pedidos.estoque_devolvido` já é 1 (webhook duplicado/retry). A marcação é `UPDATE … WHERE estoque_devolvido = 0` com `rowCount()`, então chamadas concorrentes devolvem uma vez só
+- Só age com `pedidos.estoque_devolvido = 0`. Status anterior `aprovado`/`em_processamento` → grava **2** (negado) e não devolve — devolução de pedido pago é decisão humana; senão devolve e grava **1**. As duas marcações são `UPDATE … WHERE estoque_devolvido = 0` com `rowCount()`, então chamadas concorrentes ou repetidas agem uma vez só
+- **O estado 2 é terminal (Patch R).** Existe porque o Mercado Pago reenvia webhooks: a 1ª notificação de um pedido pago recusava a devolução mas gravava `cancelado`; no retry o status anterior já era `cancelado` e a guarda, baseada só no status anterior, deixava passar — pedido pago tinha o estoque devolvido sem decisão humana (o admin salvando "cancelado" duas vezes tinha o mesmo efeito). Pedidos antigos com `0` ficaram como estavam
+- `logs/estoque.log` distingue: "estoque devolvido", "devolução NEGADA (status anterior …)" e "devolução ignorada (já devolvido | devolução negada antes …)"
+- Em `processar-pagamento.php` a chamada é **inalcançável pelo fluxo real**: o `create()` do MP nunca responde `cancelled` em pagamento recém-criado. Só exercitável por chamada direta. Webhook e admin foram validados por HTTP (boletos de teste cancelados via API do MP + retry do webhook)
 - Devolve `quantidade − qtd_sob_encomenda` por item (o sob encomenda nunca esteve no estoque)
 - Nunca lança: falha vai para `logs/estoque.log` (todas as devoluções e recusas de devolução também são logadas)
 - Recusado/abandonado **não** devolvem; não há re-baixa se um cancelado voltar a aprovado (ver Pendências)
@@ -796,7 +799,8 @@ Retorna adicionalmente: `chosen_carrier`, `chosen_service`, `shipping_price`, `s
 - **Checkout do carrinho sem teste HTTP ponta a ponta:** `pedido-carrinho.php` não foi testado via HTTP no Patch I — o token do Melhor Envio estava vencido e o fluxo para no frete. A função `criarPedidoCarrinho()` foi validada em harness CLI. Refazer o teste HTTP (após reconectar o Melhor Envio) antes do deploy em produção
 - **`carrinho-avisos.php` é sondável (Patch L):** variando a quantidade e observando quando o aviso de estoque parcial aparece, é possível inferir o estoque de um produto, uma requisição por tentativa. Limitação conhecida e aceita; mitigação (rate limit ou faixas em vez de limiar exato) não priorizada
 - **Agente sem teste real com o modelo (Patch L):** `AGENTE_MODO_MOCK = false` em `loja.php`, mas `buscar_produtos` foi validada só por chamada direta à ferramenta, sem chamada real ao modelo
-- **Melhor Envio — refresh token (Patch L):** validade estimada até ~2026-10-29 (45 dias a partir do `updated_at` 2026-09-14). Depois disso, a reconexão exige nova autorização OAuth completa
+- **Melhor Envio — token:** renovado em 28/10/2026 pelo refresh token (CLI, `getValidToken()` da própria classe); access token válido até **2026-11-27**. Refresh token vale ~45 dias a partir da renovação; vencido, a reconexão exige nova autorização OAuth completa (via ngrok)
+- **`frete.php` impede a própria renovação (→ Patch Q):** barra o token expirado (`getStatus()` = `expirado` → 503) antes de criar a classe `MelhorEnvio`, então a renovação automática nunca roda. Com só o access token vencido e o refresh válido, deveria deixar renovar em vez de devolver 503. Foi o que exigiu a renovação manual por CLI em 28/10
 
 ## Placeholders pendentes (necessários antes do deploy)
 - `SEU_NUMERO` — WhatsApp: `WHATSAPP_NUMBER` em `script.js` (compartilhamento de produto) + botão flutuante **comentado** no `index.html`. O item de WhatsApp da seção Contato foi removido (Patch H) — reinserir quando houver número real; a linha fixa (15) 3263-9494 **não** é WhatsApp
