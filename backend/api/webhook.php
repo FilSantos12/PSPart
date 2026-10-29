@@ -74,8 +74,23 @@ try {
     $pedidoAtual->execute([':id' => $pedidoId]);
     $statusAnterior = $pedidoAtual->fetchColumn();
 
-    $pdo->prepare("UPDATE pedidos SET status = :status WHERE id = :id")
-        ->execute([':status' => $novoStatus, ':id' => $pedidoId]);
+    $upd = $pdo->prepare("UPDATE pedidos SET status = :status WHERE id = :id");
+    $upd->execute([':status' => $novoStatus, ':id' => $pedidoId]);
+
+    // Patch T: nenhuma linha afetada = pedido inexistente. No SQLite, rowCount() conta as linhas
+    // casadas mesmo com o status igual ao anterior, então o retry idempotente do MP não cai aqui.
+    // Encerra aqui: seguir adiante devolveria estoque (devolverEstoquePedido) e criaria
+    // order_tracking órfão para um pedido que não existe.
+    if ($upd->rowCount() === 0) {
+        file_put_contents($logFile, date('Y-m-d H:i:s')
+            . ' | ANOMALIA: pedido inexistente | external_reference='
+            . json_encode($pagamento->external_reference ?? null) // valor cru, antes do (int)
+            . ' | payment_id=' . $id
+            . ' | status_mp=' . ($pagamento->status ?? '')
+            . PHP_EOL, FILE_APPEND | LOCK_EX);
+        http_response_code(200);
+        exit;
+    }
 
     if ($novoStatus === 'cancelado') devolverEstoquePedido($pdo, $pedidoId, (string) $statusAnterior);
 
