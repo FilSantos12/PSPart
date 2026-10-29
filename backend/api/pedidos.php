@@ -135,9 +135,10 @@ try {
     // UNIQUE(numero_pedido) — dois requests gerando o mesmo próximo sequencial do mês.
     $maxTentativas = 5;
     for ($tentativa = 0; $tentativa < $maxTentativas; $tentativa++) {
-        $numeroPedido = proximoNumeroPedido($pdo);
         try {
             $pdo->beginTransaction();
+            // Dentro da transação (Patch T): o contador só avança se o pedido for gravado
+            $numeroPedido = proximoNumeroPedido($pdo);
 
             $stmt = $pdo->prepare("
                 INSERT INTO pedidos (nome_comprador, email_comprador, telefone_comprador,
@@ -167,7 +168,7 @@ try {
             break;
         } catch (PDOException $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
-            if (strpos($e->getMessage(), 'numero_pedido') !== false && $tentativa < $maxTentativas - 1) {
+            if ($tentativa < $maxTentativas - 1 && numeroPedidoColidiu($pdo, $e, $numeroPedido ?? null)) {
                 continue;
             }
             throw $e;
@@ -272,5 +273,9 @@ try {
 
 } catch (Exception $e) {
     $pdo->inTransaction() && $pdo->rollBack();
+    // Patch T: a mensagem real fica registrada (a resposta continua genérica)
+    $logDir = __DIR__ . '/../../logs';
+    if (!is_dir($logDir)) @mkdir($logDir, 0755, true);
+    @file_put_contents($logDir . '/checkout.log', date('Y-m-d H:i:s') . ' | pedidos.php | ' . $e->getMessage() . PHP_EOL, FILE_APPEND | LOCK_EX);
     json_erro('Erro ao criar pedido.', 500);
 }

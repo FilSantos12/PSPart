@@ -98,6 +98,7 @@ define('MP_BASE_URL', 'https://seudominio.com.br');
 
 - [ ] Acessar `https://seudominio.com.br/setup.php` com a senha `<definir no servidor>` → cria as tabelas
 - [ ] **Deletar `setup.php`** do servidor imediatamente após executar
+- [ ] Rodar `php migrations/migrate_numero_pedido_seq.php` **antes do primeiro checkout** — cria o contador de `numero_pedido`; sem a tabela, o checkout devolve 502 (sem SSH: ver nota "Migrações em hospedagem sem SSH")
 - [ ] Acessar o admin → trocar a senha padrão por uma senha forte `<definir no servidor>`
 - [ ] Registrar a URL do webhook no painel do Mercado Pago:
       `https://seudominio.com.br/backend/api/webhook.php`
