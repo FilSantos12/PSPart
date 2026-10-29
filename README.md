@@ -101,10 +101,10 @@ php -S localhost:8000
 | URL | Descrição |
 |---|---|
 | `http://localhost:8000` | Site principal |
-| `http://localhost:8000/setup.php` | Setup do banco (senha: `psp@setup2025`) |
+| `http://localhost:8000/setup.php` | Setup do banco (senha: ver gerenciador de senhas local) |
 | `http://localhost:8000/backend/admin/` | Área administrativa |
 
-**Admin padrão:** `admin@pspart.com.br` / `admin123`
+**Admin padrão:** `admin@pspart.com.br` / senha: ver gerenciador de senhas local
 
 ### ngrok (Mercado Pago em dev local)
 O MP exige URL pública para `back_urls` e `notification_url`. Em desenvolvimento local, usar ngrok:
@@ -146,5 +146,5 @@ define('MP_BASE_URL', 'https://xxxx.ngrok-free.app');
 - [ ] Escrever texto real da seção "Sobre Nós"
 - [ ] Trocar credenciais TEST- pelas de produção em `backend/config/mercadopago.php`
 - [ ] Atualizar `MP_BASE_URL` com o domínio real
-- [ ] Trocar senha do admin (padrão: `admin123`)
+- [ ] Trocar a senha padrão do admin (`<definir no servidor>`)
 - [ ] Remover ou bloquear `setup.php`

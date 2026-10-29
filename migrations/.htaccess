@@ -1,0 +1,10 @@
+# Migrações só pelo terminal (php migrations/<arquivo>.php) — nunca pela URL: sem esta regra,
+# qualquer pessoa executaria o script e veria as contagens de produtos e pedidos.
+# Apache 2.4 (Require) e 2.2 (Deny).
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

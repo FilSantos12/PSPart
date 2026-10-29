@@ -35,7 +35,7 @@ public_html/
 ├── img/
 ├── docs/
 ├── database.db      ← proteger via .htaccess (ver abaixo)
-└── .htaccess        ← criar antes do upload (ver abaixo)
+└── .htaccess        ← versionado no repositório (ver abaixo)
 ```
 
 ---
@@ -51,16 +51,20 @@ cPanel → **Selecionar versão PHP** → escolher **8.1** ou **8.2**.
 cPanel → **Let's Encrypt** → ativar para o domínio.
 O Mercado Pago exige HTTPS nos `back_urls` e `notification_url` do webhook.
 
-### 3. Criar `.htaccess` na raiz
+### 3. Conferir os `.htaccess` (versionados no repositório)
 
-Criar o arquivo `public_html/.htaccess` para bloquear acesso direto ao banco:
+Sobem junto com o código — conferir que chegaram ao servidor:
 
-```apache
-# Bloqueia download direto do banco SQLite
-<FilesMatch "\.db$">
-    Require all denied
-</FilesMatch>
-```
+| Arquivo | Bloqueia |
+|---|---|
+| `.htaccess` (raiz) | `*.db` (+ `-shm`/`-wal`/`-journal`) e `*.log`; diretórios `logs/`, `vendor/`, `.git/`; `composer.json`/`.lock` |
+| `backend/.htaccess` | `backend/config/` (via mod_rewrite) |
+| `backend/config/.htaccess` | todo o diretório — reforço que não depende de mod_rewrite |
+| `migrations/.htaccess` | todo o diretório — migrações só pelo terminal |
+
+Todos usam só diretivas válidas em `.htaccess`, com `Require all denied` (Apache 2.4) e `Deny from all` (2.2) separados por `<IfModule>`. Depois do upload, abrir no navegador `/database.db`, `/backend/config/database.php` e `/migrations/migrate_qtd_consulta.php` — os três devem responder **403**.
+
+> **Migrações em hospedagem sem SSH:** `migrations/.htaccess` impede a execução pela URL. Sem acesso ao terminal, renomear esse `.htaccess` só durante a execução, rodar as migrações e restaurá-lo (ou apagar os arquivos de migração do servidor) logo em seguida.
 
 ### 4. Criar `backend/config/mercadopago.php` no servidor
 
@@ -90,9 +94,11 @@ define('MP_BASE_URL', 'https://seudominio.com.br');
 
 ## Checklist Pós-Upload
 
-- [ ] Acessar `https://seudominio.com.br/setup.php` com a senha `psp@setup2025` → cria as tabelas
+> Senhas de produção (do `setup.php` e do admin) são definidas no servidor e **nunca versionadas** — nem neste guia, nem em nenhum outro arquivo do repositório.
+
+- [ ] Acessar `https://seudominio.com.br/setup.php` com a senha `<definir no servidor>` → cria as tabelas
 - [ ] **Deletar `setup.php`** do servidor imediatamente após executar
-- [ ] Acessar o admin → trocar a senha padrão `admin123` por uma senha forte
+- [ ] Acessar o admin → trocar a senha padrão por uma senha forte `<definir no servidor>`
 - [ ] Registrar a URL do webhook no painel do Mercado Pago:
       `https://seudominio.com.br/backend/api/webhook.php`
 - [ ] Atualizar os dois números de WhatsApp no `index.html` (botão hero + botão flutuante)
@@ -105,13 +111,13 @@ define('MP_BASE_URL', 'https://seudominio.com.br');
 ## Pontos de Atenção
 
 ### `database.db` acessível via browser
-Sem o `.htaccess` da raiz, qualquer pessoa pode fazer download do banco completo (pedidos, e-mails, dados de compradores). Criar o arquivo antes do primeiro upload.
+Sem o `.htaccess` da raiz, qualquer pessoa pode fazer download do banco completo (pedidos, e-mails, dados de compradores). Ele é versionado — conferir que subiu e que `/database.db` responde 403.
 
 ### `vendor/` — não rodar Composer no servidor
 Subir a pasta `vendor/` do ambiente local. Hospedagem compartilhada normalmente não tem Composer disponível via SSH.
 
-### `backend/.htaccess` — regra ineficaz
-A diretiva `DirectoryMatch` usada no `backend/.htaccess` atual não funciona dentro de `.htaccess` (só vale em configuração de servidor). Os arquivos PHP em `config/` executam mas não expõem conteúdo diretamente, então o risco é baixo. Pode ser corrigido substituindo por `<Files>`.
+### `backend/.htaccess` — corrigido
+Usava `<DirectoryMatch>`, que não é permitido em `.htaccess` (só na configuração do servidor) e tende a derrubar todo o `backend/` com erro 500. Substituído por `RewriteRule ^config(/|$) - [F,L]`, com `backend/config/.htaccess` como reforço sem mod_rewrite.
 
 ### E-mail via `mail()` nativo
 Não funciona em localhost (DEV-SKIP no log). Funciona normalmente em hospedagem compartilhada Locaweb. Logs em `logs/emails.log`.
@@ -127,5 +133,5 @@ Registrar no painel MP a URL pública de produção. Sem isso, pagamentos via Ch
 - Ícones PWA reais (192×192 e 512×512 PNG) para `manifest.json`
 - Texto real da seção "Sobre Nós"
 - Preços dos produtos definidos via admin
-- Senha do admin trocada (padrão: `admin123`)
+- Senha do admin trocada (`<definir no servidor>`)
 - `setup.php` removido após execução

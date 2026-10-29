@@ -1,10 +1,8 @@
-# Bloqueia acesso direto à pasta config/ via browser
-<Files "*.php">
-    <RequireAll>
-        Require all granted
-    </RequireAll>
-</Files>
-
-<DirectoryMatch "config">
-    Require all denied
-</DirectoryMatch>
+# Bloqueia acesso web a backend/config/ (credenciais).
+# <DirectoryMatch> não é permitido em .htaccess (só na configuração do servidor) — o Apache
+# responde 500 em todo o backend/. Em .htaccess a regra equivalente é por mod_rewrite, com o
+# caminho relativo a este diretório. Reforço sem mod_rewrite: backend/config/.htaccess.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^config(/|$) - [F,L]
+</IfModule>

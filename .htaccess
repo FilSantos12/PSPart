@@ -1,0 +1,21 @@
+# Raiz do site. Só diretivas válidas em .htaccess (contexto de diretório).
+
+# Banco SQLite (e arquivos de journal/WAL) e logs: nunca baixáveis pela URL.
+# Os logs guardam payloads de pagamento e e-mails de compradores.
+<FilesMatch "\.(db|db-shm|db-wal|db-journal|log)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Diretórios que não são servidos ao público: logs, dependências do Composer e o
+# repositório git, caso subam junto no upload.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(logs|vendor|\.git)(/|$) - [F,L]
+    RewriteRule ^composer\.(json|lock)$ - [F,L]
+</IfModule>
