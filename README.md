@@ -47,7 +47,7 @@ Desenvolvido com **HTML/CSS/JS puro** no frontend e **PHP + SQLite** no backend.
 ## Estrutura do Projeto
 
 ```
-PSP-Website/
+PSPart-Website/
 ├── index.html                  # Página principal
 ├── acompanhar.html             # Acompanhamento de pedido
 ├── style.css                   # Estilos com CSS variables
@@ -94,7 +94,7 @@ PSP-Website/
 
 ### Subir o servidor local
 ```bash
-cd "D:\Aréa de Trabalho\DEV\PSP-Website"
+cd "D:\Aréa de Trabalho\DEV\PSPart-Website"
 php -S localhost:8000
 ```
 

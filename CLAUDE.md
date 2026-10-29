@@ -825,7 +825,7 @@ Retorna adicionalmente: `chosen_carrier`, `chosen_service`, `shipping_price`, `s
 
 ### Servidor local
 ```bash
-cd "D:\Aréa de Trabalho\DEV\PSP-Website"
+cd "D:\Aréa de Trabalho\DEV\PSPart-Website"
 php -S localhost:8000
 ```
 
