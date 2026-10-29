@@ -69,7 +69,7 @@ $dispMostraPrazo   = $dispModo === 'sempre_sob_encomenda' || ($dispModo === 'aut
     <div class="mt-2 small text-muted">
         Disponibilidade calculada:
         <span id="disp-preview" class="stock-badge <?= htmlspecialchars($dispInicial['badge_class']) ?> ms-1 mb-0"><span class="stock-dot"></span><span id="disp-preview-label"><?= htmlspecialchars($dispInicial['label_admin']) ?></span></span>
-        <span id="disp-preview-consulta" class="ms-2 fst-italic" style="<?= $dispInicial['texto_consulta'] ? '' : 'display:none;' ?>"><?= htmlspecialchars((string) $dispInicial['texto_consulta']) ?></span>
+        <span id="disp-preview-consulta" class="ms-2 fst-italic" style="<?= $dispInicial['pode_comprar'] && $dispInicial['texto_consulta'] ? '' : 'display:none;' ?>"><?= htmlspecialchars((string) $dispInicial['texto_consulta']) ?></span>
     </div>
 </div>
 <script>
@@ -130,9 +130,11 @@ $dispMostraPrazo   = $dispModo === 'sempre_sob_encomenda' || ($dispModo === 'aut
                 previewEl.classList.remove(...classes);
                 previewEl.classList.add(json.data.badge_class);
                 labelEl.textContent = json.data.label_admin;
-                // Texto de consulta vem pronto do helper (texto_consulta) — o JS não monta
-                consultaPreviewEl.textContent = json.data.texto_consulta || '';
-                consultaPreviewEl.style.display = json.data.texto_consulta ? '' : 'none';
+                // Texto de consulta vem pronto do helper (texto_consulta) — o JS não monta.
+                // Como na loja, só aparece em produto comprável
+                const mostraConsulta = json.data.pode_comprar && json.data.texto_consulta;
+                consultaPreviewEl.textContent = mostraConsulta ? json.data.texto_consulta : '';
+                consultaPreviewEl.style.display = mostraConsulta ? '' : 'none';
             } catch (_) {
                 if (minha === seq) mostrarFalha();
             }
