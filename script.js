@@ -1988,13 +1988,17 @@ class App {
             el.style.display = 'none';
             return;
         }
+        // Patch V: título em destaque + "Falar com vendas" como ação primária (sólido); telefone segue outline
         el.innerHTML = `
+                <p class="cart-volume-aviso-titulo">
+                    <i class="fas fa-handshake me-1"></i>Compra em volume
+                </p>
                 <p class="cart-volume-aviso-texto">
-                    <i class="fas fa-handshake me-1"></i>Alguns itens têm condição especial acima de determinada
+                    Alguns itens têm condição especial acima de determinada
                     quantidade — a informação aparece no detalhe de cada produto.
                 </p>
                 <div class="cart-volume-aviso-ctas">
-                    <a href="mailto:${EMPRESA_EMAIL_VENDAS}?subject=${encodeURIComponent('Compra em volume')}" class="btn btn-sm btn-outline-primary">
+                    <a href="mailto:${EMPRESA_EMAIL_VENDAS}?subject=${encodeURIComponent('Compra em volume')}" class="btn btn-sm btn-primary">
                         <i class="fas fa-envelope me-1"></i>Falar com vendas
                     </a>
                     <a href="tel:${EMPRESA_TELEFONE_E164}" class="btn btn-sm btn-outline-primary">

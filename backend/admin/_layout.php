@@ -106,6 +106,29 @@ function admToast(msg, tipo = 'success') {
 }
 
 
+// Máscara de valor monetário — <input data-moeda>. O campo mostra o valor em pt-BR (1.234,56),
+// digitado da direita para a esquerda (centavos primeiro); no envio, o FormData recebe o número
+// com ponto ("1234.56"), que é o que o servidor valida com is_numeric() — o POST não muda.
+// Sem JS o campo continua aceitando o número com ponto, direto.
+function admFormatarMoeda(digitos) {
+    if (!digitos) return '';
+    const n = digitos.replace(/^0+(?=\d)/, '').padStart(3, '0');
+    return n.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + n.slice(-2);
+}
+document.querySelectorAll('input[data-moeda]').forEach(function (el) {
+    const inicial = el.value.trim();
+    if (inicial !== '' && !isNaN(inicial)) {
+        el.value = admFormatarMoeda(String(Math.round(parseFloat(inicial) * 100)));
+    }
+    el.addEventListener('input', function () {
+        el.value = admFormatarMoeda(el.value.replace(/\D/g, ''));
+    });
+    if (el.form) el.form.addEventListener('formdata', function (e) {
+        const digitos = el.value.replace(/\D/g, '');
+        e.formData.set(el.name, digitos ? (parseInt(digitos, 10) / 100).toFixed(2) : '');
+    });
+});
+
 // Menu aberto no celular e janela alargada acima de 768px: fecha, senão o fundo escuro fica
 window.matchMedia('(max-width: 768px)').addEventListener('change', function (e) {
     if (e.matches) return;

@@ -2269,12 +2269,60 @@ body.dark-mode .pagamentos-seguranca .ps-seguranca-lista li { color: #ccc; }
 
 /* Faixa de compra em volume acima da grade (Patch L) — mesma estrutura do aviso do drawer,
    em tom de oferta: borda e ícone em --accent no lugar do --warn (não é alerta) */
+/* Patch V: card elevado — superfície --card sobre o --bg da seção, borda --primary, sombra média */
 .cart-volume-aviso--oferta {
-    border-left-color: var(--accent);
+    padding: 1.1rem 1.35rem;
+    background: var(--card);
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
 }
 
-.cart-volume-aviso--oferta .cart-volume-aviso-texto i {
+.cart-volume-aviso-titulo {
+    margin: 0 0 0.25rem;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.cart-volume-aviso-titulo i {
     color: var(--accent);
+}
+
+.cart-volume-aviso--oferta .cart-volume-aviso-texto {
+    margin-bottom: 0.85rem;
+    font-size: 0.9rem;
+    color: var(--muted);
+}
+
+/* Ação primária em --primary (o .btn-primary global usa --accent) */
+.cart-volume-aviso--oferta .btn-primary {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+.cart-volume-aviso--oferta .btn-primary:hover,
+.cart-volume-aviso--oferta .btn-primary:focus-visible {
+    background-color: var(--primary-700);
+    border-color: var(--primary-700);
+    color: #fff;
+}
+
+.cart-volume-aviso--oferta .btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(var(--accent-rgb), .4);
+}
+
+@media (max-width: 575.98px) {
+    .cart-volume-aviso--oferta .cart-volume-aviso-ctas {
+        flex-direction: column;
+    }
+
+    .cart-volume-aviso--oferta .cart-volume-aviso-ctas .btn {
+        width: 100%;
+    }
 }
 
 .cart-item:last-child {

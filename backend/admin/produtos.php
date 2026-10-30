@@ -52,68 +52,17 @@ layout_head('Produtos');
 
 <?php admin_alerta_msg(); ?>
 
-<div class="card shadow-sm">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0 adm-table">
-            <thead class="table-light">
-                <tr>
-                    <th>#</th>
-                    <th>Produto</th>
-                    <th>Código</th>
-                    <th>Categoria</th>
-                    <th class="text-end">Preço</th>
-                    <th>Disponibilidade</th>
-                    <th class="text-end">Estoque</th>
-                    <th>Status</th>
-                    <th class="text-end">Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php foreach ($produtos as $p): ?>
-                <tr>
-                    <td class="text-muted small text-nowrap"><?= $p['id'] ?></td>
-                    <td>
-                        <div class="d-flex align-items-center gap-2">
-                            <?php if ($p['img_thumb']): ?>
-                                <?php
-                                    $full = __DIR__ . '/../../' . $p['img_thumb'];
-                                    $bust = file_exists($full) ? '?v=' . filemtime($full) : '';
-                                ?>
-                                <img src="/<?= htmlspecialchars($p['img_thumb']) . $bust ?>" width="40" height="40" class="adm-thumb" alt="">
-                            <?php endif; ?>
-                            <div class="adm-produto-texto">
-                                <div class="fw-semibold text-truncate" title="<?= htmlspecialchars($p['nome']) ?>"><?= htmlspecialchars($p['nome']) ?></div>
-                                <div class="text-muted small text-truncate"><?= htmlspecialchars($p['descricao'] ?? '') ?></div>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="font-monospace small text-muted text-nowrap"><?= $p['codigo_interno'] ? htmlspecialchars($p['codigo_interno']) : '—' ?></td>
-                    <td><span class="badge bg-secondary"><?= htmlspecialchars($p['categoria']) ?></span></td>
-                    <td class="text-end text-nowrap">R$ <?= number_format($p['preco'], 2, ',', '.') ?></td>
-                    <td>
-                        <?php
-                            // Badge só com o estado, sem quantidade; o número fica na coluna Estoque
-                            $disp = disponibilidade_produto($p);
-                        ?>
-                        <span class="stock-badge <?= htmlspecialchars($disp['badge_class']) ?> mb-0 text-nowrap"><span class="stock-dot"></span><?= htmlspecialchars(disponibilidade_label_estado($disp)) ?></span>
-                        <?php if ($disp['texto_consulta']): ?>
-                            <div class="small text-primary text-nowrap" title="Limiar de consulta comercial (informativo)">
-                                <i class="fas fa-handshake me-1"></i><?= htmlspecialchars($disp['texto_consulta']) ?>
-                            </div>
-                        <?php endif; ?>
-                    </td>
-                    <td class="text-end text-nowrap"><?= (int) $p['estoque'] ?></td>
-                    <td class="text-nowrap">
-                        <span class="adm-pill<?= $p['ativo'] ? '' : ' adm-pill--off' ?>"><?= $p['ativo'] ? 'Ativo' : 'Inativo' ?></span>
-                    </td>
-                    <td>
-                        <?php
-                            $pedidosVinc = (int) $p['pedidos_vinculados'];
-                            $dataProduto = 'data-id="' . (int) $p['id'] . '" data-nome="' . htmlspecialchars($p['nome']) . '"'
-                                         . ' data-codigo="' . htmlspecialchars($p['codigo_interno'] ?? '') . '"';
-                            $motivoExcluir = $pedidosVinc . ' ' . ($pedidosVinc === 1 ? 'pedido vinculado' : 'pedidos vinculados') . ' — só pode ser inativado';
-                        ?>
-                        <div class="adm-acoes">
+<?php
+// Botões de ação de um produto — os mesmos na tabela e no card (Patch V). $sufixoId evita id
+// duplicado no motivo de bloqueio, já que as duas marcações ficam no DOM ao mesmo tempo.
+$acoesProduto = function (array $p, string $sufixoId = '', string $classeExtra = ''): void {
+    $pedidosVinc = (int) $p['pedidos_vinculados'];
+    $dataProduto = 'data-id="' . (int) $p['id'] . '" data-nome="' . htmlspecialchars($p['nome']) . '"'
+                 . ' data-codigo="' . htmlspecialchars($p['codigo_interno'] ?? '') . '"';
+    $motivoExcluir = $pedidosVinc . ' ' . ($pedidosVinc === 1 ? 'pedido vinculado' : 'pedidos vinculados') . ' — só pode ser inativado';
+    $idMotivo = 'motivo-excluir-' . $sufixoId . (int) $p['id'];
+?>
+                        <div class="adm-acoes<?= $classeExtra ?>">
                             <a href="produto-editar.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar <?= htmlspecialchars($p['nome']) ?>">
                                 <i class="fas fa-edit" aria-hidden="true"></i>
                             </a>
@@ -134,11 +83,11 @@ layout_head('Produtos');
                                 <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-title="<?= htmlspecialchars($motivoExcluir) ?>">
                                     <button type="button" class="btn btn-sm btn-outline-danger btn-estado" data-acao="excluir" <?= $dataProduto ?>
                                             title="Excluir definitivamente" aria-label="Excluir definitivamente <?= htmlspecialchars($p['nome']) ?>"
-                                            disabled aria-describedby="motivo-excluir-<?= (int) $p['id'] ?>">
+                                            disabled aria-describedby="<?= $idMotivo ?>">
                                         <i class="fas fa-trash" aria-hidden="true"></i>
                                     </button>
                                 </span>
-                                <span class="visually-hidden" id="motivo-excluir-<?= (int) $p['id'] ?>"><?= htmlspecialchars($motivoExcluir) ?></span>
+                                <span class="visually-hidden" id="<?= $idMotivo ?>"><?= htmlspecialchars($motivoExcluir) ?></span>
                             <?php else: ?>
                                 <button type="button" class="btn btn-sm btn-outline-danger btn-estado" data-acao="excluir" <?= $dataProduto ?>
                                         title="Excluir definitivamente" aria-label="Excluir definitivamente <?= htmlspecialchars($p['nome']) ?>">
@@ -146,15 +95,111 @@ layout_head('Produtos');
                                 </button>
                             <?php endif; ?>
                         </div>
-                    </td>
+<?php
+};
+
+$vazioMsg  = $filtro === 'todos' ? 'Nenhum produto cadastrado.' : 'Nenhum produto ' . ($filtro === 'ativos' ? 'ativo' : 'inativo') . '.';
+$cardsHtml = '';   // cards do celular, gerados no mesmo loop da tabela e impressos depois dela
+?>
+<!-- A partir de 768px: tabela. Abaixo: um card por produto. Um loop só gera as duas marcações (Patch V). -->
+<div class="card shadow-sm d-none d-md-block">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 adm-table">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Produto</th>
+                    <th>Código</th>
+                    <th>Categoria</th>
+                    <th class="text-end">Preço</th>
+                    <th>Disponibilidade</th>
+                    <th class="text-end">Estoque</th>
+                    <th>Status</th>
+                    <th class="text-end adm-col-acoes">Ações</th>
                 </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($produtos as $p): ?>
+                <?php
+                    $thumbSrc = '';
+                    if ($p['img_thumb']) {
+                        $full = __DIR__ . '/../../' . $p['img_thumb'];
+                        $bust = file_exists($full) ? '?v=' . filemtime($full) : '';
+                        $thumbSrc = '/' . htmlspecialchars($p['img_thumb']) . $bust;
+                    }
+                    // Badge só com o estado, sem quantidade; o número fica na coluna Estoque
+                    $disp = disponibilidade_produto($p);
+                    $codigoHtml = $p['codigo_interno'] ? htmlspecialchars($p['codigo_interno']) : '—';
+                    $precoHtml  = 'R$ ' . number_format($p['preco'], 2, ',', '.');
+                ?>
+                <?php ob_start(); ?>
+                    <span class="stock-badge <?= htmlspecialchars($disp['badge_class']) ?> mb-0 text-nowrap"><span class="stock-dot"></span><?= htmlspecialchars(disponibilidade_label_estado($disp)) ?></span>
+                    <?php if ($disp['texto_consulta']): ?>
+                        <div class="small text-primary text-nowrap" title="Limiar de consulta comercial (informativo)">
+                            <i class="fas fa-handshake me-1"></i><?= htmlspecialchars($disp['texto_consulta']) ?>
+                        </div>
+                    <?php endif; ?>
+                <?php $dispHtml = ob_get_clean(); ?>
+                <?php $statusHtml = '<span class="adm-pill' . ($p['ativo'] ? '' : ' adm-pill--off') . '">' . ($p['ativo'] ? 'Ativo' : 'Inativo') . '</span>'; ?>
+                <tr>
+                    <td class="text-muted small text-nowrap"><?= $p['id'] ?></td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <?php if ($thumbSrc): ?>
+                                <img src="<?= $thumbSrc ?>" width="40" height="40" class="adm-thumb" alt="">
+                            <?php endif; ?>
+                            <div class="adm-produto-texto">
+                                <div class="fw-semibold text-truncate" title="<?= htmlspecialchars($p['nome']) ?>"><?= htmlspecialchars($p['nome']) ?></div>
+                                <div class="text-muted small text-truncate"><?= htmlspecialchars($p['descricao'] ?? '') ?></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="font-monospace small text-muted text-nowrap"><?= $codigoHtml ?></td>
+                    <td><span class="badge bg-secondary"><?= htmlspecialchars($p['categoria']) ?></span></td>
+                    <td class="text-end text-nowrap"><?= $precoHtml ?></td>
+                    <td><?= $dispHtml ?></td>
+                    <td class="text-end text-nowrap"><?= (int) $p['estoque'] ?></td>
+                    <td class="text-nowrap"><?= $statusHtml ?></td>
+                    <td class="adm-col-acoes"><?php $acoesProduto($p); ?></td>
+                </tr>
+                <?php ob_start(); ?>
+    <div class="card shadow-sm adm-produto-card">
+        <div class="card-body">
+            <div class="d-flex align-items-center gap-2">
+                <?php if ($thumbSrc): ?>
+                    <img src="<?= $thumbSrc ?>" width="56" height="56" class="adm-thumb" alt="">
+                <?php endif; ?>
+                <div class="adm-produto-texto">
+                    <div class="fw-semibold"><?= htmlspecialchars($p['nome']) ?></div>
+                    <div class="text-muted small">#<?= $p['id'] ?></div>
+                </div>
+            </div>
+            <dl class="adm-produto-dados">
+                <dt>Código</dt>         <dd class="font-monospace"><?= $codigoHtml ?></dd>
+                <dt>Categoria</dt>      <dd><span class="badge bg-secondary"><?= htmlspecialchars($p['categoria']) ?></span></dd>
+                <dt>Preço</dt>          <dd><?= $precoHtml ?></dd>
+                <dt>Estoque</dt>        <dd><?= (int) $p['estoque'] ?></dd>
+                <dt>Disponibilidade</dt><dd><?= $dispHtml ?></dd>
+                <dt>Status</dt>         <dd><?= $statusHtml ?></dd>
+            </dl>
+            <?php $acoesProduto($p, 'card-', ' adm-acoes--card'); ?>
+        </div>
+    </div>
+                <?php $cardsHtml .= ob_get_clean(); ?>
             <?php endforeach; ?>
             <?php if (empty($produtos)): ?>
-                <tr><td colspan="9" class="text-center text-muted py-4"><?= $filtro === 'todos' ? 'Nenhum produto cadastrado.' : 'Nenhum produto ' . ($filtro === 'ativos' ? 'ativo' : 'inativo') . '.' ?></td></tr>
+                <tr><td colspan="9" class="text-center text-muted py-4"><?= $vazioMsg ?></td></tr>
             <?php endif; ?>
             </tbody>
         </table>
     </div>
+</div>
+
+<div class="d-md-none d-flex flex-column gap-2">
+<?php if (empty($produtos)): ?>
+    <div class="card shadow-sm"><div class="card-body text-center text-muted"><?= $vazioMsg ?></div></div>
+<?php endif; ?>
+<?= $cardsHtml ?>
 </div>
 
 <!-- Confirmação (Patch P) pelo modal único de _confirmar.php: título, texto e botão trocados por

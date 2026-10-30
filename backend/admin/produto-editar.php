@@ -173,166 +173,204 @@ layout_head('Editar Produto', $easymde_css);
     <div class="alert alert-danger"><ul class="mb-0"><?php foreach ($erros as $e) echo '<li>' . htmlspecialchars($e) . '</li>'; ?></ul></div>
 <?php endif; ?>
 
-<!-- ── Dados do Produto ────────────────────────────────────────────────────── -->
-<div class="card shadow-sm mb-4" style="max-width:720px">
-    <div class="card-header fw-semibold">Dados do Produto</div>
-    <div class="card-body">
-        <form method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="id" value="<?= $id ?>">
-            <div class="row g-3">
-
-                <div class="col-md-8">
-                    <label class="form-label">Nome <span class="text-danger">*</span></label>
-                    <input type="text" name="nome" class="form-control" required value="<?= htmlspecialchars($dados['nome']) ?>">
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label">Código Interno
-                        <span class="text-muted small" data-bs-toggle="tooltip" title="Formato: SE.02.00002">
-                            <i class="fas fa-circle-info"></i>
-                        </span>
-                    </label>
-                    <input type="text" name="codigo_interno" id="codigo_interno" class="form-control font-monospace"
-                           placeholder="SE.02.00002" maxlength="11"
-                           value="<?= htmlspecialchars($dados['codigo_interno'] ?? '') ?>"
-                           pattern="[A-Z]{2}\.[0-9]{2}\.[0-9]{5}"
-                           oninput="this.value=this.value.toUpperCase()">
-                    <div class="invalid-feedback">Formato: SE.02.00002</div>
-                </div>
-
-                <div class="col-12">
-                    <label class="form-label">Descrição</label>
-                    <textarea name="descricao" class="form-control" rows="3"><?= htmlspecialchars($dados['descricao'] ?? '') ?></textarea>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label">Preço (R$) <span class="text-danger">*</span></label>
-                    <input type="number" name="preco" class="form-control" step="0.01" min="0" required value="<?= htmlspecialchars($dados['preco']) ?>">
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label" for="preco-export-usd">Preço de exportação (USD)</label>
-                    <div class="input-group">
-                        <input type="number" name="preco_export_usd" id="preco-export-usd" class="form-control" step="0.01" min="0"
-                               placeholder="vazio = Sob consulta" value="<?= htmlspecialchars((string) ($dados['preco_export_usd'] ?? '')) ?>">
-                        <span class="input-group-text small" title="Incoterm vigente (constante do sistema)"><?= htmlspecialchars(INCOTERM_PADRAO) ?></span>
-                    </div>
-                    <div class="form-text">Segunda lista de preço — não é conversão do preço em reais.</div>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label">Estoque <span class="text-danger">*</span></label>
-                    <input type="number" name="estoque" class="form-control" min="0" required value="<?= htmlspecialchars($dados['estoque']) ?>">
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label">Categoria <span class="text-danger">*</span></label>
-                    <select name="categoria" class="form-select" required>
-                        <option value="">Selecione...</option>
-                        <?php foreach ($categoriasDb as $cat): ?>
-                            <option value="<?= htmlspecialchars($cat['slug']) ?>" <?= $dados['categoria'] === $cat['slug'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($cat['nome']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <?php require __DIR__ . '/_disponibilidade-campos.php'; ?>
-
-                <!-- Dimensões para cálculo de frete -->
-                <div class="col-12">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-box me-1 text-muted"></i> Dimensões para frete
-                        <span class="text-danger">*</span>
-                    </label>
-                    <div class="row g-2">
-                        <div class="col-6 col-md-3">
-                            <label class="form-label form-label-sm text-muted">Peso (kg)</label>
-                            <input type="number" name="peso" class="form-control form-control-sm" step="0.01" min="0.01" required value="<?= htmlspecialchars($dados['peso'] ?? '0.5') ?>">
+<!-- ── Dados do Produto (Patch V) ─────────────────────────────────────────────
+     Duas colunas a partir de 992px (col-lg-8 descritivo / col-lg-4 comercial), uma abaixo disso.
+     name/id/required/type idênticos aos de antes; só a ordem dos campos no DOM mudou. -->
+<form method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="id" value="<?= $id ?>">
+    <div class="row g-4">
+        <div class="col-lg-8 d-flex flex-column gap-4">
+            <div class="card shadow-sm adm-form-card">
+                <div class="card-header fw-semibold">Informações do produto</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Nome <span class="text-danger">*</span></label>
+                            <input type="text" name="nome" class="form-control" required value="<?= htmlspecialchars($dados['nome']) ?>">
                         </div>
-                        <div class="col-6 col-md-3">
-                            <label class="form-label form-label-sm text-muted">Largura (cm)</label>
-                            <input type="number" name="largura" class="form-control form-control-sm" step="0.1" min="0.1" required value="<?= htmlspecialchars($dados['largura'] ?? '15') ?>">
+
+                        <div class="col-12">
+                            <label class="form-label">Descrição</label>
+                            <textarea name="descricao" class="form-control" rows="3"><?= htmlspecialchars($dados['descricao'] ?? '') ?></textarea>
                         </div>
-                        <div class="col-6 col-md-3">
-                            <label class="form-label form-label-sm text-muted">Altura (cm)</label>
-                            <input type="number" name="altura" class="form-control form-control-sm" step="0.1" min="0.1" required value="<?= htmlspecialchars($dados['altura'] ?? '10') ?>">
+
+                        <div class="col-md-6">
+                            <label class="form-label">Categoria <span class="text-danger">*</span></label>
+                            <select name="categoria" class="form-select" required>
+                                <option value="">Selecione...</option>
+                                <?php foreach ($categoriasDb as $cat): ?>
+                                    <option value="<?= htmlspecialchars($cat['slug']) ?>" <?= $dados['categoria'] === $cat['slug'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($cat['nome']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
-                        <div class="col-6 col-md-3">
-                            <label class="form-label form-label-sm text-muted">Comprimento (cm)</label>
-                            <input type="number" name="comprimento" class="form-control form-control-sm" step="0.1" min="0.1" required value="<?= htmlspecialchars($dados['comprimento'] ?? '20') ?>">
+
+                        <div class="col-12">
+                            <label class="form-label">Especificação Técnica
+                                <span class="text-muted small ms-1">— suporta Markdown (negrito, listas, etc.)</span>
+                            </label>
+                            <textarea name="especificacao_tecnica" id="especificacao_tecnica"
+                                      class="form-control"><?= htmlspecialchars($dados['especificacao_tecnica'] ?? '') ?></textarea>
                         </div>
                     </div>
-                    <div class="form-text">Dimensões da embalagem com o produto. Usadas no cálculo de frete.</div>
                 </div>
+            </div>
+            <div class="card shadow-sm adm-form-card">
+                <div class="card-header fw-semibold">Disponibilidade e frete</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <?php require __DIR__ . '/_disponibilidade-campos.php'; ?>
 
-                <!-- Data Sheet -->
-                <div class="col-12">
-                    <label class="form-label">Data Sheet <span class="text-muted small">(PDF)</span></label>
-                    <?php if (!empty($dados['datasheet'])): ?>
-                        <div class="mb-2 d-flex align-items-center gap-2">
-                            <a href="/<?= htmlspecialchars($dados['datasheet']) ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
-                                <i class="fas fa-file-pdf me-1 text-danger"></i> Ver PDF atual
-                            </a>
-                            <div class="form-check mb-0">
-                                <input class="form-check-input" type="checkbox" name="remover_datasheet" id="remover_datasheet" value="1">
-                                <label class="form-check-label text-danger small" for="remover_datasheet">Remover</label>
+                        <!-- Dimensões para cálculo de frete -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-box me-1 text-muted"></i> Dimensões para frete
+                                <span class="text-danger">*</span>
+                            </label>
+                            <div class="row g-2">
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label form-label-sm text-muted">Peso (kg)</label>
+                                    <input type="number" name="peso" class="form-control form-control-sm" step="0.01" min="0.01" required value="<?= htmlspecialchars($dados['peso'] ?? '0.5') ?>">
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label form-label-sm text-muted">Largura (cm)</label>
+                                    <input type="number" name="largura" class="form-control form-control-sm" step="0.1" min="0.1" required value="<?= htmlspecialchars($dados['largura'] ?? '15') ?>">
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label form-label-sm text-muted">Altura (cm)</label>
+                                    <input type="number" name="altura" class="form-control form-control-sm" step="0.1" min="0.1" required value="<?= htmlspecialchars($dados['altura'] ?? '10') ?>">
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label form-label-sm text-muted">Comprimento (cm)</label>
+                                    <input type="number" name="comprimento" class="form-control form-control-sm" step="0.1" min="0.1" required value="<?= htmlspecialchars($dados['comprimento'] ?? '20') ?>">
+                                </div>
+                            </div>
+                            <div class="form-text">Dimensões da embalagem com o produto. Usadas no cálculo de frete.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card shadow-sm adm-form-card">
+                <div class="card-header fw-semibold">Arquivos</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <!-- Data Sheet -->
+                        <div class="col-12">
+                            <label class="form-label">Data Sheet <span class="text-muted small">(PDF)</span></label>
+                            <?php if (!empty($dados['datasheet'])): ?>
+                                <div class="mb-2 d-flex align-items-center gap-2">
+                                    <a href="/<?= htmlspecialchars($dados['datasheet']) ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-file-pdf me-1 text-danger"></i> Ver PDF atual
+                                    </a>
+                                    <div class="form-check mb-0">
+                                        <input class="form-check-input" type="checkbox" name="remover_datasheet" id="remover_datasheet" value="1">
+                                        <label class="form-check-label text-danger small" for="remover_datasheet">Remover</label>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                            <input type="file" name="datasheet" class="form-control" accept=".pdf">
+                            <div class="form-text">Apenas PDF — máx. 10 MB. Substitui o arquivo atual.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 d-flex flex-column gap-4">
+            <div class="card shadow-sm adm-form-card">
+                <div class="card-header fw-semibold">Comercial</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Código Interno
+                                <span class="text-muted small" data-bs-toggle="tooltip" title="Formato: SE.02.00002">
+                                    <i class="fas fa-circle-info"></i>
+                                </span>
+                            </label>
+                            <input type="text" name="codigo_interno" id="codigo_interno" class="form-control font-monospace"
+                                   placeholder="SE.02.00002" maxlength="11"
+                                   value="<?= htmlspecialchars($dados['codigo_interno'] ?? '') ?>"
+                                   pattern="[A-Z]{2}\.[0-9]{2}\.[0-9]{5}"
+                                   oninput="this.value=this.value.toUpperCase()">
+                            <div class="invalid-feedback">Formato: SE.02.00002</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Preço (R$) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">R$</span>
+                                <input type="text" name="preco" class="form-control" inputmode="numeric" autocomplete="off" data-moeda
+                                       placeholder="0,00" required value="<?= htmlspecialchars($dados['preco']) ?>">
                             </div>
                         </div>
-                    <?php endif; ?>
-                    <input type="file" name="datasheet" class="form-control" accept=".pdf">
-                    <div class="form-text">Apenas PDF — máx. 10 MB. Substitui o arquivo atual.</div>
-                </div>
 
-                <div class="col-12">
-                    <label class="form-label">Especificação Técnica
-                        <span class="text-muted small ms-1">— suporta Markdown (negrito, listas, etc.)</span>
-                    </label>
-                    <textarea name="especificacao_tecnica" id="especificacao_tecnica"
-                              class="form-control"><?= htmlspecialchars($dados['especificacao_tecnica'] ?? '') ?></textarea>
-                </div>
+                        <div class="col-12">
+                            <label class="form-label" for="preco-export-usd">Preço de exportação (USD)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">US$</span>
+                                <input type="text" name="preco_export_usd" id="preco-export-usd" class="form-control" inputmode="numeric" autocomplete="off" data-moeda
+                                       placeholder="vazio = Sob consulta" value="<?= htmlspecialchars((string) ($dados['preco_export_usd'] ?? '')) ?>">
+                                <span class="input-group-text small" title="Incoterm vigente (constante do sistema)"><?= htmlspecialchars(INCOTERM_PADRAO) ?></span>
+                            </div>
+                            <div class="form-text">Segunda lista de preço — não é conversão do preço em reais.</div>
+                        </div>
 
-                <div class="col-12">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="ativo" id="ativo" <?= $dados['ativo'] ? 'checked' : '' ?>>
-                        <label class="form-check-label" for="ativo">Produto ativo (visível no site)</label>
-                        <div class="form-text">Desmarcado, o produto deixa de aparecer na loja. Ele continua aqui no admin e pode ser reativado depois.</div>
+                        <div class="col-12">
+                            <label class="form-label">Estoque <span class="text-danger">*</span></label>
+                            <input type="number" name="estoque" class="form-control" min="0" required value="<?= htmlspecialchars($dados['estoque']) ?>">
+                        </div>
                     </div>
                 </div>
-
-                <div class="col-12">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-1"></i> Salvar Alterações
-                    </button>
+            </div>
+            <div class="card shadow-sm adm-form-card">
+                <div class="card-header fw-semibold">Publicação</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="ativo" id="ativo" <?= $dados['ativo'] ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="ativo">Produto ativo (visível no site)</label>
+                                <div class="form-text">Desmarcado, o produto deixa de aparecer na loja. Ele continua aqui no admin e pode ser reativado depois.</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </form>
-    </div>
-</div>
-
-<!-- ── Imagens Adicionais ─────────────────────────────────────────────────── -->
-<div class="card shadow-sm" style="max-width:720px">
-    <div class="card-header d-flex align-items-center justify-content-between">
-        <span class="fw-semibold">Imagens do Produto</span>
-        <label class="btn btn-sm btn-outline-primary mb-0" id="btn-add-img">
-            <i class="fas fa-plus me-1"></i> Adicionar Imagem
-            <input type="file" id="input-nova-img" accept=".jpg,.jpeg,.png,.webp" multiple hidden>
-        </label>
-    </div>
-    <div class="card-body">
-        <p class="text-muted small mb-3">
-            Arraste as imagens para reordenar. Clique em <i class="fas fa-star text-warning"></i> para definir a imagem principal.
-        </p>
-        <div id="img-grid" class="d-flex flex-wrap gap-3">
-            <div class="text-muted small" id="img-empty">Nenhuma imagem adicional cadastrada.</div>
         </div>
-        <div id="img-upload-progress" class="mt-2 d-none">
-            <div class="progress" style="height:4px">
-                <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+    </div>
+
+    <!-- ── Imagens Adicionais ─────────────────────────────────────────────────── -->
+    <div class="card shadow-sm mt-4" style="max-width:720px">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <span class="fw-semibold">Imagens do Produto</span>
+            <label class="btn btn-sm btn-outline-primary mb-0" id="btn-add-img">
+                <i class="fas fa-plus me-1"></i> Adicionar Imagem
+                <input type="file" id="input-nova-img" accept=".jpg,.jpeg,.png,.webp" multiple hidden>
+            </label>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">
+                Arraste as imagens para reordenar. Clique em <i class="fas fa-star text-warning"></i> para definir a imagem principal.
+            </p>
+            <div id="img-grid" class="d-flex flex-wrap gap-3">
+                <div class="text-muted small" id="img-empty">Nenhuma imagem adicional cadastrada.</div>
+            </div>
+            <div id="img-upload-progress" class="mt-2 d-none">
+                <div class="progress" style="height:4px">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+                </div>
             </div>
         </div>
     </div>
-</div>
+
+    <!-- Barra de ações: presa ao rodapé da tela enquanto o formulário está à vista -->
+    <div class="adm-form-acoes">
+        <a href="produtos.php" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i> Salvar Alterações
+        </button>
+    </div>
+</form>
 
 <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>

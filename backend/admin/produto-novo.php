@@ -334,133 +334,172 @@ layout_head('Novo Produto', $easymde_css);
 
 <?php else: ?>
 
-<!-- ── Formulário de criação ─────────────────────────────────────────────── -->
-<div class="card shadow-sm" style="max-width:720px">
-    <div class="card-body">
-        <form method="POST" enctype="multipart/form-data">
-            <div class="row g-3">
-
-                <div class="col-md-8">
-                    <label class="form-label">Nome <span class="text-danger">*</span></label>
-                    <input type="text" name="nome" class="form-control" required value="<?= htmlspecialchars($dados['nome']) ?>">
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label">Código Interno
-                        <span class="text-muted small" data-bs-toggle="tooltip" title="Formato: SE.02.00002 (2 letras maiúsculas, ponto, 2 dígitos, ponto, 5 dígitos)">
-                            <i class="fas fa-circle-info"></i>
-                        </span>
-                    </label>
-                    <input type="text" name="codigo_interno" id="codigo_interno" class="form-control font-monospace"
-                           placeholder="SE.02.00002" maxlength="11"
-                           value="<?= htmlspecialchars($dados['codigo_interno']) ?>"
-                           pattern="[A-Z]{2}\.[0-9]{2}\.[0-9]{5}"
-                           oninput="this.value=this.value.toUpperCase()">
-                    <div class="invalid-feedback">Formato: SE.02.00002</div>
-                </div>
-
-                <div class="col-12">
-                    <label class="form-label">Descrição</label>
-                    <textarea name="descricao" class="form-control" rows="3"><?= htmlspecialchars($dados['descricao']) ?></textarea>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label">Preço (R$) <span class="text-danger">*</span></label>
-                    <input type="number" name="preco" class="form-control" step="0.01" min="0" required value="<?= htmlspecialchars($dados['preco']) ?>">
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label" for="preco-export-usd">Preço de exportação (USD)</label>
-                    <div class="input-group">
-                        <input type="number" name="preco_export_usd" id="preco-export-usd" class="form-control" step="0.01" min="0"
-                               placeholder="vazio = Sob consulta" value="<?= htmlspecialchars((string) ($dados['preco_export_usd'] ?? '')) ?>">
-                        <span class="input-group-text small" title="Incoterm vigente (constante do sistema)"><?= htmlspecialchars(INCOTERM_PADRAO) ?></span>
-                    </div>
-                    <div class="form-text">Segunda lista de preço — não é conversão do preço em reais.</div>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label">Estoque <span class="text-danger">*</span></label>
-                    <input type="number" name="estoque" class="form-control" min="0" required value="<?= htmlspecialchars($dados['estoque']) ?>">
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label">Categoria <span class="text-danger">*</span></label>
-                    <select name="categoria" class="form-select" required>
-                        <option value="">Selecione...</option>
-                        <?php foreach ($categoriasDb as $cat): ?>
-                            <option value="<?= htmlspecialchars($cat['slug']) ?>" <?= $dados['categoria'] === $cat['slug'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($cat['nome']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <?php require __DIR__ . '/_disponibilidade-campos.php'; ?>
-
-                <!-- Dimensões para cálculo de frete -->
-                <div class="col-12">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-box me-1 text-muted"></i> Dimensões para frete
-                        <span class="text-danger">*</span>
-                    </label>
-                    <div class="row g-2">
-                        <div class="col-6 col-md-3">
-                            <label class="form-label form-label-sm text-muted">Peso (kg)</label>
-                            <input type="number" name="peso" class="form-control form-control-sm" step="0.01" min="0.01" required value="<?= htmlspecialchars($dados['peso']) ?>">
+<!-- ── Dados do Produto (Patch V) ─────────────────────────────────────────────
+     Duas colunas a partir de 992px (col-lg-8 descritivo / col-lg-4 comercial), uma abaixo disso.
+     name/id/required/type idênticos aos de antes; só a ordem dos campos no DOM mudou. -->
+<form method="POST" enctype="multipart/form-data">
+    <div class="row g-4">
+        <div class="col-lg-8 d-flex flex-column gap-4">
+            <div class="card shadow-sm adm-form-card">
+                <div class="card-header fw-semibold">Informações do produto</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Nome <span class="text-danger">*</span></label>
+                            <input type="text" name="nome" class="form-control" required value="<?= htmlspecialchars($dados['nome']) ?>">
                         </div>
-                        <div class="col-6 col-md-3">
-                            <label class="form-label form-label-sm text-muted">Largura (cm)</label>
-                            <input type="number" name="largura" class="form-control form-control-sm" step="0.1" min="0.1" required value="<?= htmlspecialchars($dados['largura']) ?>">
+
+                        <div class="col-12">
+                            <label class="form-label">Descrição</label>
+                            <textarea name="descricao" class="form-control" rows="3"><?= htmlspecialchars($dados['descricao']) ?></textarea>
                         </div>
-                        <div class="col-6 col-md-3">
-                            <label class="form-label form-label-sm text-muted">Altura (cm)</label>
-                            <input type="number" name="altura" class="form-control form-control-sm" step="0.1" min="0.1" required value="<?= htmlspecialchars($dados['altura']) ?>">
+
+                        <div class="col-md-6">
+                            <label class="form-label">Categoria <span class="text-danger">*</span></label>
+                            <select name="categoria" class="form-select" required>
+                                <option value="">Selecione...</option>
+                                <?php foreach ($categoriasDb as $cat): ?>
+                                    <option value="<?= htmlspecialchars($cat['slug']) ?>" <?= $dados['categoria'] === $cat['slug'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($cat['nome']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
-                        <div class="col-6 col-md-3">
-                            <label class="form-label form-label-sm text-muted">Comprimento (cm)</label>
-                            <input type="number" name="comprimento" class="form-control form-control-sm" step="0.1" min="0.1" required value="<?= htmlspecialchars($dados['comprimento']) ?>">
+
+                        <div class="col-12">
+                            <label class="form-label">Especificação Técnica
+                                <span class="text-muted small ms-1">— suporta Markdown (negrito, listas, etc.)</span>
+                            </label>
+                            <textarea name="especificacao_tecnica" id="especificacao_tecnica"
+                                      class="form-control"><?= htmlspecialchars($dados['especificacao_tecnica']) ?></textarea>
                         </div>
                     </div>
-                    <div class="form-text">Dimensões da embalagem com o produto. Usadas no cálculo de frete.</div>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label">Imagem Principal</label>
-                    <input type="file" name="imagem" class="form-control" accept=".jpg,.jpeg,.png,.webp">
-                    <div class="form-text">JPG, PNG ou WebP — máx. 5 MB.</div>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label">Data Sheet <span class="text-muted small">(PDF)</span></label>
-                    <input type="file" name="datasheet" class="form-control" accept=".pdf">
-                    <div class="form-text">Apenas PDF — máx. 10 MB.</div>
-                </div>
-
-                <div class="col-12">
-                    <label class="form-label">Especificação Técnica
-                        <span class="text-muted small ms-1">— suporta Markdown (negrito, listas, etc.)</span>
-                    </label>
-                    <textarea name="especificacao_tecnica" id="especificacao_tecnica"
-                              class="form-control"><?= htmlspecialchars($dados['especificacao_tecnica']) ?></textarea>
-                </div>
-
-                <div class="col-12">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="ativo" id="ativo" <?= $dados['ativo'] ? 'checked' : '' ?>>
-                        <label class="form-check-label" for="ativo">Produto ativo (visível no site)</label>
-                    </div>
-                </div>
-
-                <div class="col-12">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-1"></i> Salvar e Continuar
-                    </button>
                 </div>
             </div>
-        </form>
+            <div class="card shadow-sm adm-form-card">
+                <div class="card-header fw-semibold">Disponibilidade e frete</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <?php require __DIR__ . '/_disponibilidade-campos.php'; ?>
+
+                        <!-- Dimensões para cálculo de frete -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-box me-1 text-muted"></i> Dimensões para frete
+                                <span class="text-danger">*</span>
+                            </label>
+                            <div class="row g-2">
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label form-label-sm text-muted">Peso (kg)</label>
+                                    <input type="number" name="peso" class="form-control form-control-sm" step="0.01" min="0.01" required value="<?= htmlspecialchars($dados['peso']) ?>">
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label form-label-sm text-muted">Largura (cm)</label>
+                                    <input type="number" name="largura" class="form-control form-control-sm" step="0.1" min="0.1" required value="<?= htmlspecialchars($dados['largura']) ?>">
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label form-label-sm text-muted">Altura (cm)</label>
+                                    <input type="number" name="altura" class="form-control form-control-sm" step="0.1" min="0.1" required value="<?= htmlspecialchars($dados['altura']) ?>">
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label form-label-sm text-muted">Comprimento (cm)</label>
+                                    <input type="number" name="comprimento" class="form-control form-control-sm" step="0.1" min="0.1" required value="<?= htmlspecialchars($dados['comprimento']) ?>">
+                                </div>
+                            </div>
+                            <div class="form-text">Dimensões da embalagem com o produto. Usadas no cálculo de frete.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card shadow-sm adm-form-card">
+                <div class="card-header fw-semibold">Arquivos</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Imagem Principal</label>
+                            <input type="file" name="imagem" class="form-control" accept=".jpg,.jpeg,.png,.webp">
+                            <div class="form-text">JPG, PNG ou WebP — máx. 5 MB.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Data Sheet <span class="text-muted small">(PDF)</span></label>
+                            <input type="file" name="datasheet" class="form-control" accept=".pdf">
+                            <div class="form-text">Apenas PDF — máx. 10 MB.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 d-flex flex-column gap-4">
+            <div class="card shadow-sm adm-form-card">
+                <div class="card-header fw-semibold">Comercial</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Código Interno
+                                <span class="text-muted small" data-bs-toggle="tooltip" title="Formato: SE.02.00002 (2 letras maiúsculas, ponto, 2 dígitos, ponto, 5 dígitos)">
+                                    <i class="fas fa-circle-info"></i>
+                                </span>
+                            </label>
+                            <input type="text" name="codigo_interno" id="codigo_interno" class="form-control font-monospace"
+                                   placeholder="SE.02.00002" maxlength="11"
+                                   value="<?= htmlspecialchars($dados['codigo_interno']) ?>"
+                                   pattern="[A-Z]{2}\.[0-9]{2}\.[0-9]{5}"
+                                   oninput="this.value=this.value.toUpperCase()">
+                            <div class="invalid-feedback">Formato: SE.02.00002</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Preço (R$) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">R$</span>
+                                <input type="text" name="preco" class="form-control" inputmode="numeric" autocomplete="off" data-moeda
+                                       placeholder="0,00" required value="<?= htmlspecialchars($dados['preco']) ?>">
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label" for="preco-export-usd">Preço de exportação (USD)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">US$</span>
+                                <input type="text" name="preco_export_usd" id="preco-export-usd" class="form-control" inputmode="numeric" autocomplete="off" data-moeda
+                                       placeholder="vazio = Sob consulta" value="<?= htmlspecialchars((string) ($dados['preco_export_usd'] ?? '')) ?>">
+                                <span class="input-group-text small" title="Incoterm vigente (constante do sistema)"><?= htmlspecialchars(INCOTERM_PADRAO) ?></span>
+                            </div>
+                            <div class="form-text">Segunda lista de preço — não é conversão do preço em reais.</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Estoque <span class="text-danger">*</span></label>
+                            <input type="number" name="estoque" class="form-control" min="0" required value="<?= htmlspecialchars($dados['estoque']) ?>">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card shadow-sm adm-form-card">
+                <div class="card-header fw-semibold">Publicação</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="ativo" id="ativo" <?= $dados['ativo'] ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="ativo">Produto ativo (visível no site)</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
+
+    <!-- Barra de ações: presa ao rodapé da tela enquanto o formulário está à vista -->
+    <div class="adm-form-acoes">
+        <a href="produtos.php" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i> Salvar e Continuar
+        </button>
+    </div>
+</form>
 
 <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
 <script>
