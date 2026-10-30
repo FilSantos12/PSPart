@@ -57,6 +57,31 @@ body { background: var(--adm-bg); }
 /* Status "em processamento" — cor que o Bootstrap não tem (antes copiada em 3 páginas) */
 .bg-purple { background-color: #6f42c1 !important; }
 
+/* ── Tabelas de listagem (aplicar junto de .table) ───────────────────────────
+   Padding perto do table-sm; o alvo é uma linha com a altura da miniatura, sem empilhar. */
+.adm-table > :not(caption) > * > * { padding: .4rem .5rem; }
+.adm-table > :not(caption) > * > *:first-child { padding-left: .75rem; }
+.adm-table > :not(caption) > * > *:last-child { padding-right: .75rem; }
+.adm-thumb { object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+.adm-produto-texto { min-width: 0; max-width: 200px; }   /* nome e descrição truncam (nome completo no title) */
+
+/* Coluna de ações: só ícones, alinhados à direita */
+/* position: relative segura o .visually-hidden (absoluto) do motivo dentro do .table-responsive —
+   sem ele o span escapa do corte e cria rolagem horizontal na página */
+.adm-acoes { display: flex; gap: .25rem; justify-content: flex-end; position: relative; }
+
+/* Pílula neutra de contorno (ex.: Ativo/Inativo) — não compete com os badges coloridos */
+.adm-pill {
+    display: inline-block;
+    padding: .1rem .5rem;
+    font-size: .7rem; font-weight: 600;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 20px;
+    color: var(--bs-body-color);
+    white-space: nowrap;
+}
+.adm-pill--off { color: var(--bs-secondary-color); border-style: dashed; }
+
 /* Botão do menu: só abaixo de 768px (mesmo limite em que a barra lateral sai da tela) */
 .adm-menu-btn { display: none; }
 

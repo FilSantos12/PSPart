@@ -59,23 +59,24 @@ layout_head('Produtos');
 
 <div class="card shadow-sm">
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 adm-table">
             <thead class="table-light">
                 <tr>
                     <th>#</th>
                     <th>Produto</th>
                     <th>Código</th>
                     <th>Categoria</th>
-                    <th>Preço</th>
+                    <th class="text-end">Preço</th>
                     <th>Disponibilidade</th>
+                    <th class="text-end">Estoque</th>
                     <th>Status</th>
-                    <th>Ações</th>
+                    <th class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ($produtos as $p): ?>
                 <tr>
-                    <td class="text-muted small"><?= $p['id'] ?></td>
+                    <td class="text-muted small text-nowrap"><?= $p['id'] ?></td>
                     <td>
                         <div class="d-flex align-items-center gap-2">
                             <?php if ($p['img_thumb']): ?>
@@ -83,68 +84,78 @@ layout_head('Produtos');
                                     $full = __DIR__ . '/../../' . $p['img_thumb'];
                                     $bust = file_exists($full) ? '?v=' . filemtime($full) : '';
                                 ?>
-                                <img src="/<?= htmlspecialchars($p['img_thumb']) . $bust ?>" width="40" height="40"
-                                     style="object-fit:cover; border-radius:6px;">
+                                <img src="/<?= htmlspecialchars($p['img_thumb']) . $bust ?>" width="40" height="40" class="adm-thumb" alt="">
                             <?php endif; ?>
-                            <div>
-                                <div class="fw-semibold"><?= htmlspecialchars($p['nome']) ?></div>
-                                <div class="text-muted small text-truncate" style="max-width:200px">
-                                    <?= htmlspecialchars($p['descricao'] ?? '') ?>
-                                </div>
+                            <div class="adm-produto-texto">
+                                <div class="fw-semibold text-truncate" title="<?= htmlspecialchars($p['nome']) ?>"><?= htmlspecialchars($p['nome']) ?></div>
+                                <div class="text-muted small text-truncate"><?= htmlspecialchars($p['descricao'] ?? '') ?></div>
                             </div>
                         </div>
                     </td>
-                    <td class="font-monospace small text-muted"><?= $p['codigo_interno'] ? htmlspecialchars($p['codigo_interno']) : '—' ?></td>
+                    <td class="font-monospace small text-muted text-nowrap"><?= $p['codigo_interno'] ? htmlspecialchars($p['codigo_interno']) : '—' ?></td>
                     <td><span class="badge bg-secondary"><?= htmlspecialchars($p['categoria']) ?></span></td>
-                    <td class="text-nowrap">R$ <?= number_format($p['preco'], 2, ',', '.') ?></td>
+                    <td class="text-end text-nowrap">R$ <?= number_format($p['preco'], 2, ',', '.') ?></td>
                     <td>
-                        <?php $disp = disponibilidade_produto($p); ?>
-                        <span class="stock-badge <?= htmlspecialchars($disp['badge_class']) ?> mb-0"><span class="stock-dot"></span><?= htmlspecialchars($disp['label_admin']) ?></span>
-                        <div class="text-muted small">Estoque: <?= (int) $p['estoque'] ?></div>
+                        <?php
+                            // Badge só com o estado, sem quantidade; o número fica na coluna Estoque
+                            $disp = disponibilidade_produto($p);
+                        ?>
+                        <span class="stock-badge <?= htmlspecialchars($disp['badge_class']) ?> mb-0 text-nowrap"><span class="stock-dot"></span><?= htmlspecialchars(disponibilidade_label_estado($disp)) ?></span>
                         <?php if ($disp['texto_consulta']): ?>
-                            <div class="small text-primary" title="Limiar de consulta comercial (informativo)">
+                            <div class="small text-primary text-nowrap" title="Limiar de consulta comercial (informativo)">
                                 <i class="fas fa-handshake me-1"></i><?= htmlspecialchars($disp['texto_consulta']) ?>
                             </div>
                         <?php endif; ?>
                     </td>
-                    <td>
-                        <span class="stock-badge stock-badge--<?= $p['ativo'] ? 'ok' : 'req' ?> mb-0"><span class="stock-dot"></span><?= $p['ativo'] ? 'Ativo' : 'Inativo' ?></span>
-                    </td>
+                    <td class="text-end text-nowrap"><?= (int) $p['estoque'] ?></td>
                     <td class="text-nowrap">
+                        <span class="adm-pill<?= $p['ativo'] ? '' : ' adm-pill--off' ?>"><?= $p['ativo'] ? 'Ativo' : 'Inativo' ?></span>
+                    </td>
+                    <td>
                         <?php
                             $pedidosVinc = (int) $p['pedidos_vinculados'];
                             $dataProduto = 'data-id="' . (int) $p['id'] . '" data-nome="' . htmlspecialchars($p['nome']) . '"'
                                          . ' data-codigo="' . htmlspecialchars($p['codigo_interno'] ?? '') . '"';
+                            $motivoExcluir = $pedidosVinc . ' ' . ($pedidosVinc === 1 ? 'pedido vinculado' : 'pedidos vinculados') . ' — só pode ser inativado';
                         ?>
-                        <a href="produto-editar.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar <?= htmlspecialchars($p['nome']) ?>">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                        <?php if ($p['ativo']): ?>
-                            <button type="button" class="btn btn-sm btn-outline-warning btn-estado" data-acao="inativar" <?= $dataProduto ?>
-                                    title="Inativar" aria-label="Inativar <?= htmlspecialchars($p['nome']) ?>">
-                                <i class="fas fa-eye-slash me-md-1" aria-hidden="true"></i><span class="d-none d-md-inline">Inativar</span>
-                            </button>
-                        <?php else: ?>
-                            <button type="button" class="btn btn-sm btn-outline-success btn-estado" data-acao="reativar" <?= $dataProduto ?>
-                                    title="Reativar" aria-label="Reativar <?= htmlspecialchars($p['nome']) ?>">
-                                <i class="fas fa-eye me-md-1" aria-hidden="true"></i><span class="d-none d-md-inline">Reativar</span>
-                            </button>
-                        <?php endif; ?>
-                        <button type="button" class="btn btn-sm btn-outline-danger btn-estado" data-acao="excluir" <?= $dataProduto ?>
-                                title="Excluir definitivamente" aria-label="Excluir definitivamente <?= htmlspecialchars($p['nome']) ?>"
-                                <?= $pedidosVinc > 0 ? 'disabled aria-describedby="motivo-excluir-' . (int) $p['id'] . '"' : '' ?>>
-                            <i class="fas fa-trash me-md-1" aria-hidden="true"></i><span class="d-none d-md-inline">Excluir definitivamente</span>
-                        </button>
-                        <?php if ($pedidosVinc > 0): ?>
-                            <div class="small text-muted text-wrap mt-1" id="motivo-excluir-<?= (int) $p['id'] ?>">
-                                <?= $pedidosVinc ?> <?= $pedidosVinc === 1 ? 'pedido vinculado' : 'pedidos vinculados' ?> — só pode ser inativado
-                            </div>
-                        <?php endif; ?>
+                        <div class="adm-acoes">
+                            <a href="produto-editar.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar <?= htmlspecialchars($p['nome']) ?>">
+                                <i class="fas fa-edit" aria-hidden="true"></i>
+                            </a>
+                            <?php if ($p['ativo']): ?>
+                                <button type="button" class="btn btn-sm btn-outline-warning btn-estado" data-acao="inativar" <?= $dataProduto ?>
+                                        title="Inativar" aria-label="Inativar <?= htmlspecialchars($p['nome']) ?>">
+                                    <i class="fas fa-eye-slash" aria-hidden="true"></i>
+                                </button>
+                            <?php else: ?>
+                                <button type="button" class="btn btn-sm btn-outline-success btn-estado" data-acao="reativar" <?= $dataProduto ?>
+                                        title="Reativar" aria-label="Reativar <?= htmlspecialchars($p['nome']) ?>">
+                                    <i class="fas fa-eye" aria-hidden="true"></i>
+                                </button>
+                            <?php endif; ?>
+                            <?php if ($pedidosVinc > 0): ?>
+                                <?php // Patch P: bloqueado fica desabilitado com o motivo, nunca escondido. Botão desabilitado
+                                      // não recebe foco nem hover, então a dica fica no <span> em volta (padrão do Bootstrap). ?>
+                                <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-title="<?= htmlspecialchars($motivoExcluir) ?>">
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-estado" data-acao="excluir" <?= $dataProduto ?>
+                                            title="Excluir definitivamente" aria-label="Excluir definitivamente <?= htmlspecialchars($p['nome']) ?>"
+                                            disabled aria-describedby="motivo-excluir-<?= (int) $p['id'] ?>">
+                                        <i class="fas fa-trash" aria-hidden="true"></i>
+                                    </button>
+                                </span>
+                                <span class="visually-hidden" id="motivo-excluir-<?= (int) $p['id'] ?>"><?= htmlspecialchars($motivoExcluir) ?></span>
+                            <?php else: ?>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-estado" data-acao="excluir" <?= $dataProduto ?>
+                                        title="Excluir definitivamente" aria-label="Excluir definitivamente <?= htmlspecialchars($p['nome']) ?>">
+                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                </button>
+                            <?php endif; ?>
+                        </div>
                     </td>
                 </tr>
             <?php endforeach; ?>
             <?php if (empty($produtos)): ?>
-                <tr><td colspan="8" class="text-center text-muted py-4"><?= $filtro === 'todos' ? 'Nenhum produto cadastrado.' : 'Nenhum produto ' . ($filtro === 'ativos' ? 'ativo' : 'inativo') . '.' ?></td></tr>
+                <tr><td colspan="9" class="text-center text-muted py-4"><?= $filtro === 'todos' ? 'Nenhum produto cadastrado.' : 'Nenhum produto ' . ($filtro === 'ativos' ? 'ativo' : 'inativo') . '.' ?></td></tr>
             <?php endif; ?>
             </tbody>
         </table>
@@ -213,6 +224,11 @@ document.querySelectorAll('.btn-estado').forEach(btn => {
         botao.className   = 'btn btn-sm ' + conf.classe;
         new bootstrap.Modal(document.getElementById('modalExcluir')).show();
     });
+});
+
+// Dica com o motivo do bloqueio — o bundle do Bootstrap só carrega no layout_foot()
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
 });
 </script>
 

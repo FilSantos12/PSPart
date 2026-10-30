@@ -124,6 +124,19 @@ function disponibilidade_produto(array $p): array
 }
 
 /**
+ * Rótulo só do ESTADO, sem quantidade de estoque — usado na lista do admin, onde o número tem
+ * coluna própria (Patch U). Difere de 'label' apenas em ultimas_unidades, cujo 'label' traz a
+ * quantidade ("Pronta entrega — últimas X un."). Função à parte, fora de disponibilidade_produto():
+ * o array devolvido por ela (e portanto a API da loja) fica inalterado.
+ *
+ * @param array $disp Resultado de disponibilidade_produto()
+ */
+function disponibilidade_label_estado(array $disp): string
+{
+    return $disp['status'] === 'ultimas_unidades' ? 'Últimas unidades' : $disp['label'];
+}
+
+/**
  * Valida uma quantidade pedida contra a disponibilidade. Retorna a mensagem de bloqueio
  * (identificando a peça) ou null quando a compra pode seguir.
  */
