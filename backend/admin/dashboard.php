@@ -2,6 +2,7 @@
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/_layout.php';
+require_once __DIR__ . '/_ui.php';
 
 $pdo = getDB();
 
@@ -94,27 +95,6 @@ $ultimosPedidos = $stmt->fetchAll();
 
 // ── Estoque baixo (independente do período) ────────────────────────
 $estoqueBaixo = $pdo->query("SELECT id, nome, estoque FROM produtos WHERE ativo = 1 AND estoque < 5 ORDER BY estoque ASC")->fetchAll();
-
-$statusBadge = [
-    'aprovado'         => 'success',
-    'pendente'         => 'warning',
-    'em_analise'       => 'info',
-    'recusado'         => 'danger',
-    'cancelado'        => 'secondary',
-    'reembolsado'      => 'secondary',
-    'contestado'       => 'danger',
-    'em_processamento' => 'purple',
-];
-$statusLabel = [
-    'aprovado'         => 'Aprovado',
-    'pendente'         => 'Pendente',
-    'em_analise'       => 'Em Análise',
-    'recusado'         => 'Recusado',
-    'cancelado'        => 'Cancelado',
-    'reembolsado'      => 'Reembolsado',
-    'contestado'       => 'Contestado',
-    'em_processamento' => 'Em Processamento',
-];
 
 $extraHead = <<<'CSS_JS'
 <style>
@@ -341,7 +321,7 @@ layout_head('Dashboard', $extraHead);
                             <td class="text-muted small"><?= $p['id'] ?></td>
                             <td><?= htmlspecialchars($p['nome_comprador']) ?></td>
                             <td>R$&nbsp;<?= number_format($p['total'], 2, ',', '.') ?></td>
-                            <td><span class="badge bg-<?= $statusBadge[$p['status']] ?? 'secondary' ?>"><?= $statusLabel[$p['status']] ?? $p['status'] ?></span></td>
+                            <td><?= admin_badge_status_pedido($p['status']) ?></td>
                             <td class="text-muted small"><?= date('d/m/Y H:i', strtotime($p['criado_em'])) ?></td>
                             <td><a href="pedido-detalhe.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-outline-secondary">Ver</a></td>
                         </tr>

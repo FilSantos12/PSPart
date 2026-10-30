@@ -2,6 +2,7 @@
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/_layout.php';
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/_ui.php';
 
 $pdo = getDB();
 
@@ -68,11 +69,15 @@ layout_head('Rastreamento de Pedidos');
             </thead>
             <tbody id="trackingTableBody">
             <?php
+            // Cores locais, de propósito diferentes das canônicas de admin_badge_status_pedido():
+            // aqui o badge sinaliza falha operacional (pedido que não deve ser despachado), não o
+            // status de pagamento — por isso cancelado é vermelho e contestado amarelo.
+            // O texto vem do mapa compartilhado (_ui.php).
             $pedidoStatusFalha = [
-                'recusado'   => ['label' => 'Recusado',   'cor' => 'danger'],
-                'cancelado'  => ['label' => 'Cancelado',  'cor' => 'danger'],
-                'reembolsado'=> ['label' => 'Reembolsado','cor' => 'secondary'],
-                'contestado' => ['label' => 'Contestado', 'cor' => 'warning'],
+                'recusado'    => 'danger',
+                'cancelado'   => 'danger',
+                'reembolsado' => 'secondary',
+                'contestado'  => 'warning',
             ];
             foreach ($rows as $r):
                 $s          = (int) $r['status'];
@@ -81,7 +86,7 @@ layout_head('Rastreamento de Pedidos');
                 $upd        = $r['updated_at'] ? date('d/m/Y H:i', strtotime($r['updated_at'])) : '—';
                 $pStatus    = $r['pedido_status'] ?? '';
                 $isFalha    = isset($pedidoStatusFalha[$pStatus]);
-                $falhaInfo  = $isFalha ? $pedidoStatusFalha[$pStatus] : null;
+                $falhaCor   = $isFalha ? $pedidoStatusFalha[$pStatus] : null;
             ?>
             <tr data-orderid="<?= htmlspecialchars($r['order_id']) ?>"<?= $isFalha ? ' class="table-danger opacity-75"' : '' ?>>
                 <td>
@@ -94,8 +99,8 @@ layout_head('Rastreamento de Pedidos');
                 </td>
                 <td>
                     <?php if ($isFalha): ?>
-                        <span class="badge bg-<?= $falhaInfo['cor'] ?> td-status">
-                            <i class="fas fa-times-circle me-1"></i><?= $falhaInfo['label'] ?>
+                        <span class="badge bg-<?= $falhaCor ?> td-status">
+                            <i class="fas fa-times-circle me-1"></i><?= admin_status_rotulo($pStatus) ?>
                         </span>
                     <?php else: ?>
                         <span class="badge bg-<?= $clr ?> td-status"><?= htmlspecialchars($lbl) ?></span>

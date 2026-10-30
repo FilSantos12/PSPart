@@ -2,6 +2,7 @@
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/_layout.php';
+require_once __DIR__ . '/_ui.php';
 
 $pdo    = getDB();
 $filtro = $_GET['status'] ?? '';
@@ -33,30 +34,7 @@ $stmt    = $pdo->prepare($sql);
 $stmt->execute($params);
 $pedidos = $stmt->fetchAll();
 
-$statusBadge = [
-    'aprovado'         => 'success',
-    'pendente'         => 'warning',
-    'em_analise'       => 'info',
-    'recusado'         => 'danger',
-    'cancelado'        => 'secondary',
-    'reembolsado'      => 'secondary',
-    'contestado'       => 'danger',
-    'em_processamento' => 'purple',
-    'enviado'          => 'primary',
-];
-
 $statusOpcoes = ['', 'aprovado', 'pendente', 'em_analise', 'em_processamento', 'enviado', 'recusado', 'cancelado'];
-$statusLabel  = [
-    'aprovado'         => 'Aprovado',
-    'pendente'         => 'Pendente',
-    'em_analise'       => 'Em Análise',
-    'recusado'         => 'Recusado',
-    'cancelado'        => 'Cancelado',
-    'reembolsado'      => 'Reembolsado',
-    'contestado'       => 'Contestado',
-    'em_processamento' => 'Em Processamento',
-    'enviado'          => 'Enviado',
-];
 
 layout_head('Pedidos');
 ?>
@@ -71,7 +49,7 @@ layout_head('Pedidos');
         <select name="status" class="form-select form-select-sm" style="min-width:160px;">
             <option value="">Todos os status</option>
             <?php foreach (array_filter($statusOpcoes) as $s): ?>
-                <option value="<?= $s ?>" <?= $filtro === $s ? 'selected' : '' ?>><?= $statusLabel[$s] ?? ucfirst($s) ?></option>
+                <option value="<?= $s ?>" <?= $filtro === $s ? 'selected' : '' ?>><?= admin_status_rotulo($s) ?></option>
             <?php endforeach; ?>
         </select>
         <button type="submit" class="btn btn-sm btn-primary">
@@ -105,7 +83,7 @@ layout_head('Pedidos');
                     <td class="fw-semibold"><?= htmlspecialchars($p['nome_comprador']) ?></td>
                     <td class="text-muted small"><?= htmlspecialchars($p['email_comprador']) ?></td>
                     <td>R$ <?= number_format($p['total'], 2, ',', '.') ?></td>
-                    <td><span class="badge bg-<?= $statusBadge[$p['status']] ?? 'secondary' ?>"><?= $statusLabel[$p['status']] ?? $p['status'] ?></span></td>
+                    <td><?= admin_badge_status_pedido($p['status']) ?></td>
                     <td>
                         <?php if ($p['chosen_carrier']): ?>
                             <span class="badge-envio">

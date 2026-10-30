@@ -2,6 +2,7 @@
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/_layout.php';
+require_once __DIR__ . '/_ui.php';
 require_once __DIR__ . '/../helpers/email.php';
 require_once __DIR__ . '/../helpers/status.php';
 require_once __DIR__ . '/../helpers/estoque.php';
@@ -69,18 +70,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['status'])) {
     }
 }
 
-$statusBadge = [
-    'aprovado'         => 'success',
-    'pendente'         => 'warning',
-    'em_analise'       => 'info',
-    'recusado'         => 'danger',
-    'cancelado'        => 'secondary',
-    'reembolsado'      => 'secondary',
-    'contestado'       => 'danger',
-    'em_processamento' => 'purple',
-    'enviado'          => 'primary',
-];
-
 layout_head('Pedido #' . $numeroPedido);
 ?>
 
@@ -143,9 +132,7 @@ layout_head('Pedido #' . $numeroPedido);
             <div class="card-header bg-white fw-semibold">Status do Pedido</div>
             <div class="card-body">
                 <div class="mb-3">
-                    <span class="badge bg-<?= $statusBadge[$pedido['status']] ?? 'secondary' ?> fs-6">
-                        <?= $pedido['status'] ?>
-                    </span>
+                    <?= admin_badge_status_pedido($pedido['status'], 'fs-6') ?>
                 </div>
                 <div class="fs-4 fw-bold text-success mb-3">
                     R$ <?= number_format($pedido['total'], 2, ',', '.') ?>
@@ -155,17 +142,7 @@ layout_head('Pedido #' . $numeroPedido);
                         <select name="status" class="form-select form-select-sm">
                             <?php foreach ($statusValidos as $s): ?>
                                 <option value="<?= $s ?>" <?= $pedido['status'] === $s ? 'selected' : '' ?>>
-                                    <?= match($s) {
-                                        'pendente'         => 'Pendente',
-                                        'aprovado'         => 'Aprovado',
-                                        'em_analise'       => 'Em Análise',
-                                        'recusado'         => 'Recusado',
-                                        'cancelado'        => 'Cancelado',
-                                        'reembolsado'      => 'Reembolsado',
-                                        'contestado'       => 'Contestado',
-                                        'em_processamento' => 'Em Processamento',
-                                        default            => ucfirst($s),
-                                    } ?>
+                                    <?= admin_status_rotulo($s) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>

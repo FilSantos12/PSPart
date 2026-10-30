@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/_ui.php';
 
 $pdo = getDB();
 $id  = (int) ($_GET['id'] ?? 0);
@@ -33,17 +34,7 @@ $stmtTracking = $pdo->prepare("
 $stmtTracking->execute([':oid' => (string) $id]);
 $tracking = $stmtTracking->fetch(PDO::FETCH_ASSOC);
 
-$statusLabel = match($pedido['status']) {
-    'aprovado'         => 'Aprovado',
-    'pendente'         => 'Pendente',
-    'em_analise'       => 'Em Análise',
-    'recusado'         => 'Recusado',
-    'cancelado'        => 'Cancelado',
-    'reembolsado'      => 'Reembolsado',
-    'contestado'       => 'Contestado',
-    'em_processamento' => 'Em Processamento',
-    default            => ucfirst($pedido['status']),
-};
+$statusLabel = admin_status_rotulo($pedido['status']);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
