@@ -482,8 +482,8 @@ body.dark-mode .product-card-thumb .stock-badge {
     color: var(--muted);
 }
 
-/* Preço de exportação (Patch J) — texto do helper ("US$ 45,90 · EXW Boituva" / "Sob consulta ·
-   EXW Boituva"), mais longo que o preço em reais: fonte menor e quebra permitida no card */
+/* Preço de exportação (Patch J) — texto do helper ("US$ 45,90" / "Sob consulta"):
+   fonte menor e quebra permitida no card */
 .product-price.product-price--export {
     font-size: 0.8rem;
     font-weight: 700;
@@ -1512,6 +1512,9 @@ body.dark-mode .lgpd-banner {
 }
 
 .mercado-opcao {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     background: none;
     border: 0;
     border-radius: 999px;
@@ -1523,6 +1526,24 @@ body.dark-mode .lgpd-banner {
     white-space: nowrap;
     cursor: pointer;
     transition: background-color 0.2s, color 0.2s;
+}
+
+/* Ícone de cada mercado: bandeira do Brasil (SVG inline — o emoji 🇧🇷 vira "BR" no Windows) e
+   globo para exportação. Decorativos (aria-hidden): o texto do botão continua sendo o rótulo */
+.mercado-icone {
+    flex-shrink: 0;
+    font-size: 0.85rem;
+}
+
+.mercado-bandeira {
+    width: 1.15rem;
+    height: auto;
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.35);
+}
+
+.mercado-opcao.active .mercado-bandeira {
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
 }
 
 .mercado-opcao:hover {

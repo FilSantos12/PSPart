@@ -209,6 +209,8 @@ function disponibilidade_consulta(array $p): array
 /**
  * Preço de exportação (Patch J) — SEGUNDA LISTA DE PREÇO em USD, cadastrada pelo admin na condição
  * INCOTERM_PADRAO. Nunca é derivada do preço em reais (sem câmbio). Fonte única destes textos.
+ * O rótulo exibido ao cliente traz só o valor em dólar, sem o Incoterm (decisão do dono, 30/10/2026);
+ * o Incoterm continua valendo para o cadastro e aparece no admin e no assunto do orçamento.
  *
  * @return array{preco_export:?string,preco_export_label:string}
  */
@@ -220,7 +222,7 @@ function disponibilidade_preco_export(array $p): array
     $valor = $usd === null ? null : 'US$ ' . number_format($usd, 2, ',', '.');
     return [
         'preco_export'       => $valor,
-        'preco_export_label' => ($valor ?? 'Sob consulta') . ' · ' . INCOTERM_PADRAO,
+        'preco_export_label' => $valor ?? 'Sob consulta',
     ];
 }
 

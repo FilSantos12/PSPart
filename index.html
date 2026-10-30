@@ -132,8 +132,12 @@
                         <!-- Mercado dos preços (Patch J) — Brasil = compra no site; Exportação = só cotação.
                              Estado aplicado por setupMercado()/_aplicarMercado() (script.js), persistido em psp_mercado -->
                         <div id="mercadoToggle" class="mercado-toggle ms-lg-3" role="group" aria-label="Mercado e moeda dos preços">
-                            <button type="button" class="mercado-opcao active" data-mercado-opcao="br" aria-pressed="true">Brasil (BRL)</button>
-                            <button type="button" class="mercado-opcao" data-mercado-opcao="export" aria-pressed="false">Exportação (USD)</button>
+                            <button type="button" class="mercado-opcao active" data-mercado-opcao="br" aria-pressed="true">
+                                <svg class="mercado-icone mercado-bandeira" viewBox="0 0 20 14" aria-hidden="true" focusable="false"><rect width="20" height="14" rx="2" fill="#009c3b"/><path d="M10 1.8 18 7l-8 5.2L2 7z" fill="#ffdf00"/><circle cx="10" cy="7" r="3.1" fill="#002776"/></svg>Brasil (BRL)
+                            </button>
+                            <button type="button" class="mercado-opcao" data-mercado-opcao="export" aria-pressed="false">
+                                <i class="fas fa-earth-americas mercado-icone" aria-hidden="true"></i>Exportação (USD)
+                            </button>
                         </div>
                     </div>
 
