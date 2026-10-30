@@ -1,0 +1,81 @@
+/* ===== ADMIN (Patch U) =====
+   Folha única do admin, carregada pelo _layout.php depois do Bootstrap e do $extra_head.
+   Fora daqui: index.php (login) e pedido-ficha.php (impressão), que têm página própria.
+   Tokens de estado (--ok/--warn/--req) e .stock-badge vêm de assets/css/disponibilidade.css. */
+:root {
+    --adm-bg: #f4f6f9;
+    --adm-sidebar: #1e2a3a;
+    --adm-sidebar-hover: #2e3f54;   /* também as divisórias da barra lateral */
+    --adm-line: #dee2e6;
+    --adm-brand: #274185;
+}
+
+body { background: var(--adm-bg); }
+.sidebar {
+    width: 240px; min-height: 100vh;
+    background: var(--adm-sidebar); color: #c8d6e5;
+    position: fixed; top: 0; left: 0; z-index: 100;
+    display: flex; flex-direction: column;
+}
+.sidebar-brand {
+    padding: 1.25rem 1.5rem;
+    font-size: 1.1rem; font-weight: 700;
+    color: #fff; border-bottom: 1px solid var(--adm-sidebar-hover);
+    text-decoration: none;
+}
+.sidebar-brand span { color: #4e9af1; }
+.sidebar nav { flex: 1; padding: .5rem 0; }
+.sidebar .nav-link {
+    color: #c8d6e5; padding: .6rem 1.5rem;
+    font-size: .9rem; display: flex; align-items: center; gap: .6rem;
+    border-radius: 0; transition: background .15s;
+}
+.sidebar .nav-link:hover, .sidebar .nav-link.active {
+    background: var(--adm-sidebar-hover); color: #fff;
+}
+.sidebar .nav-section {
+    font-size: .7rem; text-transform: uppercase;
+    letter-spacing: .08em; color: #6b7f93;
+    padding: 1rem 1.5rem .3rem;
+}
+.sidebar-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--adm-sidebar-hover);
+    font-size: .85rem;
+}
+.main-wrapper { margin-left: 240px; min-height: 100vh; }
+.topbar {
+    background: #fff; border-bottom: 1px solid var(--adm-line);
+    padding: .75rem 1.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+}
+.topbar h1 { font-size: 1.15rem; font-weight: 600; margin: 0; }
+.content { padding: 1.5rem; }
+.stat-card { border: none; border-radius: 10px; }
+.stat-card .icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+
+/* Status "em processamento" — cor que o Bootstrap não tem (antes copiada em 3 páginas) */
+.bg-purple { background-color: #6f42c1 !important; }
+
+/* Botão do menu: só abaixo de 768px (mesmo limite em que a barra lateral sai da tela) */
+.adm-menu-btn { display: none; }
+
+@media (max-width: 768px) {
+    /* A barra lateral vira painel lateral (Offcanvas do Bootstrap via data-bs-toggle no
+       botão da barra superior). As classes .showing/.show/.hiding são as que o JS do
+       Offcanvas alterna; o fundo escuro é o .offcanvas-backdrop do próprio Bootstrap. */
+    .sidebar {
+        z-index: 1045; bottom: 0;
+        visibility: hidden;
+        transform: translateX(-100%);
+        transition: transform .3s ease-in-out;
+        overflow-y: auto;
+    }
+    .sidebar.showing, .sidebar.show:not(.hiding) { transform: none; }
+    .sidebar.showing, .sidebar.show, .sidebar.hiding { visibility: visible; }
+    .main-wrapper { margin-left: 0; }
+    .adm-menu-btn { display: inline-flex; }
+}
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+    .sidebar { transition: none; }
+}

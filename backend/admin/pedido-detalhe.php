@@ -83,9 +83,6 @@ $statusBadge = [
 
 layout_head('Pedido #' . $numeroPedido);
 ?>
-<style>
-  .bg-purple { background-color: #6f42c1 !important; }
-</style>
 
 <div class="mb-3">
     <a href="pedidos.php" class="text-decoration-none text-muted small">

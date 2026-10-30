@@ -27,7 +27,7 @@ $produtos = $stmt->fetchAll();
 $contagem = $pdo->query("SELECT COUNT(*) AS todos, COALESCE(SUM(ativo = 1), 0) AS ativos, COALESCE(SUM(ativo = 0), 0) AS inativos FROM produtos")
     ->fetch(PDO::FETCH_ASSOC);
 
-layout_head('Produtos', '<link rel="stylesheet" href="../../assets/css/disponibilidade.css">');
+layout_head('Produtos');
 ?>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">

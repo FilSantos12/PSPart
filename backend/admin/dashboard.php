@@ -118,9 +118,8 @@ $statusLabel = [
 
 $extraHead = <<<'CSS_JS'
 <style>
-  .bg-purple { background-color: #6f42c1 !important; }
-  .dash-filter-bar { background: #fff; border: 1px solid #dee2e6; border-radius: 10px; padding: .875rem 1rem; margin-bottom: 1.25rem; }
-  .dash-periodo-label { font-size: .8rem; color: #274185; font-weight: 600; margin-top: .5rem; }
+  .dash-filter-bar { background: #fff; border: 1px solid var(--adm-line); border-radius: 10px; padding: .875rem 1rem; margin-bottom: 1.25rem; }
+  .dash-periodo-label { font-size: .8rem; color: var(--adm-brand); font-weight: 600; margin-top: .5rem; }
   .dash-cards-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: .625rem; }
   .dash-stat-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
   .dash-empty { text-align: center; padding: 2.5rem 1rem; color: #6c757d; }

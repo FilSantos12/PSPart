@@ -10,60 +10,13 @@ function layout_head(string $titulo, string $extra_head = ''): void {
     <title><?= htmlspecialchars($titulo) ?> — PSPart Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="/assets/css/disponibilidade.css" rel="stylesheet">
     <?= $extra_head ?>
-    <style>
-        body { background: #f4f6f9; }
-        .sidebar {
-            width: 240px; min-height: 100vh;
-            background: #1e2a3a; color: #c8d6e5;
-            position: fixed; top: 0; left: 0; z-index: 100;
-            display: flex; flex-direction: column;
-        }
-        .sidebar-brand {
-            padding: 1.25rem 1.5rem;
-            font-size: 1.1rem; font-weight: 700;
-            color: #fff; border-bottom: 1px solid #2e3f54;
-            text-decoration: none;
-        }
-        .sidebar-brand span { color: #4e9af1; }
-        .sidebar nav { flex: 1; padding: .5rem 0; }
-        .sidebar .nav-link {
-            color: #c8d6e5; padding: .6rem 1.5rem;
-            font-size: .9rem; display: flex; align-items: center; gap: .6rem;
-            border-radius: 0; transition: background .15s;
-        }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active {
-            background: #2e3f54; color: #fff;
-        }
-        .sidebar .nav-section {
-            font-size: .7rem; text-transform: uppercase;
-            letter-spacing: .08em; color: #6b7f93;
-            padding: 1rem 1.5rem .3rem;
-        }
-        .sidebar-footer {
-            padding: 1rem 1.5rem;
-            border-top: 1px solid #2e3f54;
-            font-size: .85rem;
-        }
-        .main-wrapper { margin-left: 240px; min-height: 100vh; }
-        .topbar {
-            background: #fff; border-bottom: 1px solid #dee2e6;
-            padding: .75rem 1.5rem;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .topbar h1 { font-size: 1.15rem; font-weight: 600; margin: 0; }
-        .content { padding: 1.5rem; }
-        .stat-card { border: none; border-radius: 10px; }
-        .stat-card .icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
-        @media (max-width: 768px) {
-            .sidebar { display: none; }
-            .main-wrapper { margin-left: 0; }
-        }
-    </style>
+    <link href="<?= $base ?>admin.css?v=<?= filemtime(__DIR__ . '/admin.css') ?>" rel="stylesheet">
 </head>
 <body>
 
-<div class="sidebar">
+<div class="sidebar" id="adminSidebar" tabindex="-1" aria-label="Menu do admin">
     <a class="sidebar-brand" href="<?= $base ?>dashboard.php">
         <span>PSPart</span> Admin
     </a>
@@ -114,7 +67,14 @@ function layout_head(string $titulo, string $extra_head = ''): void {
 
 <div class="main-wrapper">
     <div class="topbar">
-        <h1><?= htmlspecialchars($titulo) ?></h1>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary adm-menu-btn"
+                    data-bs-toggle="offcanvas" data-bs-target="#adminSidebar"
+                    aria-controls="adminSidebar" aria-label="Abrir menu">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h1><?= htmlspecialchars($titulo) ?></h1>
+        </div>
         <span class="text-muted small"><?= date('d/m/Y H:i') ?></span>
     </div>
     <div class="content">
@@ -126,6 +86,14 @@ function layout_foot(): void {
     </div><!-- .content -->
 </div><!-- .main-wrapper -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Menu aberto no celular e janela alargada acima de 768px: fecha, senão o fundo escuro fica
+window.matchMedia('(max-width: 768px)').addEventListener('change', function (e) {
+    if (e.matches) return;
+    var menu = bootstrap.Offcanvas.getInstance(document.getElementById('adminSidebar'));
+    if (menu) menu.hide();
+});
+</script>
 </body>
 </html>
 <?php

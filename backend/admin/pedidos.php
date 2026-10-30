@@ -60,9 +60,6 @@ $statusLabel  = [
 
 layout_head('Pedidos');
 ?>
-<style>
-  .bg-purple { background-color: #6f42c1 !important; }
-</style>
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <span class="text-muted small"><?= count($pedidos) ?> pedido(s)</span>

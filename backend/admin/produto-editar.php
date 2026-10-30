@@ -155,8 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$easymde_css = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">'
-             . '<link rel="stylesheet" href="../../assets/css/disponibilidade.css">';
+$easymde_css = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">';
 layout_head('Editar Produto', $easymde_css);
 ?>
 
