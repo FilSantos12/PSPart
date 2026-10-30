@@ -456,7 +456,7 @@ layout_head('Pedido #' . $numeroPedido);
         <div class="card shadow-sm">
             <div class="card-header bg-white fw-semibold">Itens do Pedido</div>
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
+                <table class="table align-middle mb-0 adm-table">
                     <thead class="table-light">
                         <tr>
                             <th>Produto</th>
@@ -471,8 +471,7 @@ layout_head('Pedido #' . $numeroPedido);
                             <td>
                                 <div class="d-flex align-items-center gap-2">
                                     <?php if ($item['imagem']): ?>
-                                        <img src="/<?= htmlspecialchars($item['imagem']) ?>" width="40" height="40"
-                                             style="object-fit:cover;border-radius:6px;">
+                                        <img src="/<?= htmlspecialchars($item['imagem']) ?>" width="40" height="40" class="adm-thumb" alt="">
                                     <?php endif; ?>
                                     <div>
                                         <?= htmlspecialchars($item['produto_nome']) ?>

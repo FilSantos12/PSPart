@@ -59,6 +59,9 @@ body { background: var(--adm-bg); }
 
 /* ── Tabelas de listagem (aplicar junto de .table) ───────────────────────────
    Padding perto do table-sm; o alvo é uma linha com a altura da miniatura, sem empilhar. */
+/* position: relative segura qualquer .visually-hidden (absoluto) da tabela — motivo de bloqueio,
+   cabeçalho "Ações" — dentro do .table-responsive; sem ele o span escapa do corte e a PÁGINA rola */
+.adm-table { position: relative; }
 .adm-table > :not(caption) > * > * { padding: .4rem .5rem; }
 .adm-table > :not(caption) > * > *:first-child { padding-left: .75rem; }
 .adm-table > :not(caption) > * > *:last-child { padding-right: .75rem; }
@@ -66,9 +69,7 @@ body { background: var(--adm-bg); }
 .adm-produto-texto { min-width: 0; max-width: 200px; }   /* nome e descrição truncam (nome completo no title) */
 
 /* Coluna de ações: só ícones, alinhados à direita */
-/* position: relative segura o .visually-hidden (absoluto) do motivo dentro do .table-responsive —
-   sem ele o span escapa do corte e cria rolagem horizontal na página */
-.adm-acoes { display: flex; gap: .25rem; justify-content: flex-end; position: relative; }
+.adm-acoes { display: flex; gap: .25rem; justify-content: flex-end; }
 
 /* Pílula neutra de contorno (ex.: Ativo/Inativo) — não compete com os badges coloridos */
 .adm-pill {

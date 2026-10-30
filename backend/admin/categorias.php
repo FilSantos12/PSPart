@@ -90,13 +90,14 @@ layout_head('Categorias');
                 <?php if (empty($cats)): ?>
                     <p class="text-muted p-3 mb-0">Nenhuma categoria cadastrada.</p>
                 <?php else: ?>
-                    <table class="table table-hover mb-0">
+                    <div class="table-responsive">
+                    <table class="table table-hover mb-0 adm-table">
                         <thead class="table-light">
                             <tr>
                                 <th>Nome</th>
                                 <th>Slug</th>
                                 <th class="text-center">Produtos</th>
-                                <th></th>
+                                <th><span class="visually-hidden">Ações</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -111,14 +112,16 @@ layout_head('Categorias');
                                             <span class="text-muted small">0</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="align-middle text-end">
+                                    <td class="align-middle">
+                                        <div class="adm-acoes">
                                         <?php if ($cat['total_produtos'] == 0): ?>
                                             <form method="POST" class="d-inline"
                                                   onsubmit="return confirm('Remover a categoria \'<?= htmlspecialchars($cat['nome']) ?>\'?')">
                                                 <input type="hidden" name="action" value="excluir">
                                                 <input type="hidden" name="categoria_id" value="<?= $cat['id'] ?>">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                    <i class="fas fa-trash-alt"></i>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir"
+                                                        aria-label="Excluir a categoria <?= htmlspecialchars($cat['nome']) ?>">
+                                                    <i class="fas fa-trash-alt" aria-hidden="true"></i>
                                                 </button>
                                             </form>
                                         <?php else: ?>
@@ -126,11 +129,13 @@ layout_head('Categorias');
                                                 <i class="fas fa-lock fa-sm"></i>
                                             </span>
                                         <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>

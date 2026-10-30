@@ -294,7 +294,7 @@ layout_head('Dashboard', $extraHead);
                 <a href="pedidos.php" class="btn btn-sm btn-link text-decoration-none p-0 small">Ver todos</a>
             </div>
             <div class="table-responsive">
-                <table class="table table-hover mb-0 align-middle">
+                <table class="table table-hover mb-0 align-middle adm-table">
                     <thead class="table-light">
                         <tr>
                             <th>#</th>
@@ -302,7 +302,7 @@ layout_head('Dashboard', $extraHead);
                             <th>Total</th>
                             <th>Status</th>
                             <th>Data</th>
-                            <th></th>
+                            <th><span class="visually-hidden">Ações</span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -318,12 +318,17 @@ layout_head('Dashboard', $extraHead);
                     <?php else: ?>
                     <?php foreach ($ultimosPedidos as $p): ?>
                         <tr>
-                            <td class="text-muted small"><?= $p['id'] ?></td>
+                            <td class="text-muted small text-nowrap"><?= $p['id'] ?></td>
                             <td><?= htmlspecialchars($p['nome_comprador']) ?></td>
-                            <td>R$&nbsp;<?= number_format($p['total'], 2, ',', '.') ?></td>
-                            <td><?= admin_badge_status_pedido($p['status']) ?></td>
-                            <td class="text-muted small"><?= date('d/m/Y H:i', strtotime($p['criado_em'])) ?></td>
-                            <td><a href="pedido-detalhe.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-outline-secondary">Ver</a></td>
+                            <td class="text-nowrap">R$&nbsp;<?= number_format($p['total'], 2, ',', '.') ?></td>
+                            <td class="text-nowrap"><?= admin_badge_status_pedido($p['status']) ?></td>
+                            <td class="text-muted small text-nowrap"><?= date('d/m/Y H:i', strtotime($p['criado_em'])) ?></td>
+                            <td>
+                                <div class="adm-acoes">
+                                    <a href="pedido-detalhe.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-outline-secondary" title="Ver detalhe"
+                                       aria-label="Ver detalhe do pedido <?= $p['id'] ?>"><i class="fas fa-eye" aria-hidden="true"></i></a>
+                                </div>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                     <?php endif; ?>
@@ -339,7 +344,7 @@ layout_head('Dashboard', $extraHead);
                 <i class="fas fa-exclamation-triangle me-1"></i> Estoque Baixo
             </div>
             <div class="table-responsive">
-                <table class="table mb-0 align-middle">
+                <table class="table mb-0 align-middle adm-table">
                     <thead class="table-light">
                         <tr><th>Produto</th><th>Estoque</th></tr>
                     </thead>

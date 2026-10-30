@@ -63,7 +63,7 @@ layout_head('Pedidos');
 
 <div class="card shadow-sm">
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 adm-table">
             <thead class="table-light">
                 <tr>
                     <th>#</th>
@@ -73,17 +73,17 @@ layout_head('Pedidos');
                     <th>Status</th>
                     <th>Envio</th>
                     <th>Data</th>
-                    <th></th>
+                    <th><span class="visually-hidden">Ações</span></th>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ($pedidos as $p): ?>
                 <tr>
-                    <td class="text-muted small" title="ID interno: <?= $p['id'] ?>"><?= htmlspecialchars($p['numero_pedido'] ?? $p['id']) ?></td>
+                    <td class="text-muted small text-nowrap" title="ID interno: <?= $p['id'] ?>"><?= htmlspecialchars($p['numero_pedido'] ?? $p['id']) ?></td>
                     <td class="fw-semibold"><?= htmlspecialchars($p['nome_comprador']) ?></td>
                     <td class="text-muted small"><?= htmlspecialchars($p['email_comprador']) ?></td>
-                    <td>R$ <?= number_format($p['total'], 2, ',', '.') ?></td>
-                    <td><?= admin_badge_status_pedido($p['status']) ?></td>
+                    <td class="text-nowrap">R$ <?= number_format($p['total'], 2, ',', '.') ?></td>
+                    <td class="text-nowrap"><?= admin_badge_status_pedido($p['status']) ?></td>
                     <td>
                         <?php if ($p['chosen_carrier']): ?>
                             <span class="badge-envio">
@@ -99,8 +99,13 @@ layout_head('Pedidos');
                             <span class="text-muted small">—</span>
                         <?php endif; ?>
                     </td>
-                    <td class="text-muted small"><?= date('d/m/Y H:i', strtotime($p['criado_em'])) ?></td>
-                    <td><a href="pedido-detalhe.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-primary"><i class="fas fa-eye me-1"></i> Ver detalhe</a></td>
+                    <td class="text-muted small text-nowrap"><?= date('d/m/Y H:i', strtotime($p['criado_em'])) ?></td>
+                    <td>
+                        <div class="adm-acoes">
+                            <a href="pedido-detalhe.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-primary" title="Ver detalhe"
+                               aria-label="Ver detalhe do pedido <?= htmlspecialchars($p['numero_pedido'] ?? $p['id']) ?>"><i class="fas fa-eye" aria-hidden="true"></i></a>
+                        </div>
+                    </td>
                 </tr>
             <?php endforeach; ?>
             <?php if (empty($pedidos)): ?>

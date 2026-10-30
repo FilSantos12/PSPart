@@ -202,14 +202,15 @@ layout_head('Carrossel de Campanhas');
                 <?php if (empty($campanhas)): ?>
                     <p class="text-muted p-3 mb-0">Nenhuma campanha cadastrada.</p>
                 <?php else: ?>
-                    <table class="table table-hover mb-0 align-middle">
+                    <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle adm-table">
                         <thead class="table-light">
                             <tr>
                                 <th>Imagem</th>
                                 <th>Título</th>
                                 <th class="text-center">Ordem</th>
                                 <th class="text-center">Status</th>
-                                <th></th>
+                                <th><span class="visually-hidden">Ações</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -227,27 +228,30 @@ layout_head('Carrossel de Campanhas');
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center"><?= (int) $c['ordem'] ?></td>
-                                    <td class="text-center">
+                                    <td class="text-center text-nowrap">
                                         <span class="badge bg-<?= $st['cls'] ?>"><?= $st['label'] ?></span>
                                     </td>
-                                    <td class="text-end">
-                                        <div class="d-flex gap-1 justify-content-end">
+                                    <td>
+                                        <div class="adm-acoes">
                                             <form method="POST" class="d-inline">
                                                 <input type="hidden" name="action" value="toggle">
                                                 <input type="hidden" name="campanha_id" value="<?= $c['id'] ?>">
-                                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="<?= $c['ativo'] ? 'Desativar' : 'Ativar' ?>">
-                                                    <i class="fas <?= $c['ativo'] ? 'fa-toggle-on' : 'fa-toggle-off' ?>"></i>
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="<?= $c['ativo'] ? 'Desativar' : 'Ativar' ?>"
+                                                        aria-label="<?= $c['ativo'] ? 'Desativar' : 'Ativar' ?> a campanha <?= htmlspecialchars($c['titulo']) ?>">
+                                                    <i class="fas <?= $c['ativo'] ? 'fa-toggle-on' : 'fa-toggle-off' ?>" aria-hidden="true"></i>
                                                 </button>
                                             </form>
-                                            <a href="?editar=<?= $c['id'] ?>" class="btn btn-sm btn-outline-primary" title="Editar">
-                                                <i class="fas fa-pen"></i>
+                                            <a href="?editar=<?= $c['id'] ?>" class="btn btn-sm btn-outline-primary" title="Editar"
+                                               aria-label="Editar a campanha <?= htmlspecialchars($c['titulo']) ?>">
+                                                <i class="fas fa-pen" aria-hidden="true"></i>
                                             </a>
                                             <form method="POST" class="d-inline"
                                                   onsubmit="return confirm('Remover a campanha \'<?= htmlspecialchars($c['titulo']) ?>\'? A imagem também será apagada.')">
                                                 <input type="hidden" name="action" value="excluir">
                                                 <input type="hidden" name="campanha_id" value="<?= $c['id'] ?>">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
-                                                    <i class="fas fa-trash-alt"></i>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir"
+                                                        aria-label="Excluir a campanha <?= htmlspecialchars($c['titulo']) ?>">
+                                                    <i class="fas fa-trash-alt" aria-hidden="true"></i>
                                                 </button>
                                             </form>
                                         </div>
@@ -256,6 +260,7 @@ layout_head('Carrossel de Campanhas');
                             <?php endforeach; ?>
                         </tbody>
                     </table>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>

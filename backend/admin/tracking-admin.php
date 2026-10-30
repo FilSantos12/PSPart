@@ -54,7 +54,7 @@ layout_head('Rastreamento de Pedidos');
 <?php else: ?>
 <div class="card border-0 shadow-sm">
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 adm-table">
             <thead class="table-light">
                 <tr>
                     <th>Pedido</th>
@@ -64,7 +64,7 @@ layout_head('Rastreamento de Pedidos');
                     <th>Transportadora efetiva</th>
                     <th>Código</th>
                     <th>Atualizado em</th>
-                    <th class="text-center">Ações</th>
+                    <th class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody id="trackingTableBody">
@@ -89,7 +89,7 @@ layout_head('Rastreamento de Pedidos');
                 $falhaCor   = $isFalha ? $pedidoStatusFalha[$pStatus] : null;
             ?>
             <tr data-orderid="<?= htmlspecialchars($r['order_id']) ?>"<?= $isFalha ? ' class="table-danger opacity-75"' : '' ?>>
-                <td>
+                <td class="text-nowrap">
                     <strong>#<?= htmlspecialchars($r['numero_pedido'] ?? $r['order_id']) ?></strong>
                     <div class="text-muted" style="font-size:.7rem;">ID interno: <?= htmlspecialchars($r['order_id']) ?></div>
                 </td>
@@ -118,9 +118,11 @@ layout_head('Rastreamento de Pedidos');
                 </td>
                 <td class="td-carrier"><?= htmlspecialchars($r['carrier'] ?? '—') ?></td>
                 <td class="td-code" style="font-family:monospace;"><?= htmlspecialchars($r['tracking_code'] ?? '—') ?></td>
-                <td class="td-updated small text-muted"><?= $upd ?></td>
-                <td class="text-center">
-                    <button class="btn btn-outline-primary btn-sm"
+                <td class="td-updated small text-muted text-nowrap"><?= $upd ?></td>
+                <td>
+                    <div class="adm-acoes">
+                    <button class="btn btn-outline-primary btn-sm" title="Editar rastreamento"
+                            aria-label="Editar rastreamento do pedido #<?= htmlspecialchars($r['numero_pedido'] ?? $r['order_id']) ?>"
                             onclick='abrirModal(<?= json_encode([
                                 "order_id"        => $r["order_id"],
                                 "numero_pedido"   => $r["numero_pedido"] ?? $r["order_id"],
@@ -135,8 +137,9 @@ layout_head('Rastreamento de Pedidos');
                                 "shipping_deadline" => $r["shipping_deadline"] ?? null,
                                 "destination_cep" => $r["destination_cep"] ?? "",
                             ]) ?>)'>
-                        <i class="fas fa-edit"></i>
+                        <i class="fas fa-edit" aria-hidden="true"></i>
                     </button>
+                    </div>
                 </td>
             </tr>
             <?php endforeach; ?>
@@ -381,16 +384,19 @@ function atualizarLinha(json) {
             <td><span class="badge bg-${clr} td-status">${lbl}</span></td>
             <td class="td-carrier">${carrier}</td>
             <td class="td-code" style="font-family:monospace;">${code}</td>
-            <td class="td-updated small text-muted">${now}</td>
-            <td class="text-center">
-                <button class="btn btn-outline-primary btn-sm"
+            <td class="td-updated small text-muted text-nowrap">${now}</td>
+            <td>
+                <div class="adm-acoes">
+                <button class="btn btn-outline-primary btn-sm" title="Editar rastreamento"
+                        aria-label="Editar rastreamento do pedido #${json.order_id}"
                         onclick='abrirModal(${JSON.stringify({
                             order_id: json.order_id, status: s,
                             tracking_code: code === '—' ? '' : code,
                             carrier: carrier === '—' ? '' : carrier, notes: ''
                         })})'>
-                    <i class="fas fa-edit"></i>
+                    <i class="fas fa-edit" aria-hidden="true"></i>
                 </button>
+                </div>
             </td>`;
         tbody.prepend(tr);
 
