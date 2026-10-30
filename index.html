@@ -145,6 +145,26 @@
                 </div>
             </nav>
 
+    <!-- Carrossel de Campanhas — full-bleed (fora do .container de propósito, Patch E).
+         Populado via backend/api/carrossel.php (só vigentes+ativas); oculto via style.display
+         inline quando não há nenhuma (nunca display:none no CSS). -->
+    <section id="carrosselCampanhas" class="campanhas-section" style="display:none;">
+        <div id="campanhasCarousel" class="carousel slide campanhas-carousel">
+            <div class="carousel-indicators" id="campanhasIndicators"></div>
+            <div class="carousel-inner" id="campanhasInner"></div>
+            <button class="carousel-control-prev" type="button" id="campanhasPrev"
+                    data-bs-target="#campanhasCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Anterior</span>
+            </button>
+            <button class="carousel-control-next" type="button" id="campanhasNext"
+                    data-bs-target="#campanhasCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Próximo</span>
+            </button>
+        </div>
+    </section>
+
     <!-- Hero Section / Informações Iniciais -->
     <section id="inicio" class="hero-section text-center">
         <div class="container">
@@ -165,26 +185,6 @@
                 <span class="selo-item"><i class="fa-solid fa-qrcode"></i>Pagamento via Pix</span>
                 <span class="selo-item"><i class="fa-solid fa-shield-halved"></i>Site seguro (SSL)</span>
             </div>
-        </div>
-    </section>
-
-    <!-- Carrossel de Campanhas — full-bleed (fora do .container de propósito, Patch E).
-         Populado via backend/api/carrossel.php (só vigentes+ativas); oculto via style.display
-         inline quando não há nenhuma (nunca display:none no CSS). -->
-    <section id="carrosselCampanhas" class="campanhas-section" style="display:none;">
-        <div id="campanhasCarousel" class="carousel slide campanhas-carousel">
-            <div class="carousel-indicators" id="campanhasIndicators"></div>
-            <div class="carousel-inner" id="campanhasInner"></div>
-            <button class="carousel-control-prev" type="button" id="campanhasPrev"
-                    data-bs-target="#campanhasCarousel" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Anterior</span>
-            </button>
-            <button class="carousel-control-next" type="button" id="campanhasNext"
-                    data-bs-target="#campanhasCarousel" data-bs-slide="next">
-                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Próximo</span>
-            </button>
         </div>
     </section>
 
