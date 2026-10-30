@@ -27,6 +27,23 @@ const EMPRESA_TELEFONE_E164 = '+551532639494';
 const DISP_STATUS_ORDEM      = ['pronta_entrega', 'ultimas_unidades', 'sob_encomenda', 'esgotado', 'indisponivel'];
 const DISP_STATUS_EM_ESTOQUE = ['pronta_entrega', 'ultimas_unidades'];
 
+// localStorage tolerante a falha (Patch O): com os dados do site bloqueados, o acesso lança
+// SecurityError. Leitura que falha = "não há valor salvo"; gravação que falha = não persiste,
+// mas a ação segue. Nunca muda o comportamento quando o armazenamento funciona.
+function _lsGet(chave) {
+    try {
+        return localStorage.getItem(chave);
+    } catch {
+        return null;
+    }
+}
+
+function _lsSet(chave, valor) {
+    try {
+        localStorage.setItem(chave, valor);
+    } catch { /* sem persistência: vale só nesta página */ }
+}
+
 class App {
     constructor() {
         this._activeCategory = 'all';
@@ -292,14 +309,14 @@ class App {
         btn.addEventListener('click', () => {
             const isDark = document.body.classList.toggle('dark-mode');
             updateIcon(isDark);
-            localStorage.setItem('psp_theme', isDark ? 'dark' : 'light');
+            _lsSet('psp_theme', isDark ? 'dark' : 'light');
         });
     }
 
     // ── MERCADO: BRASIL (BRL) × EXPORTAÇÃO (USD) — Patch J ──────────────────
     // Exportação é modo de COTAÇÃO, nunca de checkout: preços viram preco_export_label (segunda
     // lista de preço do helper, sem câmbio), compra/frete/carrinho somem e o CTA é "Solicitar
-    // Orçamento". psp_mercado é a única chave com try/catch próprio: se o storage falhar, vale
+    // Orçamento". psp_mercado tem try/catch próprio (anterior ao _lsGet/_lsSet): se o storage falhar, vale
     // Brasil e a página segue normal. Elementos com data-so-mercado="br|export" só aparecem no
     // mercado indicado (style.display, aplicado por _aplicarMercado()).
 
@@ -594,7 +611,7 @@ class App {
         const banner = document.getElementById('lgpdBanner');
         if (!banner) return;
 
-        const consent = localStorage.getItem('psp_lgpd_consent');
+        const consent = _lsGet('psp_lgpd_consent');
         if (consent === 'accepted') {
             gtag('consent', 'update', { 'analytics_storage': 'granted' });
             return;
@@ -604,13 +621,13 @@ class App {
         banner.style.display = '';
 
         document.getElementById('lgpdAccept')?.addEventListener('click', () => {
-            localStorage.setItem('psp_lgpd_consent', 'accepted');
+            _lsSet('psp_lgpd_consent', 'accepted');
             gtag('consent', 'update', { 'analytics_storage': 'granted' });
             banner.style.display = 'none';
         });
 
         document.getElementById('lgpdReject')?.addEventListener('click', () => {
-            localStorage.setItem('psp_lgpd_consent', 'rejected');
+            _lsSet('psp_lgpd_consent', 'rejected');
             banner.style.display = 'none';
         });
     }
@@ -706,7 +723,7 @@ class App {
     }
 
     _cartSave() {
-        localStorage.setItem('psp_cart', JSON.stringify(this._cart));
+        _lsSet('psp_cart', JSON.stringify(this._cart));
         // Qualquer mutação do carrinho invalida a cotação de frete em memória — o carrinho
         // que foi cotado não é mais o carrinho atual (trava do B2a: recalcular/limpar ao mudar).
         this._cartFrete = null;
@@ -1020,7 +1037,7 @@ class App {
         this._cartUpdateTotais();
         this._cartUpdateFinalizarState();
 
-        const saved = localStorage.getItem('psp_cep_entrega');
+        const saved = _lsGet('psp_cep_entrega');
         if (saved && document.activeElement !== cepInput) {
             cepInput.value = saved;
             const cepDigits = saved.replace(/\D/g, '');
@@ -1063,7 +1080,7 @@ class App {
                 return;
             }
 
-            localStorage.setItem('psp_cep_entrega', cep.replace(/(\d{5})(\d{3})/, '$1-$2'));
+            _lsSet('psp_cep_entrega', cep.replace(/(\d{5})(\d{3})/, '$1-$2'));
             this._cartRenderFreteOpcoes(data.servicos, data.cep, resultEl);
 
         } catch (_) {
@@ -1427,7 +1444,11 @@ class App {
             // Marca este pedido como "acabou de ser iniciado nesta aba" — acompanhar.html usa isso
             // para limpar o carrinho só na confirmação de pagamento (nunca antes/otimisticamente).
             // Vale para os dois caminhos de pagamento do passo 2 (redirect ou inline).
-            sessionStorage.setItem('psp_checkout_pedido_pendente', String(data.pedido_id));
+            // Armazenamento bloqueado (Patch O): sem o marcador o carrinho só não é limpo depois —
+            // o pedido já existe no servidor, então o fluxo segue para o passo 2 de qualquer forma.
+            try {
+                sessionStorage.setItem('psp_checkout_pedido_pendente', String(data.pedido_id));
+            } catch { /* sem marcador: acompanhar.html não limpa o carrinho */ }
 
             this._cartCheckoutPedido = data;
             this._currentPedidoId    = data.pedido_id;
@@ -1831,7 +1852,7 @@ class App {
                 document.getElementById('checkout-cidade').value   = data.localidade || '';
                 document.getElementById('checkout-estado').value   = data.uf         || '';
                 cepEl.classList.remove('is-invalid');
-                localStorage.setItem('psp_cep_entrega', cepEl.value);
+                _lsSet('psp_cep_entrega', cepEl.value);
                 document.getElementById('checkout-numero')?.focus();
                 this._calcularFreteCheckout(cep);
             }
@@ -1862,7 +1883,7 @@ class App {
         if (freteCheckout) { freteCheckout.style.display = 'none'; freteCheckout.innerHTML = ''; }
 
         // Pré-preenche CEP salvo e dispara recálculo ao abrir
-        const savedCep = localStorage.getItem('psp_cep_entrega');
+        const savedCep = _lsGet('psp_cep_entrega');
         if (savedCep) {
             const cepEl = document.getElementById('checkout-cep');
             if (cepEl) cepEl.value = savedCep;
@@ -2376,7 +2397,7 @@ class App {
                 return;
             }
 
-            localStorage.setItem('psp_cep_entrega', input.value);
+            _lsSet('psp_cep_entrega', input.value);
             await this._calcularFrete(produtoId, cep, resultEl, btn);
         });
 
@@ -2384,7 +2405,7 @@ class App {
         document.addEventListener('shown.bs.modal', (e) => {
             const input = e.target.querySelector('.frete-cep-input');
             if (!input) return;
-            const saved = localStorage.getItem('psp_cep_entrega');
+            const saved = _lsGet('psp_cep_entrega');
             if (saved) input.value = saved;
         });
     }
@@ -2439,7 +2460,7 @@ class App {
                 return;
             }
 
-            localStorage.setItem('psp_cep_entrega', cep.replace(/(\d{5})(\d{3})/, '$1-$2'));
+            _lsSet('psp_cep_entrega', cep.replace(/(\d{5})(\d{3})/, '$1-$2'));
             this._renderFreteCheckout(data.servicos, data.cep, resultEl);
 
         } catch (_) {

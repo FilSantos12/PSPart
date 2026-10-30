@@ -513,11 +513,14 @@
     // Limpa o carrinho (B2b) só na confirmação de pagamento, e só se esta aba foi quem
     // acabou de iniciar ESTE checkout (sessionStorage setado antes do redirect ao MP em
     // script.js). Evita esvaziar o carrinho de quem só está revisitando um link antigo.
-    if ((p.status === 'aprovado' || p.status === 'em_processamento') &&
-        sessionStorage.getItem('psp_checkout_pedido_pendente') === String(p.id)) {
-      localStorage.removeItem('psp_cart');
-      sessionStorage.removeItem('psp_checkout_pedido_pendente');
-    }
+    // Armazenamento bloqueado (Patch O): a leitura falha e nada é limpo — a página segue.
+    try {
+      if ((p.status === 'aprovado' || p.status === 'em_processamento') &&
+          sessionStorage.getItem('psp_checkout_pedido_pendente') === String(p.id)) {
+        localStorage.removeItem('psp_cart');
+        sessionStorage.removeItem('psp_checkout_pedido_pendente');
+      }
+    } catch (e) { /* sem acesso ao armazenamento: não limpa */ }
 
     $('rPedidoId').textContent  = p.numero_pedido || p.id;
     $('rCriadoEm').textContent  = 'Realizado em ' + fmtData(p.criado_em);

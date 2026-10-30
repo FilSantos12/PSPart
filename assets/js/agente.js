@@ -39,11 +39,17 @@ class AgenteChat {
 
     _agendarAbertura() {
         // Abre automaticamente após 10s, apenas uma vez por sessão
-        if (sessionStorage.getItem('psp_agente_auto_aberto')) return;
+        // Armazenamento bloqueado (Patch O): leitura que falha = "não abriu ainda"; gravação que
+        // falha não persiste, mas o painel abre do mesmo jeito
+        let jaAbriu = null;
+        try { jaAbriu = sessionStorage.getItem('psp_agente_auto_aberto'); } catch { /* bloqueado */ }
+        if (jaAbriu) return;
         setTimeout(() => {
             if (this._painel.style.display !== 'flex') {
                 this._abrir_painel();
-                sessionStorage.setItem('psp_agente_auto_aberto', '1');
+                try {
+                    sessionStorage.setItem('psp_agente_auto_aberto', '1');
+                } catch { /* sem persistência: vale só nesta página */ }
             }
         }, 10000);
     }
