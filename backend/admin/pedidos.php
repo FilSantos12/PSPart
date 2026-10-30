@@ -109,7 +109,7 @@ layout_head('Pedidos');
                 </tr>
             <?php endforeach; ?>
             <?php if (empty($pedidos)): ?>
-                <tr><td colspan="7" class="text-center text-muted py-4">Nenhum pedido encontrado.</td></tr>
+                <tr><td colspan="8" class="text-center text-muted py-4">Nenhum pedido encontrado.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>

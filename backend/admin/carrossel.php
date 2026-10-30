@@ -2,6 +2,7 @@
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/_layout.php';
+require_once __DIR__ . '/_confirmar.php';
 
 $pdo     = getDB();
 $erros   = [];
@@ -245,8 +246,15 @@ layout_head('Carrossel de Campanhas');
                                                aria-label="Editar a campanha <?= htmlspecialchars($c['titulo']) ?>">
                                                 <i class="fas fa-pen" aria-hidden="true"></i>
                                             </a>
+                                            <?php
+                                                $confirmaCamp = 'Excluir a campanha <strong>' . htmlspecialchars($c['titulo']) . '</strong>?'
+                                                              . ' Ela sai do cadastro (e do carrossel da home, se estiver no ar)'
+                                                              . ' e o arquivo da imagem é apagado do servidor.'
+                                                              . '<br><strong class="text-danger">A exclusão não pode ser desfeita.</strong>';
+                                            ?>
                                             <form method="POST" class="d-inline"
-                                                  onsubmit="return confirm('Remover a campanha \'<?= htmlspecialchars($c['titulo']) ?>\'? A imagem também será apagada.')">
+                                                  data-confirmar-titulo="Excluir campanha" data-confirmar-botao="Excluir"
+                                                  data-confirmar-texto="<?= htmlspecialchars($confirmaCamp) ?>">
                                                 <input type="hidden" name="action" value="excluir">
                                                 <input type="hidden" name="campanha_id" value="<?= $c['id'] ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir"
@@ -362,4 +370,5 @@ layout_head('Carrossel de Campanhas');
     </div>
 </div>
 
+<?php admin_modal_confirmar(); ?>
 <?php layout_foot(); ?>

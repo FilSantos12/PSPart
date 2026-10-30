@@ -382,6 +382,7 @@ function atualizarLinha(json) {
             <td><strong>#${json.order_id}</strong></td>
             <td><div class="small">—</div></td>
             <td><span class="badge bg-${clr} td-status">${lbl}</span></td>
+            <td><span class="text-muted small">—</span></td>
             <td class="td-carrier">${carrier}</td>
             <td class="td-code" style="font-family:monospace;">${code}</td>
             <td class="td-updated small text-muted text-nowrap">${now}</td>

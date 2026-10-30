@@ -2,6 +2,7 @@
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/_layout.php';
+require_once __DIR__ . '/_confirmar.php';
 
 $pdo     = getDB();
 $erros   = [];
@@ -115,8 +116,17 @@ layout_head('Categorias');
                                     <td class="align-middle">
                                         <div class="adm-acoes">
                                         <?php if ($cat['total_produtos'] == 0): ?>
+                                            <?php
+                                                // Só chega aqui com 0 produtos (o servidor reconfere antes do DELETE)
+                                                $confirmaCat = 'Excluir a categoria <strong>' . htmlspecialchars($cat['nome']) . '</strong>'
+                                                             . ' (<code>' . htmlspecialchars($cat['slug']) . '</code>)?'
+                                                             . ' Nenhum produto usa esta categoria. Ela deixa de aparecer nos filtros da loja'
+                                                             . ' e na lista de categorias do cadastro de produto.'
+                                                             . '<br><strong class="text-danger">A exclusão não pode ser desfeita.</strong>';
+                                            ?>
                                             <form method="POST" class="d-inline"
-                                                  onsubmit="return confirm('Remover a categoria \'<?= htmlspecialchars($cat['nome']) ?>\'?')">
+                                                  data-confirmar-titulo="Excluir categoria" data-confirmar-botao="Excluir"
+                                                  data-confirmar-texto="<?= htmlspecialchars($confirmaCat) ?>">
                                                 <input type="hidden" name="action" value="excluir">
                                                 <input type="hidden" name="categoria_id" value="<?= $cat['id'] ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir"
@@ -125,9 +135,21 @@ layout_head('Categorias');
                                                 </button>
                                             </form>
                                         <?php else: ?>
-                                            <span class="text-muted small" title="Categoria em uso — reatribua os produtos para excluir">
-                                                <i class="fas fa-lock fa-sm"></i>
+                                            <?php
+                                                // Mesmo padrão do Patch P: bloqueado fica desabilitado com o motivo, nunca escondido.
+                                                // Botão desabilitado não recebe foco nem hover, então a dica fica no <span> em volta.
+                                                $nCat = (int) $cat['total_produtos'];
+                                                $motivoCat = $nCat . ' ' . ($nCat === 1 ? 'produto usa' : 'produtos usam')
+                                                           . ' esta categoria — reatribua para excluir';
+                                            ?>
+                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-title="<?= htmlspecialchars($motivoCat) ?>">
+                                                <button type="button" class="btn btn-sm btn-outline-danger" title="Excluir" disabled
+                                                        aria-label="Excluir a categoria <?= htmlspecialchars($cat['nome']) ?>"
+                                                        aria-describedby="motivo-cat-<?= (int) $cat['id'] ?>">
+                                                    <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                                </button>
                                             </span>
+                                            <span class="visually-hidden" id="motivo-cat-<?= (int) $cat['id'] ?>"><?= htmlspecialchars($motivoCat) ?></span>
                                         <?php endif; ?>
                                         </div>
                                     </td>
@@ -185,6 +207,12 @@ document.getElementById('input-nome').addEventListener('input', function () {
         .replace(/\s+/g, '-');
     document.getElementById('input-slug').value = slug;
 });
+
+// Dica com o motivo do bloqueio — o bundle do Bootstrap só carrega no layout_foot()
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+});
 </script>
 
+<?php admin_modal_confirmar(); ?>
 <?php layout_foot(); ?>

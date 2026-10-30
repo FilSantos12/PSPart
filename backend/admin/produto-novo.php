@@ -2,6 +2,7 @@
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/_layout.php';
+require_once __DIR__ . '/_confirmar.php';
 require_once __DIR__ . '/../helpers/disponibilidade.php';
 
 $erros        = [];
@@ -187,6 +188,7 @@ layout_head('Novo Produto', $easymde_css);
 <script>
 (function () {
     const PRODUTO_ID = <?= $produtoCriado ?>;
+    const PRODUTO_NOME = <?= json_encode($dados['nome'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?>;
     const AJAX_URL   = 'ajax-imagens.php';
     const grid       = document.getElementById('img-grid');
     const empty      = document.getElementById('img-empty');
@@ -225,7 +227,7 @@ layout_head('Novo Produto', $easymde_css);
             </div>`;
 
         div.querySelector('.btn-star').addEventListener('click', () => setPrincipal(img.id));
-        div.querySelector('.btn-del').addEventListener('click', () => deleteImg(img.id, div));
+        div.querySelector('.btn-del').addEventListener('click', () => deleteImg(img.id, div, !!img.principal));
         return div;
     }
 
@@ -261,8 +263,24 @@ layout_head('Novo Produto', $easymde_css);
             .then(res => { if (res.ok) loadImages(); });
     }
 
-    function deleteImg(imgId, cardEl) {
-        if (!confirm('Remover esta imagem?')) return;
+
+    function escaparHtml(valor) {
+        const div = document.createElement('div');
+        div.textContent = valor;
+        return div.innerHTML;
+    }
+
+    async function deleteImg(imgId, cardEl, principal) {
+        const outras = grid.querySelectorAll('.img-card').length > 1;
+        const ok = await admConfirmar({
+            titulo: 'Remover imagem',
+            texto:  'Remover esta imagem de <strong>' + escaparHtml(PRODUTO_NOME) + '</strong>?'
+                  + ' O arquivo é apagado do servidor.'
+                  + (principal && outras ? ' Ela é a imagem principal: a próxima da ordem passa a ser a principal.' : '')
+                  + '<br><strong class="text-danger">A remoção não pode ser desfeita.</strong>',
+            botao:  'Remover',
+        });
+        if (!ok) return;
         const fd = new FormData();
         fd.append('action', 'delete');
         fd.append('produto_id', PRODUTO_ID);
@@ -476,4 +494,5 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <?php endif; ?>
 
+<?php admin_modal_confirmar(); ?>
 <?php layout_foot(); ?>
