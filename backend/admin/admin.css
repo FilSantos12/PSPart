@@ -83,6 +83,16 @@ body { background: var(--adm-bg); }
 }
 .adm-pill--off { color: var(--bs-secondary-color); border-style: dashed; }
 
+/* Toasts de feedback (admToast, _layout.php) — empilham no canto inferior direito, acima dos
+   modais; no celular ocupam a largura disponível em vez de estourar os 350px do Bootstrap */
+.adm-toasts {
+    position: fixed; right: 0; bottom: 0; z-index: 1100;
+    padding: 1rem; max-width: 100%;
+    display: flex; flex-direction: column; gap: .5rem;
+}
+.adm-toasts .toast { max-width: 100%; }
+.adm-toasts .toast-body { white-space: pre-line; }
+
 /* Botão do menu: só abaixo de 768px (mesmo limite em que a barra lateral sai da tela) */
 .adm-menu-btn { display: none; }
 

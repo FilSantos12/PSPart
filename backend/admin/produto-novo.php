@@ -198,12 +198,7 @@ layout_head('Novo Produto', $easymde_css);
     let sortable;
 
     function showError(msg) {
-        const el = document.createElement('div');
-        el.className = 'alert alert-danger alert-dismissible py-2 mt-2';
-        el.style.maxWidth = '720px';
-        el.innerHTML = msg + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
-        grid.closest('.card').after(el);
-        setTimeout(() => el.remove(), 8000);
+        admToast(msg, 'danger');
     }
 
     function buildCard(img) {
@@ -315,7 +310,7 @@ layout_head('Novo Produto', $easymde_css);
         Promise.all(uploads).then(results => {
             progress.classList.add('d-none');
             const erros = results.filter(r => !r.ok).map(r => r.erro);
-            if (erros.length) showError(erros.join('<br>'));
+            if (erros.length) showError(erros.join('\n'));
             loadImages();
         });
     }

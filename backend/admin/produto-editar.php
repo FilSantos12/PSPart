@@ -2,6 +2,7 @@
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/_layout.php';
+require_once __DIR__ . '/_ui.php';
 require_once __DIR__ . '/_confirmar.php';
 require_once __DIR__ . '/../helpers/disponibilidade.php';
 require_once __DIR__ . '/../helpers/admin-produtos-log.php';
@@ -166,12 +167,7 @@ layout_head('Editar Produto', $easymde_css);
     </a>
 </div>
 
-<?php if (isset($_GET['msg'])): ?>
-    <div class="alert alert-success alert-dismissible fade show py-2">
-        <?= htmlspecialchars($_GET['msg']) ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-<?php endif; ?>
+<?php admin_alerta_msg(); ?>
 
 <?php if ($erros): ?>
     <div class="alert alert-danger"><ul class="mb-0"><?php foreach ($erros as $e) echo '<li>' . htmlspecialchars($e) . '</li>'; ?></ul></div>
@@ -363,12 +359,7 @@ new EasyMDE({
     let sortable;
 
     function showError(msg) {
-        const el = document.createElement('div');
-        el.className = 'alert alert-danger alert-dismissible py-2 mt-2';
-        el.style.maxWidth = '720px';
-        el.innerHTML = msg + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
-        grid.closest('.card').after(el);
-        setTimeout(() => el.remove(), 8000);
+        admToast(msg, 'danger');
     }
 
     function buildCard(img) {
@@ -487,7 +478,7 @@ new EasyMDE({
         Promise.all(uploads).then(results => {
             progress.classList.add('d-none');
             const erros = results.filter(r => !r.ok).map(r => r.erro);
-            if (erros.length) showError(erros.join('<br>'));
+            if (erros.length) showError(erros.join('\n'));
             loadImages();
         });
     }

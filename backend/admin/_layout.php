@@ -86,7 +86,26 @@ function layout_foot(): void {
     </div><!-- .content -->
 </div><!-- .main-wrapper -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<div class="adm-toasts" id="admToasts"></div>
 <script>
+// Feedback de AJAX (Patch U) — admToast(msg, 'success' | 'danger').
+// Sucesso some em 3,5s; erro fica até o operador fechar e é anunciado como alerta.
+// Texto puro (textContent): quebras de linha em msg viram linhas no toast.
+function admToast(msg, tipo = 'success') {
+    const erro = tipo === 'danger';
+    const el = document.createElement('div');
+    el.className = 'toast align-items-center text-white border-0 bg-' + tipo;
+    el.setAttribute('role', erro ? 'alert' : 'status');
+    el.setAttribute('aria-live', erro ? 'assertive' : 'polite');
+    el.innerHTML = '<div class="d-flex"><div class="toast-body"></div>'
+                 + '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button></div>';
+    el.querySelector('.toast-body').textContent = msg;
+    document.getElementById('admToasts').appendChild(el);
+    el.addEventListener('hidden.bs.toast', () => el.remove());
+    new bootstrap.Toast(el, erro ? { autohide: false } : { delay: 3500 }).show();
+}
+
+
 // Menu aberto no celular e janela alargada acima de 768px: fecha, senão o fundo escuro fica
 window.matchMedia('(max-width: 768px)').addEventListener('change', function (e) {
     if (e.matches) return;

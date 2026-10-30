@@ -1,5 +1,5 @@
 <?php
-// Modal de confirmação compartilhado (Patch U) — mesmo padrão do #modalExcluir de produtos.php:
+// Modal de confirmação compartilhado (Patch U) — nasceu do #modalExcluir de produtos.php (Patch P):
 // um modal só, com título, texto e botão trocados por ação. Chamar admin_modal_confirmar()
 // antes do layout_foot(); o JS roda no clique, quando o bundle do Bootstrap já carregou.
 //

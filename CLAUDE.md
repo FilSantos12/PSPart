@@ -201,7 +201,7 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 --card: #ffffff          /* superfícies de card (produto, diferencial, contato, pagamentos) */
 /* --ok #16a34a / --warn #d97706 / --req #64748b — estados do badge de disponibilidade:
    definidos SÓ em assets/css/disponibilidade.css (carregado antes do style.css na loja,
-   sozinho no admin). Também usados por .cart-volume-aviso (Patch H; hoje: bloqueio, parcial e faixa da grade) */
+   e pelo _layout.php no admin, ao lado do admin.css). Também usados por .cart-volume-aviso (Patch H; hoje: bloqueio, parcial e faixa da grade) */
 --radius-sm: 8px
 --shadow-lg: 0 18px 44px rgba(16,32,74,.18)
 --font-display: 'Montserrat', system-ui, sans-serif   /* escopado a .storefront h1-h6 */
@@ -314,7 +314,7 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 ### Arquivos admin relevantes
 | Arquivo | Função |
 |---|---|
-| `backend/admin/produtos.php` | Listagem — usa subquery para pegar imagem principal de `produto_imagens` com fallback para `imagem` legado; cache busting via `?v=filemtime()`; coluna "Disponibilidade" com o badge do helper + número do estoque; filtro Todos/Ativos/Inativos, badge de estado e ações Inativar/Reativar + Excluir definitivamente (ver "Inativar × excluir") |
+| `backend/admin/produtos.php` | Listagem — usa subquery para pegar imagem principal de `produto_imagens` com fallback para `imagem` legado; cache busting via `?v=filemtime()`; coluna "Disponibilidade" com o badge só do estado (`disponibilidade_label_estado()`) e coluna "Estoque" só com o número; filtro Todos/Ativos/Inativos, badge de estado e ações Inativar/Reativar + Excluir definitivamente (ver "Inativar × excluir") |
 | `backend/admin/produto-estado.php` | `POST {id, acao}` — `inativar` \| `reativar` \| `excluir` (substituiu `produto-excluir.php`, Patch P) |
 | `backend/admin/_disponibilidade-campos.php` | Partial do bloco "Disponibilidade" (select Modo de venda, checkbox "Permitir venda sem estoque" só em `automatico`, prazo em dias úteis quando aplicável, preview ao vivo) — incluído por `produto-novo.php` e `produto-editar.php` |
 | `backend/admin/ajax-disponibilidade.php` | `POST` JSON `{estoque, modo_venda, permite_venda_sem_estoque, prazo_encomenda_dias}` → roda o helper e devolve `label_admin`/`badge_class`; protegido por `_auth.php` (sem sessão → 302). Preview usa debounce de 300ms e mostra "—" em falha |
@@ -322,17 +322,30 @@ Ordem real do miolo (pós-reordenação): **hero → produtos → diferenciais �
 | `backend/admin/produto-editar.php` | Edição — inclui EasyMDE + gerenciamento de imagens múltiplas via AJAX |
 | `backend/admin/ajax-imagens.php` | AJAX para imagens: `upload`, `set-principal`, `reorder`, `delete` |
 | `backend/admin/categorias.php` | CRUD de categorias — listar com contagem de produtos, criar (auto-slug), excluir (bloqueado se há produtos vinculados) |
-| `backend/admin/_layout.php` | Layout base — aceita `$extra_head` como segundo parâmetro para injetar CSS no `<head>`. Admin usa só Bootstrap + `<style>` próprio; **nunca carregar `style.css` no admin** — só `../../assets/css/disponibilidade.css` (via `$extra_head`) nas páginas que mostram o badge |
+| `backend/admin/_layout.php` | Layout base — aceita `$extra_head` como segundo parâmetro para injetar CSS no `<head>`. Carrega Bootstrap, `assets/css/disponibilidade.css` (todas as páginas) e `admin.css`; **nunca carregar `style.css` no admin**. Também define `admToast()` e o menu offcanvas do celular — ver "Arquitetura do admin (Patch U)" |
 
 ### Inativar × excluir (Patch P)
 - **São ações distintas e explícitas.** `produto-estado.php` recebe `acao` e valida contra `ACOES_ESTADO_PRODUTO` no servidor; ação desconhecida ou ausente é rejeitada sem alterar nada. Inativar/reativar é `UPDATE ativo` + `atualizado_em`; repetir o estado atual é recusado
 - **Produto com pedidos vinculados NUNCA é excluído, só inativado.** `COUNT(DISTINCT pedido_id)` em consulta preparada dá a mensagem de recusa; a garantia no banco é a FK `itens_pedido.produto_id ON DELETE RESTRICT` (`PRAGMA foreign_keys = ON` em `getDB()`). Excluir recusado **nunca** vira inativação silenciosa. Pedidos de teste também bloqueiam
-- **Toda ação destrutiva tem confirmação, e a confirmação descreve o efeito real.** Um modal só (`#modalExcluir`), com título/texto/botão trocados por ação: inativar (aviso, "deixa de aparecer na loja e pode ser reativado depois"), reativar (simples), excluir (perigo, nome + código + "Esta ação é irreversível."). O "Excluir definitivamente" fica **desabilitado, não escondido**, com o motivo "N pedidos vinculados — só pode ser inativado"
-- **Recusa nunca aparece como sucesso:** `?msg=` vem com `tipo=erro` → `alert-danger`; sucesso → `alert-success`
-- **Listagem:** filtro Todos (padrão — um inativo nunca some da vista) / Ativos / Inativos; badge de estado com os tokens de `disponibilidade.css` (`stock-badge--ok` Ativo, `--req` Inativo)
+- **Toda ação destrutiva tem confirmação, e a confirmação descreve o efeito real.** Passa pelo modal único do admin (`_confirmar.php`, `admConfirmar()`), com título/texto/botão trocados por ação: inativar (aviso, "deixa de aparecer na loja e pode ser reativado depois"), reativar (simples), excluir (perigo, nome + código + "Esta ação é irreversível."). Cancelar não envia nada; confirmar envia o POST explícito para `produto-estado.php`
+- **Ação bloqueada fica desabilitada com motivo, nunca escondida.** O "Excluir definitivamente" de produto com pedido vinculado é botão `disabled` dentro de `<span tabindex="0">`, que recebe a dica (tooltip) com o motivo "N pedidos vinculados — só pode ser inativado" — botão desabilitado não recebe foco nem hover. O mesmo motivo fica no `aria-describedby` do botão, num `visually-hidden`. Regra vale para todo o admin (categoria em uso segue o mesmo padrão)
+- **Recusa nunca aparece como sucesso:** `?msg=` vem com `tipo=erro` → `alert-danger`; sucesso → `alert-success` (`admin_alerta_msg()`, `_ui.php`)
+- **Listagem:** filtro Todos (padrão — um inativo nunca some da vista) / Ativos / Inativos; estado Ativo/Inativo em pílula neutra de contorno (`.adm-pill`, Patch U — não compete com o badge colorido de disponibilidade)
 - **Formulário de edição:** o checkbox "Produto ativo" continua, com texto explicando o efeito; grava `atualizado_em`
 - **Rastro:** `logs/admin-produtos.log` (`helpers/admin-produtos-log.php`, mesmo padrão de `_logEstoque()`): `data | admin_id=N | produto_id=N | ação | nome [| detalhe]`, ações `editar | inativar | reativar | excluir`. Quando o "Produto ativo" muda pelo formulário, a linha `editar` leva o detalhe `ativo: 1 → 0 (inativado pelo formulário)` — senão a inativação por esse caminho ficaria indistinguível de uma edição comum
 - **Incidente de 28/10/2026 (motivo do patch):** 7 produtos (ids 5, 6, 9, 10, 11, 12, 13) foram inativados pelo antigo botão "Excluir" da listagem. O modal de confirmação dizia "Excluir {nome}?"; o servidor, ao ver pedidos vinculados, **inativava** em silêncio e reportava em alerta verde de sucesso. Não havia data de alteração nem log; a origem foi confirmada depois com o responsável. Os 7 continuam inativos (decisão do dono, não do patch)
+
+### Arquitetura do admin (Patch U)
+> Camada de base comum a todas as páginas que usam `_layout.php`. Fora dela: `index.php` (login) e `pedido-ficha.php` (impressão), que têm página própria.
+
+- **`backend/admin/admin.css`** — folha única do admin, carregada pelo `_layout.php` depois do Bootstrap e do `$extra_head` (cache busting por `filemtime`). Tokens: `--adm-bg #f4f6f9`, `--adm-sidebar #1e2a3a`, `--adm-sidebar-hover #2e3f54` (também as divisórias da barra lateral), `--adm-line #dee2e6`, `--adm-brand #274185`. Cor nova no admin entra como token aqui, não em `<style>` de página. `.bg-purple` (status `em_processamento`) mora aqui
+- **`_ui.php`** — fonte única de rótulos e cores de status de pedido (`ADMIN_STATUS_PEDIDO_ROTULO`, `ADMIN_STATUS_PEDIDO_COR`), `admin_status_rotulo()`, `admin_badge_status_pedido($status, $classes)` e `admin_alerta_msg()` (alerta de `?msg=`: `tipo=erro` → danger com ícone e `role="alert"`; o resto → success). Status fora do mapa aparece com o nome técnico, nunca com rótulo inventado
+- **`tracking-admin.php` mantém cores próprias de propósito:** ali o badge sinaliza falha operacional (pedido que não deve ser despachado), não status de pagamento — cancelado é vermelho e contestado amarelo, diferente das cores canônicas. O **texto** vem do mapa compartilhado
+- **`_confirmar.php`** — modal único de confirmação. Formulário: atributos `data-confirmar-titulo/-texto/-botao` (o envio espera o modal). JS: `admConfirmar({ titulo, texto, botao, classe })` → `Promise<boolean>`; Cancelar, Esc, X e fundo = não. O texto nomeia o item e diz o que o servidor faz de verdade (regra de UI honesta do Patch P). Chamar `admin_modal_confirmar()` antes do `layout_foot()`. Nenhum `confirm()` nativo no admin
+- **`admToast(msg, tipo)`** (no `layout_foot()` do `_layout.php`) — feedback de AJAX. `success` some em 3,5s; `danger` fica até o operador fechar e é anunciado como alerta. Texto puro (`textContent`, quebras de linha viram linhas). Ficam como alerta fixo, de propósito: o retorno da etiqueta do Melhor Envio em `pedido-detalhe.php` (confirma débito de saldo e diz o próximo passo) e a validação dentro do modal de `tracking-admin.php` (fica junto dos campos)
+- **`.adm-table`** (junto de `.table`) — padrão de tabela: padding perto de `table-sm`, `text-nowrap` nas colunas curtas, sempre dentro de `.table-responsive` (rolagem dentro da caixa, nunca da página). Tem `position: relative` para segurar conteúdo absoluto (`.visually-hidden` do motivo de bloqueio, cabeçalho "Ações") dentro do `.table-responsive` — sem isso o span escapa do corte e a página rola na horizontal
+- **`.adm-acoes`** — coluna de ação: só ícones em `btn-sm`, alinhados à direita, cada um com `aria-label` (nomeando o item) e `title`. Ação destrutiva continua distinguível por cor (`btn-outline-danger`). Ação bloqueada: ver "Inativar × excluir"
+- **Navegação abaixo de 768px:** a barra lateral vira offcanvas (`data-bs-toggle="offcanvas"` no botão `.adm-menu-btn` da barra superior, regras em `admin.css`). Não usa `offcanvas-md` porque essa classe força fundo transparente com `!important` acima de 768px. Janela alargada com o menu aberto fecha o menu (listener de `matchMedia` no `_layout.php`)
 
 ### Fluxo de produto-novo.php
 Página em duas fases sem redirect entre elas:
@@ -501,11 +514,12 @@ const imgSrc = imgPrincipal ? imgPrincipal.caminho : (p.imagem || '');
   - **Drawer**: aviso parcial vem pronto de `carrinho-avisos.php`, sem número
   - **Checkout**: o HTTP 422 de excedente não cita a quantidade disponível
   - **Agente**: `buscar_produtos` devolve `disponibilidade` (status), `pode_comprar` e `prazo_encomenda`, nunca o número
-- O admin continua vendo o número: badge com `label_admin` (lista e preview) + linha "Estoque: N" da lista
+- O admin continua vendo o número: na lista, coluna "Estoque" (o badge mostra só o estado, via `disponibilidade_label_estado()` — o número aparece uma vez por linha); no preview do formulário, badge com `label_admin`
+- `disponibilidade_label_estado($disp)` (Patch U) é função à parte, fora de `disponibilidade_produto()`: devolve "Últimas unidades" em `ultimas_unidades` e o `label` nos demais. Fica fora do array de propósito — a API da loja repassa o array `disponibilidade`, e um campo novo vazaria para o JSON da vitrine
 
 ### CSS — `assets/css/disponibilidade.css`
 - Contém **só**: os tokens `--ok/--warn/--req` (sem override dark), a base `.stock-badge`, `.stock-dot` e as 3 variantes — nada de fonte, spacing global ou reset
-- Loja: `<link>` **antes** do `style.css`. Admin: carregado sozinho via `$extra_head` (`produtos.php`, `produto-novo.php`, `produto-editar.php`)
+- Loja: `<link>` **antes** do `style.css`. Admin: carregado pelo `_layout.php` em todas as páginas (antes do `admin.css`, sem o `style.css`)
 
 ### Admin
 - `admin/_disponibilidade-campos.php` + `admin/ajax-disponibilidade.php` — ver "Módulo Admin de Produtos". Visibilidade condicional dos campos via `style.display`; o JS decide só **quais campos aparecem**, nunca o rótulo
@@ -790,7 +804,10 @@ Retorna adicionalmente: `chosen_carrier`, `chosen_service`, `shipping_price`, `s
 - **Novo pagamento de pedido recusado (→ Patch M):** `processar-pagamento.php` só barra `aprovado`/`em_processamento` (guarda dos 409); um pedido `recusado` aceita nova cobrança
 - **Admin sem token CSRF:** nenhum formulário do admin tem token. Um POST forjado por outro site, com o admin logado, pode inativar ou excluir produto (`produto-estado.php`), entre outras ações. Patch próprio
 - **Status manual livre no admin (→ Patch M):** `admin/pedido-detalhe.php` permite qualquer transição, sem confirmação, inclusive `cancelado` → `aprovado`. Nesse caso o estoque já devolvido **não** é baixado de novo — ajuste manual necessário
-- **Status `enviado` legado:** aparece no filtro de `admin/pedidos.php:48` e em um pedido do banco, mas não consta da lista válida (`pedido-detalhe.php:37`)
+- **Status `enviado` legado:** aparece no filtro de `admin/pedidos.php` (`$statusOpcoes`) e em um pedido do banco, mas não consta da lista válida (`$statusValidos` de `pedido-detalhe.php`). Desde o Patch U o mapa de `_ui.php` tem `enviado` (primary, "Enviado") só para exibição — se o status deve continuar existindo é decisão do Patch M
+- **Imagem principal no admin:** ao remover a imagem principal, o servidor promove a próxima da ordem, mas a estrela só se move no grid depois de recarregar a página (`deleteImg()` em `produto-editar.php`/`produto-novo.php` só remove o card)
+- **Falhas silenciosas de imagem:** marcar como principal (`set-principal`) e reordenar (`reorder`) em `ajax-imagens.php` não avisam o operador se o servidor recusar — o JS ignora a resposta de erro
+- **Sem paginação no admin:** nenhuma listagem pagina (`produtos.php`, `pedidos.php`, `tracking-admin.php` listam tudo; só o dashboard limita a 20)
 - **"Apague este arquivo"** ainda em `migrate_numero_pedido.php:59` e `migrate_shipping_choice.php:51` (higiene, baixa prioridade)
 - **Pedidos de teste no banco local:** 49 pedidos não pagos (12 pendentes, 5 recusados, 32 cancelados), 56 unidades de estoque presas — não tratados no Patch K. Os anteriores ao Patch I têm `qtd_sob_encomenda = 0` por default (não medido), então `quantidade − qtd_sob_encomenda` pode superestimar o que saiu do estoque
 - **`qtd_sob_encomenda` maior que o informado (→ Patch M, pendente de decisão):** se outro pedido consome estoque entre a exibição do drawer e o fechamento, `qtd_sob_encomenda` é gravado com o estoque relido na transação e fica maior do que o cliente viu — o cliente espera menos sob encomenda do que receberá. Nenhum canal avisa: a resposta de `pedido-carrinho.php`, o e-mail de pedido criado e `acompanhar.html` não expõem `qtd_sob_encomenda`; se o drawer não mostrava aviso parcial, o cliente nem sabe que há parte sob encomenda. O admin (`pedido-detalhe.php`, ficha de separação) também não exibe a coluna

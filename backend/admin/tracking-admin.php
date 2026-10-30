@@ -212,15 +212,6 @@ layout_head('Rastreamento de Pedidos');
     </div>
 </div>
 
-<!-- Toast de feedback -->
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
-    <div id="feedbackToast" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive">
-        <div class="d-flex">
-            <div class="toast-body" id="toastMsg"></div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    </div>
-</div>
 
 <script>
 const LABELS       = ['Em Preparação', 'Embalado', 'Enviado', 'Código de Rastreio'];
@@ -338,7 +329,7 @@ async function salvar() {
 
         modalBS.hide();
         atualizarLinha(json);
-        mostrarToast('Rastreamento salvo com sucesso!', 'success');
+        admToast('Rastreamento salvo com sucesso!', 'success');
 
     } catch (_) {
         mostrarAlertaModal('Erro de conexão. Tente novamente.', 'danger');
@@ -412,13 +403,6 @@ function mostrarAlertaModal(msg, tipo) {
     el.textContent = msg;
 }
 
-function mostrarToast(msg, tipo) {
-    const toast = document.getElementById('feedbackToast');
-    const body  = document.getElementById('toastMsg');
-    toast.className = `toast align-items-center text-white border-0 bg-${tipo}`;
-    body.textContent = msg;
-    new bootstrap.Toast(toast, { delay: 3500 }).show();
-}
 
 // Uppercase automático no campo de código
 document.getElementById('mCode').addEventListener('input', function () {

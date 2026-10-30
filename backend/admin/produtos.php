@@ -2,6 +2,8 @@
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/_layout.php';
+require_once __DIR__ . '/_ui.php';
+require_once __DIR__ . '/_confirmar.php';
 require_once __DIR__ . '/../helpers/disponibilidade.php';
 
 $pdo     = getDB();
@@ -48,14 +50,7 @@ layout_head('Produtos');
     </a>
 </div>
 
-<?php if (isset($_GET['msg'])): ?>
-    <?php $alertaErro = ($_GET['tipo'] ?? '') === 'erro'; ?>
-    <div class="alert alert-<?= $alertaErro ? 'danger' : 'success' ?> alert-dismissible fade show py-2" role="<?= $alertaErro ? 'alert' : 'status' ?>">
-        <?php if ($alertaErro): ?><i class="fas fa-circle-exclamation me-1"></i><?php endif; ?>
-        <?= htmlspecialchars($_GET['msg']) ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-<?php endif; ?>
+<?php admin_alerta_msg(); ?>
 
 <div class="card shadow-sm">
     <div class="table-responsive">
@@ -162,28 +157,13 @@ layout_head('Produtos');
     </div>
 </div>
 
-<!-- Modal de confirmação (Patch P) — um só, com título, texto e botão trocados por ação.
-     O texto descreve exatamente o que o servidor vai fazer; a ação vai explícita no POST. -->
-<div class="modal fade" id="modalExcluir" tabindex="-1" aria-labelledby="modalEstadoTitulo">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h6 class="modal-title" id="modalEstadoTitulo"></h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body" id="modalEstadoTexto"></div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-                <form method="POST" action="produto-estado.php">
-                    <input type="hidden" name="id" id="idProduto">
-                    <input type="hidden" name="acao" id="acaoProduto">
-                    <input type="hidden" name="estado" value="<?= htmlspecialchars($filtro) ?>">
-                    <button type="submit" class="btn btn-sm" id="modalEstadoBotao"></button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Confirmação (Patch P) pelo modal único de _confirmar.php: título, texto e botão trocados por
+     ação, com o texto descrevendo exatamente o que o servidor vai fazer; a ação vai explícita no POST. -->
+<form method="POST" action="produto-estado.php" id="formEstado">
+    <input type="hidden" name="id" id="idProduto">
+    <input type="hidden" name="acao" id="acaoProduto">
+    <input type="hidden" name="estado" value="<?= htmlspecialchars($filtro) ?>">
+</form>
 
 <script>
 const CONFIRMACOES_ESTADO = {
@@ -212,17 +192,19 @@ function escaparHtml(valor) {
 }
 
 document.querySelectorAll('.btn-estado').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
         const conf = CONFIRMACOES_ESTADO[btn.dataset.acao];
         if (!conf || btn.disabled) return;
+        const ok = await admConfirmar({
+            titulo: conf.titulo,
+            texto:  conf.texto(escaparHtml(btn.dataset.nome), escaparHtml(btn.dataset.codigo)),
+            botao:  conf.botao,
+            classe: conf.classe,
+        });
+        if (!ok) return;
         document.getElementById('idProduto').value   = btn.dataset.id;
         document.getElementById('acaoProduto').value = btn.dataset.acao;
-        document.getElementById('modalEstadoTitulo').textContent = conf.titulo;
-        document.getElementById('modalEstadoTexto').innerHTML    = conf.texto(escaparHtml(btn.dataset.nome), escaparHtml(btn.dataset.codigo));
-        const botao = document.getElementById('modalEstadoBotao');
-        botao.textContent = conf.botao;
-        botao.className   = 'btn btn-sm ' + conf.classe;
-        new bootstrap.Modal(document.getElementById('modalExcluir')).show();
+        document.getElementById('formEstado').submit();
     });
 });
 
@@ -232,4 +214,5 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
+<?php admin_modal_confirmar(); ?>
 <?php layout_foot(); ?>
